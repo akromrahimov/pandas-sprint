@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Как начать — Pandas Sprint</title>
+<meta name="description" content="Как начать курс по pandas: решать задачи прямо в браузере или установить Python, VS Code, Jupyter и библиотеки на свой компьютер за 20 минут.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/start/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Как начать — Pandas Sprint">
+<meta property="og:description" content="Как начать курс по pandas: решать задачи прямо в браузере или установить Python, VS Code, Jupyter и библиотеки на свой компьютер за 20 минут.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/start/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../program/">Программа</a>
+      <a href="../start/" aria-current="page">Как начать</a>
+      <a href="../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<main class="page">
+  <section>
+    <div class="eyebrow">Как начать</div>
+    <h1>Два способа учиться</h1>
+    <p class="lead">Можно начать прямо сейчас в браузере, а можно за 20 минут собрать рабочее место, как у настоящего аналитика. Начни с первого, ко второму вернись, когда втянешься.</p>
+  </section>
+
+  <section>
+    <div class="grid-cards">
+      <div class="tile"><span class="lab">Способ 1 · сразу</span><h3>Прямо на сайте</h3><p>Открываешь урок, пишешь код в редакторе на странице и нажимаешь «Запустить». Ничего ставить не нужно, работает в Chrome, Edge, Firefox и Safari. Первый запуск загружает Python около 10–20 секунд.</p><a class="btn y" href="../lessons/01-series-i-dataframe/" style="align-self:flex-start">Открыть урок 1 →</a></div>
+      <div class="tile"><span class="lab">Способ 2 · как на работе</span><h3>На своём компьютере</h3><p>Python, VS Code и Jupyter-ноутбуки. Так работают аналитики в компаниях. Файлы с данными скачиваются кнопкой в каждом уроке.</p><a class="btn line" href="#setup" style="align-self:flex-start">Инструкция ниже ↓</a></div>
+    </div>
+  </section>
+
+  <section id="setup">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><h2>Рабочее место за 20 минут</h2><div class="os" role="group" aria-label="Операционная система"><button aria-pressed="true" data-os="win">Windows</button><button aria-pressed="false" data-os="mac">macOS</button></div></div>
+
+    <ol class="setup-steps">
+      <li class="setup-step"><div><h3>Установи Python</h3><p>Python — язык программирования, на котором работает pandas.</p>
+        <ol class="how">
+          <li>Открой <a href="https://www.python.org/downloads/" target="_blank" rel="noopener">python.org/downloads</a>.<span data-os-text data-win=" Под жёлтой кнопкой найди строку <b>«Or get the standalone installer for Python 3.15.2»</b> и нажми в ней подчёркнутую жёлтую ссылку <b>Python 3.15.2</b> (если вышла новая версия, номер будет больше — это нормально). Саму жёлтую кнопку «Download Python install manager» не нажимай: она ставит менеджер версий, для курса он не нужен." data-mac=" Нажми жёлтую кнопку <b>Download Python 3.x.x</b>."> Под жёлтой кнопкой найди строку <b>«Or get the standalone installer for Python 3.15.2»</b> и нажми в ней подчёркнутую жёлтую ссылку <b>Python 3.15.2</b> (если вышла новая версия, номер будет больше — это нормально). Саму жёлтую кнопку «Download Python install manager» не нажимай: она ставит менеджер версий, для курса он не нужен.</span></li>
+          <li>Запусти скачанный файл.<span data-os-text data-win=" <b>Важно:</b> внизу первого окна поставь галочку <b>«Add python.exe to PATH»</b>, потом нажми <b>Install Now</b>." data-mac=" Нажимай «Продолжить» до конца установки."> <b>Важно:</b> внизу первого окна поставь галочку <b>«Add python.exe to PATH»</b>, потом нажми <b>Install Now</b>.</span></li>
+          <li>Проверь, что всё получилось: открой терминал и выполни команду ниже.</li>
+        </ol>
+    <div class="callout" style="margin:4px 0 2px"><b>Что такое терминал.</b> Это окно, куда пишут команды текстом вместо нажатия кнопок. Открыть: <span data-os-text data-win="нажми <kbd>Win</kbd>, напиши «Терминал» и нажми <kbd>Enter</kbd>" data-mac="нажми <kbd>Cmd</kbd>+<kbd>Пробел</kbd>, напиши «Терминал» и нажми <kbd>Enter</kbd>">нажми <kbd>Win</kbd>, напиши «Терминал» и нажми <kbd>Enter</kbd></span>. Команду из тёмного блока ниже копируешь, вставляешь в терминал (<span data-os-text data-win="&lt;kbd&gt;Ctrl&lt;/kbd&gt;+&lt;kbd&gt;V&lt;/kbd&gt; или правой кнопкой мыши" data-mac="&lt;kbd&gt;Cmd&lt;/kbd&gt;+&lt;kbd&gt;V&lt;/kbd&gt;"><kbd>Ctrl</kbd>+<kbd>V</kbd> или правой кнопкой мыши</span>) и нажимаешь <kbd>Enter</kbd>.</div>
+        <div class="cmd"><pre data-win="py --version" data-mac="python3 --version">py --version</pre><button type="button" aria-label="Копировать" title="Копировать"></button></div>
+        <p class="note">Команда спрашивает «какая у меня версия Python?». Должно появиться <code class="i">Python 3.12</code>, <code class="i">3.13</code> или новее. Если пишет «не найдено», перезапусти компьютер и попробуй ещё раз.</p></div></li>
+
+      <li class="setup-step"><div><h3>Установи VS Code и 2 расширения</h3><p>VS Code — бесплатный редактор, в котором удобно писать код. Расширения — это дополнения к нему. Нужны только два, оба от Microsoft:</p>
+        <div class="ext">
+          <div><b>Python</b>чтобы VS Code понимал язык Python и подсвечивал ошибки</div>
+          <div><b>Jupyter</b>чтобы писать код по кусочкам и сразу видеть результат, как на этом сайте</div>
+        </div>
+        <ol class="how">
+          <li>Открой <a href="https://code.visualstudio.com/" target="_blank" rel="noopener">code.visualstudio.com</a> и нажми синюю кнопку <b><span data-os-text data-win="Download for Windows" data-mac="Download for Mac">Download for Windows</span></b> справа вверху. <span data-os-text data-win="Запусти скачанный файл: прими соглашение (&lt;b&gt;I accept&lt;/b&gt;), нажимай &lt;b&gt;Next&lt;/b&gt;, потом &lt;b&gt;Install&lt;/b&gt; и &lt;b&gt;Finish&lt;/b&gt;." data-mac="Открой скачанный архив и перетащи &lt;b&gt;Visual Studio Code&lt;/b&gt; в папку «Программы».">Запусти скачанный файл: прими соглашение (<b>I accept</b>), нажимай <b>Next</b>, потом <b>Install</b> и <b>Finish</b>.</span> Если VS Code у тебя уже есть, этот пункт пропусти.</li>
+          <li>Слева нажми на значок из четырёх квадратиков <b>Extensions</b> (или <span data-os-text data-win="<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>" data-mac="<kbd>Cmd</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd>"><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>X</kbd></span>).</li>
+          <li>В поиске напиши <b>Python</b>, выбери первое расширение с подписью <b>Microsoft</b> и нажми <b>Install</b>.</li>
+          <li>То же самое для <b>Jupyter</b>.</li>
+        </ol>
+        <details class="alt"><summary>Или поставь оба расширения одной командой</summary>
+          <p>Скопируй и выполни в терминале. Команда делает то же, что кнопка Install: <code class="i">code</code> — это VS Code, <code class="i">--install-extension</code> — «установи расширение», дальше его точное имя.</p>
+          <div class="cmd"><pre>code --install-extension ms-python.python
+code --install-extension ms-toolsai.jupyter</pre><button type="button" aria-label="Копировать" title="Копировать"></button></div>
+          <p class="note">Если пишет, что <code class="i">code</code> не найдена, закрой и снова открой терминал после установки VS Code<span data-os-text data-win="." data-mac=". На macOS сначала в VS Code нажми Cmd+Shift+P и выбери «Shell Command: Install 'code' command in PATH».">.</span></p>
+        </details></div></li>
+
+      <li class="setup-step"><div><h3>Установи библиотеки одной командой</h3><p>Библиотеки — это готовые наборы инструментов для Python. <b>pip</b> — программа, которая их скачивает. Скопируй команду целиком, вставь в терминал и нажми <kbd>Enter</kbd>:</p>
+        <div class="cmd"><pre data-win="py -m pip install pandas matplotlib seaborn scipy openpyxl duckdb ipykernel" data-mac="python3 -m pip install pandas matplotlib seaborn scipy openpyxl duckdb ipykernel">py -m pip install pandas matplotlib seaborn scipy openpyxl duckdb ipykernel</pre><button type="button" aria-label="Копировать" title="Копировать"></button></div>
+        <dl class="explain">
+          <dt data-os-text data-win="py -m pip install" data-mac="python3 -m pip install">py -m pip install</dt><dd>«Python, установи эти библиотеки» — именно в тот Python, который ты поставил на шаге 1</dd>
+          <dt>pandas</dt><dd>таблицы — главный инструмент курса</dd>
+          <dt>matplotlib, seaborn</dt><dd>графики (неделя 3)</dd>
+          <dt>scipy</dt><dd>статистика для A/B-теста (урок 22)</dd>
+          <dt>openpyxl</dt><dd>чтение и запись Excel-файлов (урок 25)</dd>
+          <dt>duckdb</dt><dd>SQL-запросы прямо к таблицам pandas (урок 25)</dd>
+          <dt>ipykernel</dt><dd>связь между VS Code и Python, без неё ноутбуки не запустятся</dd>
+        </dl>
+        <p class="note">Установка займёт 1–3 минуты, в конце появится <code class="i">Successfully installed …</code>. Красные строки с <b>WARNING</b> про pip можно не читать — это не ошибка.</p></div></li>
+
+      <li class="setup-step"><div><h3>Создай папку курса и первый ноутбук</h3><p>Ноутбук — файл, где код пишется по кусочкам (ячейкам), а результат виден сразу под каждой ячейкой.</p>
+        <ol class="how">
+          <li>Создай обычную папку, например <b>Документы → pandas-sprint</b>, как любую другую папку на компьютере.</li>
+          <li>Скачай файл с данными кнопкой в <a href="../lessons/01-series-i-dataframe/">уроке 1</a> и положи его в эту папку.</li>
+          <li>В VS Code: <b>File → Open Folder</b> → выбери папку pandas-sprint.</li>
+          <li><b>File → New File</b> → <b>Jupyter Notebook</b>. Сохрани как <code class="i">day01.ipynb</code>.</li>
+          <li>Справа сверху нажми <b>Select Kernel</b> → <b>Python Environments</b>. В списке выбери строку <b>Python 3.15.2</b> (или ту версию, что ставил на шаге 1), у которой путь заканчивается на <code class="i">Python315\python.exe</code>. Строки с <b>.venv</b> не выбирай.</li>
+          <li>Напиши в ячейке <code class="i">import pandas as pd</code> и нажми <kbd>Shift</kbd>+<kbd>Enter</kbd>. Если VS Code спросит «Running cells requires the ipykernel package. Install?» — нажми <b>Install</b> и подожди. Под ячейкой появилась зелёная галочка и нет красного текста — всё готово!</li>
+        </ol>
+        <div class="callout y"><b>Ошибка «No module named 'pandas'»?</b> Значит, ноутбук подключён не к тому Python. Нажми справа сверху на название Python → <b>Select Another Kernel</b> → <b>Python Environments</b> и выбери другой. Если в списке несколько <b>.venv</b>, выбери обычный Python 3.x без .venv: библиотеки ставились именно в него.</div></div></li>
+
+      <li class="setup-step"><div><h3>Знаешь SQL? Подсказка для тебя</h3><p>SQL для курса не нужен. Но если ты с ним работал, в каждом уроке есть кнопка <b><span class="sqltag">SQL</span> → pandas</b> (слева в оглавлении и вверху урока). Она открывает таблицу-переводчик: как то же самое пишется на SQL и на pandas.</p></div></li>
+
+      <li class="setup-step"><div><h3>Не получается? Есть вариант без установки</h3><p><a href="https://colab.research.google.com" target="_blank" rel="noopener">Google Colab</a> — ноутбуки прямо в браузере, нужен только Google-аккаунт. Файл с данными загружается через значок папки слева. В первой ячейке выполни команду ниже, чтобы обновить pandas, затем меню <b>Среда выполнения → Перезапустить сеанс</b>.</p><div class="cmd"><pre>!pip install -U "pandas>=3.0"</pre><button type="button" aria-label="Копировать" title="Копировать"></button></div></div></li>
+    </ol>
+  </section>
+</main>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../program/">Программа</a> · <a href="../start/">Как начать</a> · <a href="../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../static/js/auth.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

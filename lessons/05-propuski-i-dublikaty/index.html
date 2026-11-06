@@ -1,0 +1,759 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 5. Пропуски и дубликаты — Pandas Sprint</title>
+<meta name="description" content="Урок 5 курса Pandas Sprint — Пропуски и дубликаты. Найти пустые клетки и повторы и решить, что с ними делать.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/05-propuski-i-dublikaty/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 5. Пропуски и дубликаты — Pandas Sprint">
+<meta property="og:description" content="Урок 5 курса Pandas Sprint — Пропуски и дубликаты. Найти пустые клетки и повторы и решить, что с ними делать.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/05-propuski-i-dublikaty/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="5">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>Пропуски и дубли</a></li><li><a href="#tools"><span class="dot">✓</span>7 приёмов</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">COALESCE, IS NULL, DISTINCT и ROW_NUMBER</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Всё, что ты делаешь с NULL и дублями в SQL, в pandas есть. Отличие одно: в SQL ты пишешь новый запрос, а в pandas получаешь новую таблицу, которую надо сохранить в переменную .</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>COUNT(*) - COUNT(price)</code></td><td><code>df[&#34;price&#34;].isna().sum()</code></td><td>сколько пустых</td></tr><tr><td><code>AVG(CASE WHEN price IS NULL THEN 1 ELSE 0 END)*100</code></td><td><code>df[&#34;price&#34;].isna().mean() * 100</code></td><td>доля пустых, %</td></tr><tr><td><code>WHERE age IS NOT NULL</code></td><td><code>df.loc[df[&#34;age&#34;].notna()] / df.dropna(subset=[&#34;age&#34;])</code></td><td>только с возрастом</td></tr><tr><td><code>COALESCE(promo_code, &#39;none&#39;)</code></td><td><code>df[&#34;promo_code&#34;].fillna(&#34;none&#34;)</code></td><td>пусто → значение</td></tr><tr><td><code>COALESCE(price, CASE plan WHEN … END)</code></td><td><code>df[&#34;price&#34;].fillna(df[&#34;plan&#34;].map(prices))</code></td><td>пусто → из другой колонки</td></tr><tr><td><code>SELECT DISTINCT *</code></td><td><code>df.drop_duplicates()</code></td><td>полные дубли</td></tr><tr><td><code>COUNT(DISTINCT user_id)</code></td><td><code>df[&#34;user_id&#34;].nunique()</code></td><td>уникальные клиенты</td></tr><tr><td><code>ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY updated_at DESC) = 1</code></td><td><code>df.sort_values(&#34;updated_at&#34;).drop_duplicates(subset=&#34;user_id&#34;, keep=&#34;last&#34;)</code></td><td>последняя версия клиента</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Ловушка из SQL.</b> В SQL <code class="i">AVG(age)</code> сам пропускает NULL. В pandas <code class="i">mean()</code> тоже пропускает NaN — это хорошо. Но если ты сначала сделал <code class="i">fillna(0)</code>, пропусков больше нет, и 0 честно попадёт в среднее. Возраст «упадёт» с 37.9 до 35.5 лет — и никакой ошибки ты не увидишь.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 5 из 30 · Неделя 1 · Фундамент</div>
+      <h1>Пропуски и дубликаты: <mark>сколько у нас на самом деле</mark> клиентов</h1>
+      <p class="lead">В реальных данных всегда есть пустые клетки и повторы. Их легко «починить» неправильно: заполнить пропуск нулём и испортить среднее или удалить половину таблицы одной командой. Сегодня учимся находить пропуски и дубликаты и решать, что с ними делать, не теряя данные.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Выгрузку из CRM подписочного сервиса TezKino превратить в честную таблицу «одна строка = один клиент»: убрать двойные строки, оставить последнюю версию каждого клиента, правильно заполнить пропуски. И ответить руководителю удержания, какой на самом деле отток и правда ли промокоды приводят «случайных» подписчиков.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Найти пропуски и их долю: <code class="i">isna().sum()</code> и <code class="i">isna().mean() * 100</code></li><li>Заполнять пропуски по смыслу: <code class="i">fillna("none")</code>, <code class="i">fillna(map(...))</code>, а где-то не заполнять вовсе</li><li>Находить и удалять дубли: <code class="i">duplicated</code>, <code class="i">drop_duplicates(subset=..., keep=...)</code></li><li>Оставлять последнюю версию записи: <code class="i">sort_values</code> + <code class="i">keep="last"</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>В CRM 1 220 клиентов. Или нет?</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Н</span>Нигора <small>руководитель удержания TezKino · 10:05</small></div>
+          <p>Привет! Выгрузила подписчиков за лето (июнь–август). В файле 1 220 строк, и я так и написала директору: «у нас 1 220 подписчиков». Но маркетинг говорит, что их меньше. Кто прав?</p>
+<div class="file">▤ tezkino_users.csv · 1 220 строк</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Н</span>Нигора <small>10:07</small></div>
+          <p>Второй вопрос к четвергу: какой у нас отток (сколько % отписались)? Есть подозрение, что промокоды приводят людей, которые сразу уходят. Если это правда — урежем бюджет на промо. И ещё: у части людей пустой возраст, коллега предложил «просто поставить 0».</p>
+        </div>
+      </div>
+      <p class="note">TezKino — учебный онлайн-кинотеатр с подпиской. Данные сгенерированы, но грязные как настоящие: CRM дважды выгрузила 40 строк целиком; у 30 клиентов есть старая запись (до смены тарифа) и новая; пустой <b>promo_code</b> значит «без промокода»; у 18 строк потерялась цена; у части клиентов нет возраста и даты последнего входа. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/tezkino_users.csv" download>Скачать tezkino_users.csv</a><span class="note">1 220 строк · 100 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;tezkino_users.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Пустая клетка и двойная строка</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь классный журнал. Иногда учитель не поставил оценку — клетка <b>пустая</b>. Иногда завуч переписал ученика в журнал два раза — он записан <b>дважды</b>. Если не заметить ни то, ни другое, средняя оценка класса получится неправильной.</p>
+<ul>
+<li><b>Пропуск</b> — пустая клетка. В pandas она выглядит как <b>NaN</b> (Not a Number, «не число») или <b>&lt;NA&gt;</b>.</li>
+<li><b>isna()</b> — «здесь пусто?». На каждую клетку отвечает True (пусто) или False (есть значение). <b>notna()</b> — наоборот.</li>
+<li><b>fillna(значение)</b> — «заполни пустые клетки вот этим».</li>
+<li><b>dropna()</b> — «выкинь строки, где есть пустая клетка». Опасно: выкидывает строку, даже если пусто только в одной неважной колонке.</li>
+<li><b>Дубликат</b> — строка, которая повторяет другую. <b>duplicated()</b> отвечает «эта строка уже встречалась выше?» (True/False). <b>drop_duplicates()</b> удаляет повторы.</li>
+</ul>
+<p>Главная мысль дня: <b>пропуск — это тоже информация</b>. Пустой промокод значит «пришёл без промокода» — заполняем словом "none". Пустая цена — потеряли, но знаем тариф — восстанавливаем по тарифу. Пустой возраст — не знаем, и <b>0 туда ставить нельзя</b>: человеку не 0 лет.</p>
+</div>
+<p>Настоящие строки файла. Розовым — пропуски. Клиент 10645 записан дважды: старая строка (basic) и новая (standard).</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">Index</th><th>user_id<span class="dt">int64</span></th><th>plan<span class="dt">str</span></th><th>price<span class="dt">float64 · 18 NaN</span></th><th class="ser">promo_code<span class="dt">str · 755 NaN</span></th><th>age<span class="dt">float64 · 79 NaN</span></th><th>last_login<span class="dt">str · 117 NaN</span></th><th>updated_at<span class="dt">str</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">0</td><td>15013</td><td>standard</td><td>69000.0</td><td class="ser nan">NaN</td><td class="nan">NaN</td><td class="nan">NaN</td><td>2026-08-13</td></tr>
+<tr><td class="idx">1</td><td>14834</td><td>standard</td><td>69000.0</td><td class="ser">FREEWEEK</td><td>23.0</td><td>2026-07-12</td><td>2026-06-20</td></tr>
+<tr style="background:var(--pink-soft)"><td class="idx">726</td><td>10645</td><td>basic</td><td>39000.0</td><td class="ser">…</td><td>…</td><td>…</td><td>2026-06-01</td></tr>
+<tr style="background:var(--pink-soft)"><td class="idx">856</td><td>10645</td><td>standard</td><td>69000.0</td><td class="ser">…</td><td>…</td><td>…</td><td>2026-06-24</td></tr>
+</tbody>
+</table>
+</div>
+<div class="legend">
+<div><b>isna / fillna / dropna</b>Найти пустое, заполнить пустое, выкинуть строки с пустым.</div>
+<div><b>duplicated / drop_duplicates</b>Найти повторы, удалить повторы. subset — «сравнивай только по этим колонкам».</div>
+<div><b>keep="first" | "last" | False</b>Какую копию считать «оригиналом»: первую, последнюю или никакую (все копии — дубли).</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Семь приёмов: найти пустое, заполнить по смыслу, убрать дубли</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">df.isna()</code> — таблица того же размера, но вместо значений True/False. <code class="i">.sum()</code> после неё считает True в каждой колонке (True = 1, False = 0).</li>
+<li><code class="i">.isna().mean() * 100</code> — среднее из True/False — это <b>доля</b> True. Умножили на 100 — получили процент. Этим же приёмом считается любая доля: <code class="i">(df["city"] == "Ташкент").mean() * 100</code>.</li>
+<li><code class="i">.fillna("none")</code> — в скобках то, чем заполнить. Можно число, слово или целую Series: тогда каждая пустая клетка берёт значение из той же строки этой Series.</li>
+<li><code class="i">df["plan"].map(prices)</code> — <b>map</b> («сопоставить»): берёт каждое значение plan и ищет его в словаре prices. "basic" → 39000. Получается Series с ценой по тарифу.</li>
+<li><code class="i">drop_duplicates(subset="user_id", keep="last")</code> — <b>subset</b>: сравнивать строки только по user_id. <b>keep="last"</b>: из одинаковых оставить последнюю сверху вниз.</li>
+<li><code class="i">( df.drop_duplicates() .sort_values(...) .drop_duplicates(...) )</code> — цепочка: каждая точка берёт результат предыдущего шага. Круглые скобки вокруг позволяют переносить строки.</li>
+<li><code class="i">dropna(subset=["age"])</code> — выкинуть строки, где пусто <b>именно в age</b>. Без subset выкинет строку, где пусто хоть где-то.</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле TezKino. Твои цифры должны совпасть.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. isna().sum() — сколько пустых.</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+df = pd.read_csv("tezkino_users.csv")
+df.isna().sum()</pre><div class="out">user_id          0
+signup_date      0
+city             0
+plan             0
+price           18
+promo_code     755
+source           0
+age             79
+last_login     117
+churned          0
+updated_at       0
+dtype: int64</div><p class="plain"><b>Простыми словами:</b> в 4 колонках есть пустые клетки. Больше всего в <b>promo_code — 755</b>. Это не «сломанные данные»: человек просто пришёл без промокода. А <b>price 18</b> — это настоящая потеря, цена должна быть у всех.</p></div>
+<div class="card"><div class="q"><b>2. isna().mean() * 100 — доля пустых.</b></div>
+<pre class="code" data-cm="">(df.isna().mean() * 100).round(1)</pre><div class="out">user_id         0.0
+signup_date     0.0
+city            0.0
+plan            0.0
+price           1.5
+promo_code     61.9
+source          0.0
+age             6.5
+last_login      9.6
+churned         0.0
+updated_at      0.0
+dtype: float64</div><p class="plain"><b>Простыми словами:</b> mean() от True/False — это доля True. 755 пустых из 1 220 = <b>61.9%</b>. Не нужно делить <code class="i">shape[0]</code> на <code class="i">shape[0]</code> — <code class="i">.mean()</code> делает это сам. Это ровно тот приём, который ты пропускал 3 раза.</p></div>
+<div class="card"><div class="q"><b>3. fillna — COALESCE.</b></div>
+<pre class="code" data-cm="">promo = df["promo_code"].fillna("none")
+promo.value_counts()</pre><div class="out">promo_code
+none        755
+FREEWEEK    156
+START50     156
+KINO30      153
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> пустые клетки получили слово <b>"none"</b>. Теперь «без промокода» — нормальная группа, и <code class="i">value_counts()</code> её видит. Без fillna value_counts пустые просто пропускает.</p></div>
+<div class="card"><div class="q"><b>4. fillna из другой колонки через map.</b></div>
+<pre class="code" data-cm="">prices = {"basic": 39000, "standard": 69000, "premium": 119000}
+price_full = df["price"].fillna(df["plan"].map(prices))
+print(df["price"].isna().sum(), price_full.isna().sum())</pre><div class="out">18 0</div><p class="plain"><b>Простыми словами:</b> мы знаем тариф клиента, а у каждого тарифа своя цена. <code class="i">map(prices)</code> делает колонку «цена по тарифу», а <code class="i">fillna</code> берёт из неё значение только там, где цена пустая. Было <b>18</b> пустых — стало <b>0</b>.</p></div>
+<div class="card"><div class="q"><b>5. duplicated — полные дубли.</b></div>
+<pre class="code" data-cm="">print(df.duplicated().sum())
+print(df.drop_duplicates().shape)</pre><div class="out">40
+(1180, 11)</div><p class="plain"><b>Простыми словами:</b> 40 строк — точные копии строк выше (все 11 колонок совпадают). CRM выгрузила их дважды. После удаления — <b>1 180</b> строк. Но это ещё не число клиентов.</p></div>
+<div class="card"><div class="q"><b>6. Один клиент — две версии.</b></div>
+<pre class="code" data-cm="">df1 = df.drop_duplicates()
+df1.loc[df1["user_id"] == 10645, ["user_id", "plan", "price", "updated_at"]]</pre><div class="out">     user_id      plan    price  updated_at
+726    10645     basic  39000.0  2026-06-01
+856    10645  standard  69000.0  2026-06-24</div><p class="plain"><b>Простыми словами:</b> это не точная копия — тариф разный. Клиент 10645 1 июня был на basic, а 24 июня перешёл на standard. Правда — <b>последняя</b> запись. Таких клиентов 30.</p></div>
+<div class="card"><div class="q"><b>7. Последняя версия — ROW_NUMBER.</b></div>
+<pre class="code" data-cm="">users = (df.drop_duplicates()
+           .sort_values("updated_at")
+           .drop_duplicates(subset="user_id", keep="last"))
+print(len(users), users["user_id"].is_unique)</pre><div class="out">1150 True</div><p class="plain"><b>Простыми словами:</b> сначала сортируем от старых к новым, потом для каждого user_id оставляем последнюю (самую новую) строку. Получилось <b>1 150</b> клиентов, и <code class="i">is_unique</code> (все ли значения разные) = True. Значит, у Нигоры не 1 220 подписчиков, а 1 150.</p></div>
+</div>
+<div class="simple"><span class="tag">История про конфеты: пустой не значит ноль</span>
+<p>Пять друзей пишут, сколько им лет: <b>10, 10, 10, 10</b> и один забыл написать. Средний возраст — <b>10</b>: считаем только тех, кто написал (40 / 4). Если вместо пустого поставить 0, выйдет (10+10+10+10+0) / 5 = <b>8</b>. Стали ли друзья младше? Нет. Мы просто сами придумали малыша нулевого возраста.</p>
+<div aria-label="Возраст пяти друзей: четыре по 10 лет и один пропуск" class="story">
+<span style="height:100%"></span><span style="height:100%"></span><span style="height:100%"></span><span style="height:100%"></span><span class="rich" style="height:4%"></span>
+<span style="height:0;background:none"></span><span style="height:0;background:none"></span><span style="height:0;background:none"></span><span style="height:0;background:none"></span><span style="height:0;background:none"></span>
+</div>
+<div class="story-lab"><span>4 друга × 10 лет</span><span>розовый — пусто, а не 0</span></div>
+<p>Так и у Нигоры: 79 человек без возраста. С <code class="i">fillna(0)</code> средний возраст падает с 37.9 до 35.5. Правило: заполняй пропуск, только если <b>знаешь</b>, что там должно быть (промокода нет → "none", цена → по тарифу). Если не знаешь — оставь пустым, mean() его сам пропустит.</p>
+</div>
+<div class="card"><div class="q"><b>Бонус. dropna без subset — выкидывает почти всё.</b></div>
+<pre class="code" data-cm="">print(len(df.dropna()), len(df.dropna(subset=["age"])))</pre><div class="out">387 1141</div><p class="plain"><b>Простыми словами:</b> <code class="i">dropna()</code> без настроек выкинул строки, где пусто <b>хоть где-то</b>. А пусто в promo_code у 62% людей. Осталось <b>387 из 1 220</b> — ты потерял 68% клиентов. С <code class="i">subset=["age"]</code> ушли только 79 строк без возраста.</p></div>
+<div class="callout"><b>Правило аналитика.</b> Перед любым подсчётом «сколько клиентов» спроси: одна строка = один клиент? Проверь <code class="i">df["user_id"].is_unique</code>. Если False — сначала дубли, потом метрики.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>len(df) — это не число клиентов</h3><div class="bad">len(df)   # 1220 — строк, а не клиентов</div><div class="good">df[&#34;user_id&#34;].nunique()   # 1150</div><p>Строки ≠ клиенты, пока ты не проверил дубли.</p></div>
+        <div class="trap"><span class="n">2</span><h3>fillna(0) для того, чего не знаешь</h3><div class="bad">df[&#34;age&#34;].fillna(0).mean()   # 35.5 — выдуманные нули</div><div class="good">df[&#34;age&#34;].mean()   # 37.9 — NaN пропускается сам</div><p>0 — это значение. Ставь его, только если «ноль» правда.</p></div>
+        <div class="trap"><span class="n">3</span><h3>dropna() без subset</h3><div class="bad">df.dropna()   # 387 строк из 1220</div><div class="good">df.dropna(subset=[&#34;age&#34;])   # 1141 строка</div><p>Всегда указывай, по какой колонке выкидываешь пустые.</p></div>
+        <div class="trap"><span class="n">4</span><h3>drop_duplicates без сортировки</h3><div class="bad">df.drop_duplicates(subset=&#34;user_id&#34;)   # keep=&#34;first&#34;: случайная версия</div><div class="good">df.sort_values(&#34;updated_at&#34;).drop_duplicates(subset=&#34;user_id&#34;, keep=&#34;last&#34;)</div><p>keep="last" значит «последняя в таблице», а не «самая свежая». Свежей она станет только после sort_values.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Забыл сохранить результат</h3><div class="bad">df.drop_duplicates()
+len(df)   # всё ещё 1220</div><div class="good">df1 = df.drop_duplicates()
+len(df1)   # 1180</div><p>drop_duplicates, fillna и dropna возвращают новую таблицу. Старая не меняется (как с assign в уроке 3).</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>df.isna().sum() <span>— сколько пустых в каждой колонке</span></li><li>df.isna().mean() * 100 <span>— доля пустых, % (и любая доля: (mask).mean() * 100)</span></li><li>df[&#34;c&#34;].fillna(&#34;none&#34;) <span>— COALESCE(c, &#39;none&#39;)</span></li><li>df[&#34;price&#34;].fillna(df[&#34;plan&#34;].map(prices)) <span>— заполнить из другой колонки</span></li><li>df.dropna(subset=[&#34;age&#34;]) <span>— выкинуть пустые только в age</span></li><li>df.duplicated().sum() / df.drop_duplicates() <span>— полные дубли</span></li><li>df[&#34;id&#34;].nunique() / df[&#34;id&#34;].is_unique <span>— клиенты и проверка «одна строка = один клиент»</span></li><li>df.sort_values(&#34;updated_at&#34;).drop_duplicates(subset=&#34;id&#34;, keep=&#34;last&#34;) <span>— последняя версия</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. В колонке 1 220 строк, <code>isna().sum()</code> = 755. Как получить долю пропусков в %?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>df["c"].isna().count() * 100</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>df["c"].isna().mean() * 100</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df["c"].value_counts().max()</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df["c"].isna() * 100</code></span></button></div>
+          <div class="why" hidden>mean() от True/False — это доля True. 755 / 1220 = 0.619 → 61.9%.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Что вернёт <code>df["age"].fillna(0).mean()</code>, если у 79 человек нет возраста?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Тот же средний возраст</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Средний возраст ниже настоящего</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Ошибку</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>NaN</span></button></div>
+          <div class="why" hidden>79 нулей попали в среднее: 37.9 → 35.5. Пустое лучше оставить пустым — mean() пропускает NaN сам.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="2">
+          <p>3. Чем <code>df.dropna()</code> опасен на этом файле?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Удаляет только пустые клетки, а не строки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Выкидывает строку, если пусто хоть в одной колонке: остаётся 387 из 1 220</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Меняет df на месте</span></button></div>
+          <div class="why" hidden>Пусто в promo_code у 62% — и они все вылетают. Пиши dropna(subset=["age"]).</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. <code>df.duplicated().sum()</code> = 40, а <code>df["user_id"].nunique()</code> = 1150 при 1 220 строках. Почему 1 220 − 40 ≠ 1 150?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ошибка pandas</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Кроме полных копий есть клиенты с двумя разными версиями строки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>nunique не считает NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>duplicated считает только первую копию</span></button></div>
+          <div class="why" hidden>40 — точные копии. Ещё 30 клиентов записаны дважды с разными данными (сменили тариф). 1220 − 40 − 30 = 1150.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="2">
+          <p>5. Как оставить для каждого user_id самую новую запись?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>df.drop_duplicates(subset="user_id")</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>df.drop_duplicates(subset="user_id", keep="last")</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df.sort_values("updated_at").drop_duplicates(subset="user_id", keep="last")</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df["user_id"].unique()</code></span></button></div>
+          <div class="why" hidden>keep="last" — последняя в таблице. Самой новой она станет только после сортировки по дате.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Карта пропусков</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>na</code> число пропусков по колонкам и выведи <b>только колонки, где пропуски есть</b> (na &gt; 0).</li><li>Выведи долю пропусков в % (1 знак), отсортированную по убыванию, — первые 4 строки.</li></ol><p class='rule-t'>Доля — через .mean() * 100, без деления на shape[0] и без чисел руками.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 05 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># 1. сколько пропусков, только где они есть
+na =
+
+# 2. доля пропусков, %, по убыванию, топ-4
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">price          18
+promo_code    755
+age            79
+last_login    117
+dtype: int64
+promo_code    61.9
+last_login     9.6
+age            6.5
+price          1.5
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. сколько пропусков, только где они есть
+na =
+
+# 2. доля пропусков, %, по убыванию, топ-4
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Пропуски по колонкам ты считал в уроке 1. Доля пропусков — это среднее от True/False: если пусто в 3 клетках из 10, среднее равно 0.3. Потом умножь на 100, округли и отсортируй.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.isna().sum()</code> — сколько пустых, <code class="i">df.isna().mean()</code> — какая доля пустых. <code class="i">.sort_values(ascending=False)</code> — от большего к меньшему, <code class="i">.head(4)</code> — первые 4.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>na = df.isna().___()
+print(na[na ___ 0])
+print((df.isna().___() * 100).round(1).sort_values(ascending=___).head(___))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если отсортировать до округления — ничего страшного, а вот если забыть <code class="i">ascending=False</code>, наверху окажутся колонки без пропусков.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Полные дубли</h3>
+            <ol class='steps-t'><li>Выведи, сколько строк — <b>точные копии</b> строк выше.</li><li>Сохрани в <code class='i'>df1</code> таблицу без полных дублей.</li><li>В одну строку выведи <code class='i'>df.shape</code> и <code class='i'>df1.shape</code>.</li></ol><p class='rule-t'>df не меняй: результат — в новую переменную.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 05 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># 1. сколько полных дублей
+
+# 2. без дублей
+df1 =
+
+# 3. было и стало
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">40
+(1220, 11) (1180, 11)</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. сколько полных дублей
+
+# 2. без дублей
+df1 =
+
+# 3. было и стало
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Полный дубль — строка, у которой все клетки такие же, как у какой-то строки выше. Для этого есть готовая проверка и готовое удаление.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.duplicated()</code> — True у строк-копий, <code class="i">.sum()</code> — сколько их. <code class="i">df.drop_duplicates()</code> — таблица без копий (исходная не меняется).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df.___().sum())
+df1 = df.___()
+print(df.shape, df1.___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не пиши <code class="i">df = df.drop_duplicates()</code>: по заданию исходная таблица должна остаться прежней.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Один клиент — несколько строк</h3>
+            <ol class='steps-t'><li>Сделай df1 без полных дублей.</li><li>Выведи, сколько строк в df1 повторяют <b>user_id</b> строки выше.</li><li>Выведи число уникальных клиентов.</li><li>Выведи, сколько строк в df1 принадлежат клиентам, у которых <b>больше одной</b> строки (все копии, keep=False).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 05 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">df1 = df.drop_duplicates()
+
+# 2. повторы по user_id
+
+# 3. уникальные клиенты
+
+# 4. все строки «двойных» клиентов
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">30
+1150
+60</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df1 = df.drop_duplicates()
+
+# 2. повторы по user_id
+
+# 3. уникальные клиенты
+
+# 4. все строки «двойных» клиентов
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Теперь ищем повторы не всей строки, а только номера клиента. Та же проверка на дубли работает и на одной колонке. Чтобы отметить <b>все</b> строки повторяющихся клиентов (а не только вторые), у проверки есть настройка.</p>
+<p><b>Чем это сделать.</b> <code class="i">df1["user_id"].duplicated()</code> — повторы номера. <code class="i">.nunique()</code> — сколько разных. <code class="i">.duplicated(keep=False)</code> — True у всех копий, включая первую.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df1[&#34;user_id&#34;].___().sum())
+print(df1[&#34;user_id&#34;].___())
+print(df1[&#34;user_id&#34;].duplicated(keep=___).sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Проверка идёт по df1 (без полных дублей), а не по df — иначе полные копии посчитаются дважды.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Последняя версия клиента</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>users</code>: df без полных дублей → сортировка по <code class='i'>updated_at</code> → по user_id оставить <b>самую новую</b> строку.</li><li>В одну строку: число строк users и <code class='i'>is_unique</code> для user_id.</li><li>Выведи <code class='i'>value_counts()</code> тарифа plan в users.</li></ol><p class='rule-t'>Это ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY updated_at DESC) = 1.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 05 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">users =
+
+# число клиентов и проверка уникальности
+
+# тарифы
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1150 True
+plan
+basic       590
+standard    402
+premium     158
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>users =
+
+# число клиентов и проверка уникальности
+
+# тарифы
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Чтобы у каждого клиента осталась самая новая строка, выстрой строки по времени обновления — тогда новая версия окажется последней. Потом удали повторы клиента, оставив именно последнюю.</p>
+<p><b>Чем это сделать.</b> <code class="i">sort_values("updated_at")</code> — по времени. <code class="i">drop_duplicates(subset="user_id", keep="last")</code> — по каждому клиенту оставить последнюю строку. <code class="i">.is_unique</code> — True, если повторов нет.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>users = df.drop_duplicates().sort_values(&#34;___&#34;).drop_duplicates(subset=&#34;___&#34;, keep=&#34;___&#34;)
+print(len(users), users[&#34;user_id&#34;].___)
+print(users[&#34;plan&#34;].value_counts())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без сортировки «last» значит просто «ниже в файле», а не «новее». Сначала сортировка, потом удаление.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Заполнить по смыслу</h3>
+            <ol class='steps-t'><li>Сделай users (как в задаче 4).</li><li>Через <code class='i'>assign</code>: promo_code — пусто → <code class='i'>"none"</code>; price — пусто → цена по тарифу (словарь <code class='i'>prices</code> + <code class='i'>map</code>). Age <b>не трогай</b>.</li><li>Выведи пропуски в promo_code, price, age и <code class='i'>value_counts()</code> promo_code.</li></ol><p class='rule-t'>Цены: basic 39000, standard 69000, premium 119000. Не забудь users = users.assign(...).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 05 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">users = df.drop_duplicates().sort_values(&#34;updated_at&#34;).drop_duplicates(subset=&#34;user_id&#34;, keep=&#34;last&#34;)
+prices = {&#34;basic&#34;: 39000, &#34;standard&#34;: 69000, &#34;premium&#34;: 119000}
+users = users.assign(
+    promo_code=,
+    price=,
+)
+
+# пропуски в трёх колонках
+
+# промокоды
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">promo_code     0
+price          0
+age           70
+dtype: int64
+promo_code
+none        712
+START50     149
+KINO30      148
+FREEWEEK    141
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>users = df.drop_duplicates().sort_values(&#34;updated_at&#34;).drop_duplicates(subset=&#34;user_id&#34;, keep=&#34;last&#34;)
+prices = {&#34;basic&#34;: 39000, &#34;standard&#34;: 69000, &#34;premium&#34;: 119000}
+users = users.assign(
+    promo_code=,
+    price=,
+)
+
+# пропуски в трёх колонках
+
+# промокоды
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Пустые клетки заполняем по смыслу. Пустой промокод — значит, промокода не было. Пустая цена — её можно узнать из тарифа: у каждого тарифа своя цена. Возраст угадать нельзя, его не трогаем.</p>
+<p><b>Чем это сделать.</b> <code class="i">.fillna(значение)</code> — заполнить пустые клетки. <code class="i">df["plan"].map(словарь)</code> — по каждому тарифу подставить цену из словаря. В fillna можно передать целую колонку — тогда заполнение идёт строка в строку.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>users = users.assign(
+    promo_code=users[&#34;promo_code&#34;].fillna(&#34;___&#34;),
+    price=users[&#34;price&#34;].fillna(users[&#34;___&#34;].map(___)),
+)
+print(users[[&#34;promo_code&#34;, &#34;price&#34;, &#34;age&#34;]].isna().sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не заполняй цену средним по всем клиентам: у basic и premium цены разные, среднее даст цену, которой нет ни в одном тарифе.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Почему не ноль</h3>
+            <ol class='steps-t'><li>Сделай users (как в задаче 4).</li><li>В одну строку: средний возраст users и средний возраст после <code class='i'>fillna(0)</code> (оба 1 знак).</li><li>В одну строку: отток (% churned == 1) в users и в исходном df (1 знак).</li><li>Комментарием <code class='i'>#</code>: почему fillna(0) для возраста — ошибка.</li></ol><p class='rule-t'>Повтор урока 2: доля = (маска).mean() * 100. churned — это 0/1, поэтому mean() уже доля.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 05 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">users = df.drop_duplicates().sort_values(&#34;updated_at&#34;).drop_duplicates(subset=&#34;user_id&#34;, keep=&#34;last&#34;)
+
+# средний возраст: как есть и с fillna(0)
+
+# отток в users и в df, %
+
+# почему fillna(0) — ошибка:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">38.0 35.7
+25.8 25.2
+
++ комментарий: почему fillna(0) — ошибка</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>users = df.drop_duplicates().sort_values(&#34;updated_at&#34;).drop_duplicates(subset=&#34;user_id&#34;, keep=&#34;last&#34;)
+
+# средний возраст: как есть и с fillna(0)
+
+# отток в users и в df, %
+
+# почему fillna(0) — ошибка:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>fillna(0) занижает средний возраст: 70 человек без возраста посчитаны как 0 лет</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сравни два средних возраста: честное (пропуски пропускаются) и с пропусками, заменёнными на 0. Колонка churned хранит 0/1, поэтому её среднее уже и есть доля ушедших. Посчитай её для чистой таблицы и для сырой.</p>
+<p><b>Чем это сделать.</b> <code class="i">.mean()</code> сам пропускает NaN. <code class="i">.fillna(0)</code> заменяет пустые на 0. Отток в %: <code class="i">users["churned"].mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(round(users[&#34;age&#34;].mean(), 1), round(users[&#34;age&#34;].fillna(___).mean(), 1))
+print(round(users[&#34;churned&#34;].mean() * 100, 1), round(___[&#34;churned&#34;].mean() * 100, 1))
+# fillna(0) — ошибка, потому что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Во втором print первым идёт отток по <code class="i">users</code>, вторым — по исходному <code class="i">df</code>. Порядок важен для проверки.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт для Нигоры</h3>
+            <ol class='steps-t'><li>users: без полных дублей, последняя версия, promo_code и price заполнены (задачи 4–5).</li><li>Маска <code class='i'>promo</code>: клиент пришёл с промокодом.</li><li>Собери Series <code class='i'>report</code>: <code class='i'>rows_raw</code> (строк в df), <code class='i'>users</code>, <code class='i'>churn_%</code>, <code class='i'>churn_promo_%</code>, <code class='i'>churn_no_promo_%</code>, <code class='i'>never_login_%</code> (пустой last_login), <code class='i'>mrr_active_mln</code> (сумма price у не ушедших, млн, 1 знак).</li></ol><p class='rule-t'>Все доли — через .mean() * 100, 1 знак. Без промокода: ~promo.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 05 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">prices = {&#34;basic&#34;: 39000, &#34;standard&#34;: 69000, &#34;premium&#34;: 119000}
+users =
+
+promo =
+
+report = pd.Series({
+    &#34;rows_raw&#34;: len(df),
+    # продолжи
+})
+report
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">rows_raw            1220.0
+users               1150.0
+churn_%               25.8
+churn_promo_%         37.4
+churn_no_promo_%      18.7
+never_login_%          9.3
+mrr_active_mln        52.0
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>prices = {&#34;basic&#34;: 39000, &#34;standard&#34;: 69000, &#34;premium&#34;: 119000}
+users =
+
+promo =
+
+report = pd.Series({
+    &#34;rows_raw&#34;: len(df),
+    # продолжи
+})
+report
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала собери users как в задачах 4 и 5. Маска «пришёл с промокодом» — промокод не равен "none". Дальше 7 чисел: каждое — это доля или сумма по нужной группе клиентов.</p>
+<p><b>Чем это сделать.</b> Отток группы: <code class="i">users.loc[маска, "churned"].mean() * 100</code>, «без промокода» — <code class="i">~promo</code>. Не заходил ни разу — <code class="i">last_login</code> пустой: <code class="i">.isna().mean()</code>. Сумма цен у оставшихся: <code class="i">users.loc[users["churned"] == 0, "price"].sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>promo = users[&#34;promo_code&#34;] ___ &#34;none&#34;
+&#34;churn_promo_%&#34;: round(users.loc[___, &#34;churned&#34;].mean() * 100, 1),
+&#34;churn_no_promo_%&#34;: round(users.loc[___, &#34;churned&#34;].mean() * 100, 1),
+&#34;never_login_%&#34;: round(users[&#34;___&#34;].isna().mean() * 100, 1),
+&#34;mrr_active_mln&#34;: round(users.loc[users[&#34;churned&#34;] == ___, &#34;price&#34;].sum() / 1_000_000, 1),</pre></div><p class="hint-trap"><b>Частая ошибка.</b> rows_raw считается по сырому <code class="i">df</code>, а всё остальное — по очищенному <code class="i">users</code>.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Нигоре</h2>
+      <div class="case">
+        <p>Напиши ответ Нигоре в Telegram. Не больше 6 предложений. Структура: <b>сколько на самом деле подписчиков и почему не 1 220 (без терминов) → отток → отток с промокодом против без промокода → что делать с пустым возрастом → 1 риск или оговорка → 1 предложение к четвергу</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Настоящих подписчиков</span><span class="fact-chip">Отток</span><span class="fact-chip">Отток с промокодом</span><span class="fact-chip">Отток без промокода</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Нигора, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Почему, по твоему ответу, подписчиков не 1 220?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Часть строк повторялась целиком, а у части клиентов осталась старая запись — один человек считался дважды</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Часть клиентов ушла, поэтому их вычли</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В выгрузке потерялись строки</span></button></div>
+            <div class="why" hidden>40 строк были полными копиями, ещё у 30 клиентов была старая версия записи. После чистки — 1 150 человек.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что твой ответ предлагает делать с неизвестным возрастом?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Оставить пустым: если заполнить нулём, средний возраст занизится</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Заполнить нулём, чтобы не было пустых клеток</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Удалить этих клиентов из данных</span></button></div>
+            <div class="why" hidden>Ноль — это не «неизвестно», а возраст младенца. 70 нулей тянут средний возраст вниз.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Как твой ответ объясняет связь промокода и оттока?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>С промокодом уходят примерно в 2 раза чаще, но это связь, а не доказанная причина</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Промокод точно заставляет людей уходить — промокоды надо отменить</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>С промокодом уходят реже</span></button></div>
+            <div class="why" hidden>37,4% против 18,7%. Но промо часто берут те, кто и так собирался уйти, поэтому причину нужно проверять отдельно.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Нигора, привет! На самом деле у нас 1 150 подписчиков, а не 1 220: в выгрузке 40 строк повторялись целиком, а у 30 клиентов осталась старая запись до смены тарифа. Отток — 25,8% (297 человек). С промокодом уходят 37,4%, без промокода — 18,7%, то есть в 2 раза реже. Возраст неизвестен у 70 клиентов — заполнять его нулём нельзя, это занизит средний возраст; оставляем пустым. Оговорка: промокод связан с оттоком, но не обязательно его вызывает — пробные промо часто берут те, кто и так уйдёт. К четвергу предлагаю сравнить отток по разным промокодам.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>1 150 подписчиков и почему не 1 220 — без терминов</li><li>Отток 25,8%</li><li>С промокодом 37,4% против 18,7% без</li><li>Объяснено, почему пустой возраст не заполняют нулём</li><li>Есть оговорка про корреляцию</li><li>Есть предложение к четвергу</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 5</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/04-tipy-dannyh/"><small>← Урок 4</small><b>Типы данных: числа, строки, категории, память</b></a><a class="nx" href="../../lessons/06-tekst-str/"><small>Урок 6 →</small><b>Текст: .str-методы и очистка</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0445 \u043f\u043e\u0434\u043f\u0438\u0441\u0447\u0438\u043a\u043e\u0432", "value": 1150}, {"name": "\u041e\u0442\u0442\u043e\u043a", "pct": true, "value": 25.8}, {"name": "\u041e\u0442\u0442\u043e\u043a \u0441 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u043e\u043c", "pct": true, "value": 37.4}, {"name": "\u041e\u0442\u0442\u043e\u043a \u0431\u0435\u0437 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u0430", "pct": true, "value": 18.7}], "logic": [{"a": 0, "o": ["\u0427\u0430\u0441\u0442\u044c \u0441\u0442\u0440\u043e\u043a \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u043b\u0430\u0441\u044c \u0446\u0435\u043b\u0438\u043a\u043e\u043c, \u0430 \u0443 \u0447\u0430\u0441\u0442\u0438 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043e\u0441\u0442\u0430\u043b\u0430\u0441\u044c \u0441\u0442\u0430\u0440\u0430\u044f \u0437\u0430\u043f\u0438\u0441\u044c \u2014 \u043e\u0434\u0438\u043d \u0447\u0435\u043b\u043e\u0432\u0435\u043a \u0441\u0447\u0438\u0442\u0430\u043b\u0441\u044f \u0434\u0432\u0430\u0436\u0434\u044b", "\u0427\u0430\u0441\u0442\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0443\u0448\u043b\u0430, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0438\u0445 \u0432\u044b\u0447\u043b\u0438", "\u0412 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u043f\u043e\u0442\u0435\u0440\u044f\u043b\u0438\u0441\u044c \u0441\u0442\u0440\u043e\u043a\u0438"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u043f\u043e\u0434\u043f\u0438\u0441\u0447\u0438\u043a\u043e\u0432 \u043d\u0435 1 220?", "why": "40 \u0441\u0442\u0440\u043e\u043a \u0431\u044b\u043b\u0438 \u043f\u043e\u043b\u043d\u044b\u043c\u0438 \u043a\u043e\u043f\u0438\u044f\u043c\u0438, \u0435\u0449\u0451 \u0443 30 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0431\u044b\u043b\u0430 \u0441\u0442\u0430\u0440\u0430\u044f \u0432\u0435\u0440\u0441\u0438\u044f \u0437\u0430\u043f\u0438\u0441\u0438. \u041f\u043e\u0441\u043b\u0435 \u0447\u0438\u0441\u0442\u043a\u0438 \u2014 1 150 \u0447\u0435\u043b\u043e\u0432\u0435\u043a."}, {"a": 0, "o": ["\u041e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u043c: \u0435\u0441\u043b\u0438 \u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043d\u0443\u043b\u0451\u043c, \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0432\u043e\u0437\u0440\u0430\u0441\u0442 \u0437\u0430\u043d\u0438\u0437\u0438\u0442\u0441\u044f", "\u0417\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043d\u0443\u043b\u0451\u043c, \u0447\u0442\u043e\u0431\u044b \u043d\u0435 \u0431\u044b\u043b\u043e \u043f\u0443\u0441\u0442\u044b\u0445 \u043a\u043b\u0435\u0442\u043e\u043a", "\u0423\u0434\u0430\u043b\u0438\u0442\u044c \u044d\u0442\u0438\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0438\u0437 \u0434\u0430\u043d\u043d\u044b\u0445"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u0435\u0442 \u0434\u0435\u043b\u0430\u0442\u044c \u0441 \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u043c \u0432\u043e\u0437\u0440\u0430\u0441\u0442\u043e\u043c?", "why": "\u041d\u043e\u043b\u044c \u2014 \u044d\u0442\u043e \u043d\u0435 \u00ab\u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u00bb, \u0430 \u0432\u043e\u0437\u0440\u0430\u0441\u0442 \u043c\u043b\u0430\u0434\u0435\u043d\u0446\u0430. 70 \u043d\u0443\u043b\u0435\u0439 \u0442\u044f\u043d\u0443\u0442 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0432\u043e\u0437\u0440\u0430\u0441\u0442 \u0432\u043d\u0438\u0437."}, {"a": 0, "o": ["\u0421 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u043e\u043c \u0443\u0445\u043e\u0434\u044f\u0442 \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u0432 2 \u0440\u0430\u0437\u0430 \u0447\u0430\u0449\u0435, \u043d\u043e \u044d\u0442\u043e \u0441\u0432\u044f\u0437\u044c, \u0430 \u043d\u0435 \u0434\u043e\u043a\u0430\u0437\u0430\u043d\u043d\u0430\u044f \u043f\u0440\u0438\u0447\u0438\u043d\u0430", "\u041f\u0440\u043e\u043c\u043e\u043a\u043e\u0434 \u0442\u043e\u0447\u043d\u043e \u0437\u0430\u0441\u0442\u0430\u0432\u043b\u044f\u0435\u0442 \u043b\u044e\u0434\u0435\u0439 \u0443\u0445\u043e\u0434\u0438\u0442\u044c \u2014 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u044b \u043d\u0430\u0434\u043e \u043e\u0442\u043c\u0435\u043d\u0438\u0442\u044c", "\u0421 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u043e\u043c \u0443\u0445\u043e\u0434\u044f\u0442 \u0440\u0435\u0436\u0435"], "q": "\u041a\u0430\u043a \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0435\u0442 \u0441\u0432\u044f\u0437\u044c \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u0430 \u0438 \u043e\u0442\u0442\u043e\u043a\u0430?", "why": "37,4% \u043f\u0440\u043e\u0442\u0438\u0432 18,7%. \u041d\u043e \u043f\u0440\u043e\u043c\u043e \u0447\u0430\u0441\u0442\u043e \u0431\u0435\u0440\u0443\u0442 \u0442\u0435, \u043a\u0442\u043e \u0438 \u0442\u0430\u043a \u0441\u043e\u0431\u0438\u0440\u0430\u043b\u0441\u044f \u0443\u0439\u0442\u0438, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u043f\u0440\u0438\u0447\u0438\u043d\u0443 \u043d\u0443\u0436\u043d\u043e \u043f\u0440\u043e\u0432\u0435\u0440\u044f\u0442\u044c \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e."}]}, "case_model": "\u041d\u0438\u0433\u043e\u0440\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u041d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435 \u0443 \u043d\u0430\u0441 1 150 \u043f\u043e\u0434\u043f\u0438\u0441\u0447\u0438\u043a\u043e\u0432, \u0430 \u043d\u0435 1 220: \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 40 \u0441\u0442\u0440\u043e\u043a \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u043b\u0438\u0441\u044c \u0446\u0435\u043b\u0438\u043a\u043e\u043c, \u0430 \u0443 30 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043e\u0441\u0442\u0430\u043b\u0430\u0441\u044c \u0441\u0442\u0430\u0440\u0430\u044f \u0437\u0430\u043f\u0438\u0441\u044c \u0434\u043e \u0441\u043c\u0435\u043d\u044b \u0442\u0430\u0440\u0438\u0444\u0430. \u041e\u0442\u0442\u043e\u043a \u2014 25,8% (297 \u0447\u0435\u043b\u043e\u0432\u0435\u043a). \u0421 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u043e\u043c \u0443\u0445\u043e\u0434\u044f\u0442 37,4%, \u0431\u0435\u0437 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u0430 \u2014 18,7%, \u0442\u043e \u0435\u0441\u0442\u044c \u0432 2 \u0440\u0430\u0437\u0430 \u0440\u0435\u0436\u0435. \u0412\u043e\u0437\u0440\u0430\u0441\u0442 \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u0435\u043d \u0443 70 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u2014 \u0437\u0430\u043f\u043e\u043b\u043d\u044f\u0442\u044c \u0435\u0433\u043e \u043d\u0443\u043b\u0451\u043c \u043d\u0435\u043b\u044c\u0437\u044f, \u044d\u0442\u043e \u0437\u0430\u043d\u0438\u0437\u0438\u0442 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0432\u043e\u0437\u0440\u0430\u0441\u0442; \u043e\u0441\u0442\u0430\u0432\u043b\u044f\u0435\u043c \u043f\u0443\u0441\u0442\u044b\u043c. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434 \u0441\u0432\u044f\u0437\u0430\u043d \u0441 \u043e\u0442\u0442\u043e\u043a\u043e\u043c, \u043d\u043e \u043d\u0435 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u043e \u0435\u0433\u043e \u0432\u044b\u0437\u044b\u0432\u0430\u0435\u0442 \u2014 \u043f\u0440\u043e\u0431\u043d\u044b\u0435 \u043f\u0440\u043e\u043c\u043e \u0447\u0430\u0441\u0442\u043e \u0431\u0435\u0440\u0443\u0442 \u0442\u0435, \u043a\u0442\u043e \u0438 \u0442\u0430\u043a \u0443\u0439\u0434\u0451\u0442. \u041a \u0447\u0435\u0442\u0432\u0435\u0440\u0433\u0443 \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0441\u0440\u0430\u0432\u043d\u0438\u0442\u044c \u043e\u0442\u0442\u043e\u043a \u043f\u043e \u0440\u0430\u0437\u043d\u044b\u043c \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u0430\u043c.", "case_xp": 30, "cheat": [["df.isna().sum()", "\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u0443\u0441\u0442\u044b\u0445 \u0432 \u043a\u0430\u0436\u0434\u043e\u0439 \u043a\u043e\u043b\u043e\u043d\u043a\u0435"], ["df.isna().mean() * 100", "\u0434\u043e\u043b\u044f \u043f\u0443\u0441\u0442\u044b\u0445, % (\u0438 \u043b\u044e\u0431\u0430\u044f \u0434\u043e\u043b\u044f: (mask).mean() * 100)"], ["df[\"c\"].fillna(\"none\")", "COALESCE(c, \u0027none\u0027)"], ["df[\"price\"].fillna(df[\"plan\"].map(prices))", "\u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u0438\u0437 \u0434\u0440\u0443\u0433\u043e\u0439 \u043a\u043e\u043b\u043e\u043d\u043a\u0438"], ["df.dropna(subset=[\"age\"])", "\u0432\u044b\u043a\u0438\u043d\u0443\u0442\u044c \u043f\u0443\u0441\u0442\u044b\u0435 \u0442\u043e\u043b\u044c\u043a\u043e \u0432 age"], ["df.duplicated().sum() / df.drop_duplicates()", "\u043f\u043e\u043b\u043d\u044b\u0435 \u0434\u0443\u0431\u043b\u0438"], ["df[\"id\"].nunique() / df[\"id\"].is_unique", "\u043a\u043b\u0438\u0435\u043d\u0442\u044b \u0438 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u00ab\u043e\u0434\u043d\u0430 \u0441\u0442\u0440\u043e\u043a\u0430 = \u043e\u0434\u0438\u043d \u043a\u043b\u0438\u0435\u043d\u0442\u00bb"], ["df.sort_values(\"updated_at\").drop_duplicates(subset=\"id\", keep=\"last\")", "\u043f\u043e\u0441\u043b\u0435\u0434\u043d\u044f\u044f \u0432\u0435\u0440\u0441\u0438\u044f"]], "data": "../../data/", "datasets": ["tezkino_users.csv"], "day": 5, "hint_cost": 5, "quiz": [1, 1, 2, 1, 2], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"tezkino_users.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["price 18", "promo_code 755", "age 79", "last_login 117", "promo_code 61.9", "last_login 9.6", "age 6.5", "price 1.5"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["40", "1220, 11", "1180, 11"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["30", "1150", "60"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["1150", "True", "basic 590", "standard 402", "premium 158"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["promo_code 0", "price 0", "age 70", "none 712", "START50 149", "KINO30 148", "FREEWEEK 141"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["38.0", "35.7", "25.8", "25.2"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["rows_raw 1220", "users 1150", "churn_% 25.8", "churn_promo_% 37.4", "churn_no_promo_% 18.7", "never_login_% 9.3", "mrr_active_mln 52.0"], "setup": "", "xp": 25}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

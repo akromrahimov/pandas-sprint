@@ -1,0 +1,663 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Проект 27. Interview day: 10 задач на время — Pandas Sprint</title>
+<meta name="description" content="Проект 27 курса Pandas Sprint — Interview day: 10 задач на время. Задачи в формате собеседования на аналитика.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/27-interview-day/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Проект 27. Interview day: 10 задач на время — Pandas Sprint">
+<meta property="og:description" content="Проект 27 курса Pandas Sprint — Interview day: 10 задач на время. Задачи в формате собеседования на аналитика.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/27-interview-day/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="27">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#patterns"><span class="dot">✓</span>Типы задач</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 240 XP</b>Задачи: <span id="tasksNow">0 из 10</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Задачи с собеседований: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Многие задачи на собеседованиях спрашивают и на SQL, и на pandas. Вот одни и те же приёмы на двух языках.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT DISTINCT amount … ORDER BY amount DESC LIMIT 1 OFFSET 1</code></td><td><code>s.drop_duplicates().nlargest(2).iloc[-1]</code></td><td>второе по величине</td></tr><tr><td><code>ROW_NUMBER() OVER (PARTITION BY city ORDER BY amount DESC) &lt;= 2</code></td><td><code>groupby(&#34;city&#34;)[&#34;amount&#34;].rank(ascending=False, method=&#34;first&#34;) &lt;= 2</code></td><td>топ-2 в группе</td></tr><tr><td><code>HAVING COUNT(*) &gt;= 4</code></td><td><code>groupby(&#34;user_id&#34;).size() &gt;= 4</code></td><td>больше K раз</td></tr><tr><td><code>LAG(order_date) OVER (PARTITION BY user_id ORDER BY order_date)</code></td><td><code>groupby(&#34;user_id&#34;)[&#34;order_date&#34;].diff()</code></td><td>соседние события</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Проект 27 из 30 · Неделя 4 · Бизнес-кейсы</div>
+      <h1>Interview day: <mark>10 задач</mark> как на собеседовании</h1>
+      <p class="lead">На собеседовании на аналитика почти всегда дают задачи на pandas: короткие, с подвохом и на время. Сегодня — репетиция: 10 задач в формате реального интервью на знакомых данных. Засеки 90 минут и попробуй решить без подсказок, как будто рядом сидит интервьюер.</p>
+      <div class="chips"><span class="chip">10 задач на время + кейс</span><span class="chip">pandas 3.0</span><span class="chip">240 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Решить 10 типичных задач с собеседований: топ-N в группе, второе по величине значение, последовательные дни, доли внутри групп, рост к прошлому месяцу и поиск ошибки в чужом коде — и потренироваться объяснять решение вслух.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Быстро узнавать тип задачи и подходящий приём</li><li>Решать «топ-N в каждой группе» и «второе по величине»</li><li>Находить события в соседние дни через <code class="i">diff</code></li><li>Объяснять своё решение коротко и по шагам</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Завтра собеседование</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Л</span>Лола <small>тимлид аналитики, проводит собеседования · 19:00</small></div>
+          <p>Привет! Ты завтра на собеседовании у нас — удачи! Совет: интервьюеру важно не только верное число, но и как ты рассуждаешь. Говори вслух: «сначала отфильтрую…, потом сгруппирую…». И всегда проверяй граничные случаи: пустые значения, одинаковые суммы.</p>
+<div class="file">▤ tezfood_orders.csv · заказы (урок 1)</div><div class="file">▤ kitobxon_orders.csv · книжный магазин (урок 17)</div>        </div>
+      </div>
+      <p class="note">Обе таблицы уже загружены: <code class="i">food</code> — заказы Tez Food, <code class="i">books</code> — заказы Kitobxon. Попробуй засечь 90 минут на все 10 задач. Подсказка одна на задачу и стоит 5 XP.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/tezfood_orders.csv" download>Скачать tezfood_orders.csv</a><a class="btn main" href="../../data/kitobxon_orders.csv" download>Скачать kitobxon_orders.csv</a><span class="note">2 файла · 208 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+food = pd.read_csv(&#34;tezfood_orders.csv&#34;, parse_dates=[&#34;order_date&#34;])
+books = pd.read_csv(&#34;kitobxon_orders.csv&#34;, parse_dates=[&#34;order_date&#34;])</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="patterns">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Семь типов задач, которые встречаются чаще всего</h2>
+      <div class="simple"><span class="tag">Как решать задачи на собеседовании</span>
+  <ol>
+    <li><b>Повтори задачу своими словами</b> и уточни граничные случаи: «а если две суммы одинаковые?», «пустые учитываем?».</li>
+    <li><b>Скажи план</b> по шагам до того, как писать код.</li>
+    <li><b>Напиши решение</b> цепочкой, понятные имена переменных.</li>
+    <li><b>Проверь</b> на маленьком примере или посмотри <code class="i">head()</code>.</li>
+  </ol>
+</div>
+<div class="scroll"><table class="map">
+  <thead><tr><th>Тип задачи</th><th>Приём</th></tr></thead>
+  <tbody>
+    <tr><td>Второе по величине (N-е) значение</td><td><code>s.drop_duplicates().nlargest(2).iloc[-1]</code></td></tr>
+    <tr><td>Топ-N в каждой группе</td><td><code>groupby(g)[x].rank(ascending=False, method="first") &lt;= N</code></td></tr>
+    <tr><td>Кто сделал что-то больше K раз</td><td><code>groupby(id).size()</code> + фильтр</td></tr>
+    <tr><td>Доля внутри группы</td><td><code>pd.crosstab(a, b, normalize="index")</code></td></tr>
+    <tr><td>События в соседние дни</td><td>сортировка + <code>groupby(id)[date].diff().dt.days == 1</code></td></tr>
+    <tr><td>Рост к прошлому периоду</td><td><code>resample</code> + <code>pct_change</code></td></tr>
+    <tr><td>Найди ошибку в коде</td><td>NaN, and/or, двойные скобки, повторы ключей</td></tr>
+  </tbody>
+</table></div>
+<div class="cards"><div class="card"><div class="q"><b>Разбор одной задачи вслух.</b> «Найди второй по величине уникальный чек».</div><pre class="code" data-cm># 1) берём колонку сумм, 2) убираем повторы — одинаковые суммы не должны занять два места,
+# 3) берём две самых больших, 4) вторая из них — ответ
+food[&quot;order_amount&quot;].drop_duplicates().nlargest(2).iloc[-1]</pre><div class="out">1666000</div><p class="plain"><b>Простыми словами:</b> без drop_duplicates при двух одинаковых максимальных чеках «вторым» оказался бы тот же максимум. Именно этот подвох проверяют на собеседовании.</p></div></div>
+<div class="callout"><b>Правило собеседования.</b> Если не знаешь короткий приём — реши длинно, но правильно, и скажи: «это можно сделать короче через …». Верное медленное решение лучше быстрого неверного.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">03 · Ловушки</div>
+      <h2>Пять подвохов собеседований</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Одинаковые значения</h3><p>«Второе по величине», «топ-3» — всегда уточни, что делать с одинаковыми значениями. drop_duplicates или method="dense"/"first" дают разные ответы.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Пустые значения</h3><p>Сравнения с NaN, среднее без NaN, != с пустыми — интервьюеры любят спрятать пару пустых клеток.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Время вместо даты</h3><p>Если в колонке дата со временем, «один день» — это разница календарных дат, а не 24 часа. Используй <code class="i">.dt.normalize()</code> или <code class="i">.dt.date</code>.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Задача про людей, ответ про строки</h3><p>«Сколько клиентов» — это nunique, а не len. Перечитай вопрос перед ответом.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Молчаливое решение</h3><p>Интервьюер оценивает ход мысли. Даже верный ответ без объяснения выглядит как угаданный.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка собеседования</h3>
+        <ol><li>s.drop_duplicates().nlargest(n).iloc[-1] <span>— n-е по величине уникальное</span></li><li>g[x].rank(ascending=False, method=&#34;first&#34;) &lt;= n <span>— топ-n в группе</span></li><li>df.groupby(id).size().pipe(lambda s: s[s &gt;= k]) <span>— кто встречается k+ раз</span></li><li>pd.crosstab(a, b, normalize=&#34;index&#34;) <span>— доли внутри строк</span></li><li>d.groupby(id)[date].diff().dt.days <span>— дни с прошлого события</span></li><li>s.resample(&#34;MS&#34;).sum().pct_change() <span>— рост к прошлому месяцу</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">04 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Суммы: 500, 500, 300, 200. Какое «второе по величине уникальное»?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>500</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>300</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>200</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нет ответа</span></button></div>
+          <div class="why" hidden>Уникальные суммы: 500, 300, 200. Вторая — 300.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Как оставить по 2 самых дорогих заказа в каждом городе?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>nlargest(2)</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>groupby("city")["amount"].rank(ascending=False, method="first") <= 2</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>head(2)</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>sort_values().tail(2)</code></span></button></div>
+          <div class="why" hidden>rank внутри группы и фильтр по рангу дают топ-N в каждой группе.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. «Сколько клиентов сделали 4+ заказа». Что посчитать?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Число строк</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Число клиентов, у которых size() ≥ 4</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сумму заказов</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Средний чек</span></button></div>
+          <div class="why" hidden>Сначала размер каждой группы клиента, потом число клиентов, прошедших порог.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="0">
+          <p>4. Что вернёт <code>crosstab(city, category, normalize="index")</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Доли категорий внутри каждого города</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Доли городов внутри категории</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Число заказов</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Сумму</span></button></div>
+          <div class="why" hidden>normalize="index" — каждая строка (город) в сумме даёт 1.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Что важнее всего показать интервьюеру?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Скорость печати</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ход рассуждений и проверку граничных случаев</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Знание всех функций</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Длинный код</span></button></div>
+          <div class="why" hidden>Интервьюер оценивает, как ты думаешь, а не только итоговое число.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">05 · Практика · 190 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Второй по величине чек</h3>
+            <p>Найди второй по величине <b>уникальный</b> чек <code class='i'>order_amount</code> в food.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1666000</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Второй по величине уникальный» — сначала убери повторы сумм (иначе две одинаковые максимальные суммы займут оба места), потом возьми две самые большие и последнюю из них.</p>
+<p><b>Чем это сделать.</b> <code class="i">.drop_duplicates()</code> — без повторов, <code class="i">.nlargest(2)</code> — две самые большие, <code class="i">.iloc[-1]</code> — последняя из них.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>food[&#34;order_amount&#34;].___().nlargest(___).iloc[___]</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без drop_duplicates при двух одинаковых максимумах «вторым» окажется тот же максимум.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Постоянные клиенты</h3>
+            <p>Сколько клиентов food сделали <b>4 и больше</b> заказов? Напечатай число.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">53</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай заказы каждого клиента и проверь, у кого их 4 или больше. Сумма такой маски — число клиентов.</p>
+<p><b>Чем это сделать.</b> <code class="i">food.groupby("user_id").size()</code> — заказов на клиента. <code class="i">(s >= 4).sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>(food.groupby(&#34;___&#34;).size() &gt;= ___).sum()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> len(food[...]) посчитает заказы, а вопрос — про клиентов.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl e">Легко</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Город с самым большим типичным чеком</h3>
+            <p>Выведи город с наибольшей <b>медианой</b> чека и саму медиану в одну строку.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">Ташкент 88000.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Типичный чек — медиана. Посчитай медиану по каждому городу, потом найди город с самой большой и само значение.</p>
+<p><b>Чем это сделать.</b> <code class="i">.idxmax()</code> — подпись самого большого значения, <code class="i">.max()</code> — само значение.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>med = food.groupby(&#34;___&#34;)[&#34;order_amount&#34;].___()
+print(med.___(), med.___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не среднее: вопрос про «типичный» чек, а крупные заказы искажают среднее.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Топ-2 заказа в каждом городе</h3>
+            <p>Для каждого города оставь 2 самых дорогих заказа. Выведи колонки <b>city, order_id, order_amount</b>, отсортированные по городу и сумме (по убыванию).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">        city  order_id  order_amount
+0    Андижан    100036        681000
+1    Андижан    100213        485000
+2     Бухара    100049        952000
+3     Бухара    101015        928000
+4   Наманган    100531        297000
+5   Наманган    100511        287000
+6  Самарканд    100343       2073000
+7  Самарканд    100850       1666000
+8    Ташкент    100344        782000
+9    Ташкент    100356        719000</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Внутри каждого города пронумеруй заказы по сумме от большей к меньшей — тогда «топ-2» это номера 1 и 2. Нумерация внутри группы не сжимает таблицу, поэтому потом её можно просто отфильтровать.</p>
+<p><b>Чем это сделать.</b> <code class="i">food.groupby("city")["order_amount"].rank(ascending=False, method="first")</code> — место внутри города. Сортировка по двум колонкам — как в уроке 3. <code class="i">.reset_index(drop=True)</code> — новая нумерация.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>rank = food.groupby(&#34;___&#34;)[&#34;order_amount&#34;].rank(ascending=___, method=&#34;first&#34;)
+(food[rank &lt;= ___][[&#34;city&#34;, &#34;order_id&#34;, &#34;order_amount&#34;]]
+ .sort_values([&#34;city&#34;, &#34;order_amount&#34;], ascending=[___, ___])
+ .reset_index(drop=True))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> С method="min" при равных суммах в городе может остаться больше двух строк.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Доля категорий в городе</h3>
+            <p>Для каждого города: доля каждой категории в заказах (в %, 1 знак). Выведи только строку <b>Ташкент</b>, отсортированную по убыванию.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category
+Бургеры    24.7
+Плов       22.4
+Пицца      21.4
+Суши       13.7
+Салаты     11.0
+Десерты     6.8
+Name: Ташкент, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Доли категорий внутри города — таблица частот, нормированная по строкам (каждая строка = 100%). Потом нужна одна строка.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.crosstab(город, категория, normalize="index")</code>, <code class="i">.loc["Ташкент"]</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>share = (pd.crosstab(food[&#34;___&#34;], food[&#34;___&#34;], normalize=&#34;___&#34;) * 100).round(1)
+share.loc[&#34;___&#34;].sort_values(ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> normalize="columns" даст долю города внутри категории — другой вопрос.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Заказы в соседние дни</h3>
+            <p>Сколько клиентов food сделали заказы в <b>два календарных дня подряд</b> (хотя бы один раз)?</p> <p class='rule-t'>Сравнивай даты без времени: <code class='i'>order_date.dt.normalize()</code>.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">58</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Оставь у дат только день (без времени), отсортируй по клиенту и дню и посчитай, сколько дней прошло с прошлого заказа этого клиента. «Два дня подряд» — разница ровно 1 день.</p>
+<p><b>Чем это сделать.</b> <code class="i">.dt.normalize()</code> — дата без времени. <code class="i">d.groupby("user_id")["day"].diff()</code> — разница с прошлым заказом клиента, <code class="i">.dt.days</code> — в днях.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>d = food.assign(day=food[&#34;order_date&#34;].dt.___()).sort_values([&#34;user_id&#34;, &#34;day&#34;])
+gap = d.groupby(&#34;___&#34;)[&#34;day&#34;].diff().dt.days
+d.loc[gap == ___, &#34;user_id&#34;].nunique()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Два заказа в один день дадут разницу 0 — они не считаются «соседними днями».</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Лучший месяц по росту</h3>
+            <p>По books: выручка по месяцам, рост к прошлому месяцу в %. Выведи месяц с наибольшим ростом и сам рост (1 знак) в одну строку.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">2026-03 38.3</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Выручка по месяцам → рост к прошлому месяцу → месяц с самым большим ростом. Всё это ты делал в уроке 16.</p>
+<p><b>Чем это сделать.</b> <code class="i">set_index("order_date").resample("MS")["amount"].sum()</code>, <code class="i">.pct_change()</code>, <code class="i">.idxmax().strftime("%Y-%m")</code> — месяц текстом.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>m = books.set_index(&#34;___&#34;).resample(&#34;___&#34;)[&#34;amount&#34;].sum()
+g = m.___() * 100
+print(g.idxmax().strftime(&#34;___&#34;), round(g.max(), 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Дата должна быть в индексе, иначе resample не сработает.</p>          </div>
+        </article>
+        <article class="task" id="task-t8" data-task="t8" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 8</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Читатели разных жанров</h3>
+            <p>Сколько клиентов books купили книги <b>минимум трёх разных категорий</b>? И какой % это от всех клиентов (1 знак)?</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 8</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 8"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">213 30.4</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Для каждого клиента посчитай, книги скольких <b>разных</b> категорий он купил. Дальше — сколько клиентов с 3+ и какая это доля.</p>
+<p><b>Чем это сделать.</b> <code class="i">books.groupby("customer_id")["category"].nunique()</code>. <code class="i">(s >= 3).sum()</code> и <code class="i">.mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>cats = books.groupby(&#34;___&#34;)[&#34;category&#34;].___()
+print((cats &gt;= ___).sum(), round((cats &gt;= ___).mean() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> count посчитает покупки, а не разные категории.</p>          </div>
+        </article>
+        <article class="task" id="task-t9" data-task="t9" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 9</span><span class="lvl h">Сложно</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Вернулись за 30 дней</h3>
+            <p>Какой % клиентов books сделал <b>второй заказ в течение 30 дней</b> после первого? 1 знак.</p> <p class='rule-t'>Клиенты с одним заказом считаются «не вернулись».</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 9</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 9"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">43.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Пронумеруй заказы каждого клиента и посчитай дни с прошлого заказа. «Вернулся за 30 дней» — у второго заказа разница ≤ 30. Делить нужно на <b>всех</b> клиентов, включая тех, у кого один заказ.</p>
+<p><b>Чем это сделать.</b> <code class="i">groupby("customer_id").cumcount() + 1</code> — номер заказа, <code class="i">groupby(...)["order_date"].diff().dt.days</code> — разрыв.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>d = books.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+d[&#34;n&#34;] = d.groupby(&#34;customer_id&#34;).___() + 1
+d[&#34;gap&#34;] = d.groupby(&#34;customer_id&#34;)[&#34;order_date&#34;].___().dt.days
+fast = d[(d[&#34;n&#34;] == ___) &amp; (d[&#34;gap&#34;] &lt;= ___)][&#34;customer_id&#34;].nunique()
+round(fast / books[&#34;customer_id&#34;].___() * 100, 1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если делить только на вернувшихся, процент получится завышенным.</p>          </div>
+        </article>
+        <article class="task" id="task-t10" data-task="t10" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 10</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Найди ошибки в чужом коде</h3>
+            <p>Кандидат должен был посчитать: сколько заказов food <b>без оценки</b> (rating пустой) <b>и</b> с доставкой <b>дольше 60 минут</b>, и какой у них средний чек. Его код:</p> <pre class="code solo">bad = food[food["rating"] == np.nan and food["delivery_min"] &gt; 60] print(len(bad), bad["order_amount"].mean())</pre> <p class='rule-t'>Напиши правильный вариант: напечатай число таких заказов и средний чек (целое). Комментариями назови две ошибки.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 27 · задача 10</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 10"># исправленный код
+
+# ошибка 1:
+# ошибка 2:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">8 133000
+
++ комментарии: две ошибки</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># исправленный код
+
+# ошибка 1:
+# ошибка 2:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>ошибка 1: == np.nan всегда False, пустые ищут через isna()
+ошибка 2: and не работает с колонками, нужен &amp; и скобки вокруг условий</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> В чужом коде две ошибки: так пустые клетки не ищут, и так два условия для колонок не соединяют. Вспомни уроки 1 и 2: как правильно найти NaN и как склеить маски.</p>
+<p><b>Чем это сделать.</b> Пустые — <code class="i">.isna()</code>. «И» для колонок — <code class="i">&</code>, каждое условие в своих скобках. Средний чек целым — <code class="i">round(...)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>bad = food[food[&#34;rating&#34;].___() ___ (food[&#34;delivery_min&#34;] &gt; 60)]
+print(len(bad), round(bad[&#34;order_amount&#34;].___()))
+# ошибка 1: ___
+# ошибка 2: ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">x == np.nan</code> всегда False, даже если x пустой: NaN не равен ничему, даже самому себе.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">06 · Бизнес-кейс · 30 XP</div>
+      <h2>Объясни решение интервьюеру</h2>
+      <div class="case">
+        <p>Интервьюер просит: «Объясни, как ты решал задачу про топ-2 заказа в каждом городе, и что будет, если у двух заказов одинаковая сумма». Ответь <b>как на собеседовании</b>: не больше 6 предложений — <b>понимание задачи → план по шагам → какой приём и почему → граничный случай с одинаковыми суммами → как проверил результат</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Здесь обязательных цифр нет — важно объяснение.</div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Сначала я уточнил бы …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Какой приём ты используешь для «топ-2 в каждом городе»?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Нумерую заказы внутри каждого города по сумме (rank в группе) и оставляю места 1 и 2</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Сортирую всю таблицу и беру первые 2 строки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Беру 2 самых дорогих заказа всей компании</span></button></div>
+            <div class="why" hidden>rank внутри groupby даёт место заказа в его городе и не сжимает таблицу — потом остаётся отфильтровать.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что будет при двух одинаковых суммах?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Зависит от способа нумерации: при method="first" останется ровно 2 строки, при method="min" — может быть больше</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>pandas выдаст ошибку</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Ничего особенного, такого не бывает</span></button></div>
+            <div class="why" hidden>Граничный случай — то, что интервьюер ждёт услышать: равные значения и как ты ими управляешь.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Как ты проверил результат?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Посмотрел, что в каждом городе ровно две строки и суммы идут по убыванию</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Никак, код же запустился</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сравнил с ответом друга</span></button></div>
+            <div class="why" hidden>Проверка результата — признак сильного кандидата.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Сначала уточню задачу: нужно для каждого города оставить два заказа с самой большой суммой. План: внутри каждого города пронумеровать заказы по сумме от большей к меньшей и оставить номера 1 и 2. Для этого я использовал groupby(&#34;city&#34;)[&#34;order_amount&#34;].rank(ascending=False, method=&#34;first&#34;) — rank работает внутри группы и не сжимает таблицу, поэтому потом можно просто отфильтровать ранг ≤ 2. Если у двух заказов одинаковая сумма, method=&#34;first&#34; даст им разные места по порядку в таблице, и в каждом городе останется ровно два заказа; если нужно оставить всех с равной суммой, я бы взял method=&#34;min&#34; и предупредил, что строк может быть больше. Проверил, что в каждом городе ровно две строки и суммы идут по убыванию.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Задача пересказана своими словами</li><li>План по шагам до кода</li><li>Назван приём (rank внутри группы) и почему</li><li>Разобран случай с одинаковыми суммами (first против min)</li><li>Есть способ проверить результат</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">07 · Завершить урок</div>
+        <h2>Закрыть проект 27</h2>
+        <p>Урок засчитывается, когда решены все 10 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/26-otladka-lovushki/"><small>← Урок 26</small><b>Отладка и ловушки: CoW, NaN-логика, взрыв джойна</b></a><a class="nx" href="../../lessons/28-finalnyj-proekt-1/"><small>Проект 28 →</small><b>Финальный проект, часть 1: EDA и очистка</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [], "logic": [{"a": 0, "o": ["\u041d\u0443\u043c\u0435\u0440\u0443\u044e \u0437\u0430\u043a\u0430\u0437\u044b \u0432\u043d\u0443\u0442\u0440\u0438 \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0433\u043e\u0440\u043e\u0434\u0430 \u043f\u043e \u0441\u0443\u043c\u043c\u0435 (rank \u0432 \u0433\u0440\u0443\u043f\u043f\u0435) \u0438 \u043e\u0441\u0442\u0430\u0432\u043b\u044f\u044e \u043c\u0435\u0441\u0442\u0430 1 \u0438 2", "\u0421\u043e\u0440\u0442\u0438\u0440\u0443\u044e \u0432\u0441\u044e \u0442\u0430\u0431\u043b\u0438\u0446\u0443 \u0438 \u0431\u0435\u0440\u0443 \u043f\u0435\u0440\u0432\u044b\u0435 2 \u0441\u0442\u0440\u043e\u043a\u0438", "\u0411\u0435\u0440\u0443 2 \u0441\u0430\u043c\u044b\u0445 \u0434\u043e\u0440\u043e\u0433\u0438\u0445 \u0437\u0430\u043a\u0430\u0437\u0430 \u0432\u0441\u0435\u0439 \u043a\u043e\u043c\u043f\u0430\u043d\u0438\u0438"], "q": "\u041a\u0430\u043a\u043e\u0439 \u043f\u0440\u0438\u0451\u043c \u0442\u044b \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0448\u044c \u0434\u043b\u044f \u00ab\u0442\u043e\u043f-2 \u0432 \u043a\u0430\u0436\u0434\u043e\u043c \u0433\u043e\u0440\u043e\u0434\u0435\u00bb?", "why": "rank \u0432\u043d\u0443\u0442\u0440\u0438 groupby \u0434\u0430\u0451\u0442 \u043c\u0435\u0441\u0442\u043e \u0437\u0430\u043a\u0430\u0437\u0430 \u0432 \u0435\u0433\u043e \u0433\u043e\u0440\u043e\u0434\u0435 \u0438 \u043d\u0435 \u0441\u0436\u0438\u043c\u0430\u0435\u0442 \u0442\u0430\u0431\u043b\u0438\u0446\u0443 \u2014 \u043f\u043e\u0442\u043e\u043c \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u043e\u0442\u0444\u0438\u043b\u044c\u0442\u0440\u043e\u0432\u0430\u0442\u044c."}, {"a": 0, "o": ["\u0417\u0430\u0432\u0438\u0441\u0438\u0442 \u043e\u0442 \u0441\u043f\u043e\u0441\u043e\u0431\u0430 \u043d\u0443\u043c\u0435\u0440\u0430\u0446\u0438\u0438: \u043f\u0440\u0438 method=\"first\" \u043e\u0441\u0442\u0430\u043d\u0435\u0442\u0441\u044f \u0440\u043e\u0432\u043d\u043e 2 \u0441\u0442\u0440\u043e\u043a\u0438, \u043f\u0440\u0438 method=\"min\" \u2014 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u0431\u043e\u043b\u044c\u0448\u0435", "pandas \u0432\u044b\u0434\u0430\u0441\u0442 \u043e\u0448\u0438\u0431\u043a\u0443", "\u041d\u0438\u0447\u0435\u0433\u043e \u043e\u0441\u043e\u0431\u0435\u043d\u043d\u043e\u0433\u043e, \u0442\u0430\u043a\u043e\u0433\u043e \u043d\u0435 \u0431\u044b\u0432\u0430\u0435\u0442"], "q": "\u0427\u0442\u043e \u0431\u0443\u0434\u0435\u0442 \u043f\u0440\u0438 \u0434\u0432\u0443\u0445 \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u044b\u0445 \u0441\u0443\u043c\u043c\u0430\u0445?", "why": "\u0413\u0440\u0430\u043d\u0438\u0447\u043d\u044b\u0439 \u0441\u043b\u0443\u0447\u0430\u0439 \u2014 \u0442\u043e, \u0447\u0442\u043e \u0438\u043d\u0442\u0435\u0440\u0432\u044c\u044e\u0435\u0440 \u0436\u0434\u0451\u0442 \u0443\u0441\u043b\u044b\u0448\u0430\u0442\u044c: \u0440\u0430\u0432\u043d\u044b\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f \u0438 \u043a\u0430\u043a \u0442\u044b \u0438\u043c\u0438 \u0443\u043f\u0440\u0430\u0432\u043b\u044f\u0435\u0448\u044c."}, {"a": 0, "o": ["\u041f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u043b, \u0447\u0442\u043e \u0432 \u043a\u0430\u0436\u0434\u043e\u043c \u0433\u043e\u0440\u043e\u0434\u0435 \u0440\u043e\u0432\u043d\u043e \u0434\u0432\u0435 \u0441\u0442\u0440\u043e\u043a\u0438 \u0438 \u0441\u0443\u043c\u043c\u044b \u0438\u0434\u0443\u0442 \u043f\u043e \u0443\u0431\u044b\u0432\u0430\u043d\u0438\u044e", "\u041d\u0438\u043a\u0430\u043a, \u043a\u043e\u0434 \u0436\u0435 \u0437\u0430\u043f\u0443\u0441\u0442\u0438\u043b\u0441\u044f", "\u0421\u0440\u0430\u0432\u043d\u0438\u043b \u0441 \u043e\u0442\u0432\u0435\u0442\u043e\u043c \u0434\u0440\u0443\u0433\u0430"], "q": "\u041a\u0430\u043a \u0442\u044b \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u043b \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442?", "why": "\u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430 \u2014 \u043f\u0440\u0438\u0437\u043d\u0430\u043a \u0441\u0438\u043b\u044c\u043d\u043e\u0433\u043e \u043a\u0430\u043d\u0434\u0438\u0434\u0430\u0442\u0430."}]}, "case_model": "\u0421\u043d\u0430\u0447\u0430\u043b\u0430 \u0443\u0442\u043e\u0447\u043d\u044e \u0437\u0430\u0434\u0430\u0447\u0443: \u043d\u0443\u0436\u043d\u043e \u0434\u043b\u044f \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0433\u043e\u0440\u043e\u0434\u0430 \u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u0434\u0432\u0430 \u0437\u0430\u043a\u0430\u0437\u0430 \u0441 \u0441\u0430\u043c\u043e\u0439 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u0441\u0443\u043c\u043c\u043e\u0439. \u041f\u043b\u0430\u043d: \u0432\u043d\u0443\u0442\u0440\u0438 \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0433\u043e\u0440\u043e\u0434\u0430 \u043f\u0440\u043e\u043d\u0443\u043c\u0435\u0440\u043e\u0432\u0430\u0442\u044c \u0437\u0430\u043a\u0430\u0437\u044b \u043f\u043e \u0441\u0443\u043c\u043c\u0435 \u043e\u0442 \u0431\u043e\u043b\u044c\u0448\u0435\u0439 \u043a \u043c\u0435\u043d\u044c\u0448\u0435\u0439 \u0438 \u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043d\u043e\u043c\u0435\u0440\u0430 1 \u0438 2. \u0414\u043b\u044f \u044d\u0442\u043e\u0433\u043e \u044f \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u043b groupby(\"city\")[\"order_amount\"].rank(ascending=False, method=\"first\") \u2014 rank \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0432\u043d\u0443\u0442\u0440\u0438 \u0433\u0440\u0443\u043f\u043f\u044b \u0438 \u043d\u0435 \u0441\u0436\u0438\u043c\u0430\u0435\u0442 \u0442\u0430\u0431\u043b\u0438\u0446\u0443, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u043f\u043e\u0442\u043e\u043c \u043c\u043e\u0436\u043d\u043e \u043f\u0440\u043e\u0441\u0442\u043e \u043e\u0442\u0444\u0438\u043b\u044c\u0442\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0430\u043d\u0433 \u2264 2. \u0415\u0441\u043b\u0438 \u0443 \u0434\u0432\u0443\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u0430\u044f \u0441\u0443\u043c\u043c\u0430, method=\"first\" \u0434\u0430\u0441\u0442 \u0438\u043c \u0440\u0430\u0437\u043d\u044b\u0435 \u043c\u0435\u0441\u0442\u0430 \u043f\u043e \u043f\u043e\u0440\u044f\u0434\u043a\u0443 \u0432 \u0442\u0430\u0431\u043b\u0438\u0446\u0435, \u0438 \u0432 \u043a\u0430\u0436\u0434\u043e\u043c \u0433\u043e\u0440\u043e\u0434\u0435 \u043e\u0441\u0442\u0430\u043d\u0435\u0442\u0441\u044f \u0440\u043e\u0432\u043d\u043e \u0434\u0432\u0430 \u0437\u0430\u043a\u0430\u0437\u0430; \u0435\u0441\u043b\u0438 \u043d\u0443\u0436\u043d\u043e \u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u0432\u0441\u0435\u0445 \u0441 \u0440\u0430\u0432\u043d\u043e\u0439 \u0441\u0443\u043c\u043c\u043e\u0439, \u044f \u0431\u044b \u0432\u0437\u044f\u043b method=\"min\" \u0438 \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0434\u0438\u043b, \u0447\u0442\u043e \u0441\u0442\u0440\u043e\u043a \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u0431\u043e\u043b\u044c\u0448\u0435. \u041f\u0440\u043e\u0432\u0435\u0440\u0438\u043b, \u0447\u0442\u043e \u0432 \u043a\u0430\u0436\u0434\u043e\u043c \u0433\u043e\u0440\u043e\u0434\u0435 \u0440\u043e\u0432\u043d\u043e \u0434\u0432\u0435 \u0441\u0442\u0440\u043e\u043a\u0438 \u0438 \u0441\u0443\u043c\u043c\u044b \u0438\u0434\u0443\u0442 \u043f\u043e \u0443\u0431\u044b\u0432\u0430\u043d\u0438\u044e.", "case_xp": 30, "cheat": [["s.drop_duplicates().nlargest(n).iloc[-1]", "n-\u0435 \u043f\u043e \u0432\u0435\u043b\u0438\u0447\u0438\u043d\u0435 \u0443\u043d\u0438\u043a\u0430\u043b\u044c\u043d\u043e\u0435"], ["g[x].rank(ascending=False, method=\"first\") \u003c= n", "\u0442\u043e\u043f-n \u0432 \u0433\u0440\u0443\u043f\u043f\u0435"], ["df.groupby(id).size().pipe(lambda s: s[s \u003e= k])", "\u043a\u0442\u043e \u0432\u0441\u0442\u0440\u0435\u0447\u0430\u0435\u0442\u0441\u044f k+ \u0440\u0430\u0437"], ["pd.crosstab(a, b, normalize=\"index\")", "\u0434\u043e\u043b\u0438 \u0432\u043d\u0443\u0442\u0440\u0438 \u0441\u0442\u0440\u043e\u043a"], ["d.groupby(id)[date].diff().dt.days", "\u0434\u043d\u0438 \u0441 \u043f\u0440\u043e\u0448\u043b\u043e\u0433\u043e \u0441\u043e\u0431\u044b\u0442\u0438\u044f"], ["s.resample(\"MS\").sum().pct_change()", "\u0440\u043e\u0441\u0442 \u043a \u043f\u0440\u043e\u0448\u043b\u043e\u043c\u0443 \u043c\u0435\u0441\u044f\u0446\u0443"]], "data": "../../data/", "datasets": ["tezfood_orders.csv", "kitobxon_orders.csv"], "day": 27, "hint_cost": 5, "quiz": [1, 1, 1, 0, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nfood = pd.read_csv(\"tezfood_orders.csv\", parse_dates=[\"order_date\"])\nbooks = pd.read_csv(\"kitobxon_orders.csv\", parse_dates=[\"order_date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["1666000"], "setup": "", "xp": 15}, {"figure": false, "id": "t2", "keys": ["53"], "setup": "", "xp": 15}, {"figure": false, "id": "t3", "keys": ["\u0422\u0430\u0448\u043a\u0435\u043d\u0442 88000.0"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["city order_id order_amount", "0 \u0410\u043d\u0434\u0438\u0436\u0430\u043d 100036 681000", "1 \u0410\u043d\u0434\u0438\u0436\u0430\u043d 100213 485000", "2 \u0411\u0443\u0445\u0430\u0440\u0430 100049 952000", "6 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 100343 2073000", "7 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 100850 1666000", "8 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 100344 782000", "9 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 100356 719000"], "setup": "", "xp": 20}, {"figure": false, "id": "t5", "keys": ["category", "\u0411\u0443\u0440\u0433\u0435\u0440\u044b 24.7", "\u041f\u043b\u043e\u0432 22.4", "\u041f\u0438\u0446\u0446\u0430 21.4", "\u0421\u0443\u0448\u0438 13.7", "\u0421\u0430\u043b\u0430\u0442\u044b 11.0", "\u0414\u0435\u0441\u0435\u0440\u0442\u044b 6.8"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["58"], "setup": "", "xp": 20}, {"figure": false, "id": "t7", "keys": ["2026-03 38.3"], "setup": "", "xp": 20}, {"figure": false, "id": "t8", "keys": ["213 30.4"], "setup": "", "xp": 20}, {"figure": false, "id": "t9", "keys": ["43.0"], "setup": "", "xp": 20}, {"figure": false, "id": "t10", "keys": ["8 133000"], "setup": "", "xp": 25}], "theory": ["brief", "patterns", "traps"], "worker": "../../static/js/py-worker.js", "xp": 240}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

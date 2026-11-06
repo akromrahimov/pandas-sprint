@@ -1,0 +1,753 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 13. Method chaining и pipe: читаемый код как у сеньора — Pandas Sprint</title>
+<meta name="description" content="Урок 13 курса Pandas Sprint — Method chaining и pipe: читаемый код как у сеньора. Писать обработку данных одной понятной цепочкой шагов.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/13-method-chaining/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 13. Method chaining и pipe: читаемый код как у сеньора — Pandas Sprint">
+<meta property="og:description" content="Урок 13 курса Pandas Sprint — Method chaining и pipe: читаемый код как у сеньора. Писать обработку данных одной понятной цепочкой шагов.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/13-method-chaining/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="13">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#chain"><span class="dot">✓</span>Цепочка</a></li><li><a href="#pipe"><span class="dot">✓</span>pipe и отладка</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Цепочка pandas — как запрос с CTE</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты писал SQL с WITH (CTE), цепочка pandas устроена так же: каждый шаг берёт результат предыдущего.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>WITH clean AS (SELECT …)</code></td><td><code>clean = (df .assign(…) .query(…))</code></td><td>промежуточный шаг с именем</td></tr><tr><td><code>WHERE status = &#39;delivered&#39;</code></td><td><code>.query(&#34;status == &#39;delivered&#39;&#34;)</code></td><td>фильтр строк</td></tr><tr><td><code>SELECT *, amount/1e6 AS amount_mln</code></td><td><code>.assign(amount_mln=lambda d: d[&#34;amount&#34;] / 1e6)</code></td><td>новая колонка</td></tr><tr><td><code>WHERE amount &gt; :porog</code></td><td><code>.query(&#34;amount &gt; @porog&#34;)</code></td><td>параметр из кода</td></tr><tr><td><code>GROUP BY region</code></td><td><code>.groupby(&#34;region&#34;).agg(...)</code></td><td>агрегация</td></tr><tr><td><code>ORDER BY revenue DESC</code></td><td><code>.sort_values(&#34;revenue&#34;, ascending=False)</code></td><td>сортировка</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 13 из 30 · Неделя 2 · Агрегации</div>
+      <h1>Method chaining и pipe: <mark>читаемый код</mark> как у сеньора</h1>
+      <p class="lead">Код аналитика читают другие люди: коллеги, руководитель, ты сам через месяц. Если в нём df1, df2, df3 и сорок строк вперемешку, никто не поймёт, что происходит. Сегодня учимся записывать обработку данных одной цепочкой шагов, которая читается сверху вниз, как рецепт.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Переписать еженедельный отчёт Savdo Market по регионам из «простыни» с промежуточными переменными в одну понятную цепочку: почистить регион, посчитать заказы, долю отмен и выручку и объяснить коллеге, что изменилось.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Записывать обработку данных цепочкой методов в скобках</li><li>Создавать колонки внутри цепочки через <code class="i">assign</code> и <code class="i">lambda</code></li><li>Фильтровать через <code class="i">query</code>, в том числе с переменной <code class="i">@порог</code></li><li>Выносить повторяющиеся шаги в свою функцию и подключать её через <code class="i">pipe</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Отчёт, который никто не может прочитать</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Ж</span>Жасур <small>руководитель аналитики Savdo Market · 10:05</small></div>
+          <p>Привет! Каждый понедельник мы собираем отчёт по регионам. Код писали трое, в нём переменные df1…df7 и никто уже не понимает, какая строка что делает. На прошлой неделе отчёт сломался, и мы час искали ошибку.</p>
+<div class="file">▤ savdo_orders.csv · 2 000 заказов</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Ж</span>Жасур <small>10:06</small></div>
+          <p>Перепиши, пожалуйста, так, чтобы новичок за минуту понял, что происходит. И пришли итоговые цифры по регионам.</p>
+        </div>
+      </div>
+      <p class="note">Это та же выгрузка Savdo Market, что в уроке 10: регион записан грязно («ташкент», «Ташкент » с пробелом), у 58 заказов нет суммы. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/savdo_orders.csv" download>Скачать savdo_orders.csv</a><span class="note">2 000 строк · 153 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;savdo_orders.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="chain">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Обработка данных как рецепт</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь рецепт плова: «помой рис → обжарь мясо → добавь морковь → засыпь рис → вари 40 минут». Каждый шаг берёт результат предыдущего. Никто не пишет «рис1, рис2, рис3».</p>
+  <ul>
+    <li><b>Цепочка методов</b> (method chaining) — то же самое в pandas: <code class="i">df.шаг1().шаг2().шаг3()</code>. Каждый метод получает таблицу от предыдущего и отдаёт новую.</li>
+    <li><b>Скобки вокруг всей цепочки</b> <code class="i">( … )</code> позволяют писать каждый шаг на отдельной строке. Без них Python не поймёт, что строка, начинающаяся с точки, — продолжение.</li>
+    <li><b>assign</b> — «добавь колонку». Внутри цепочки пишут <code class="i">lambda d: …</code>: <code class="i">d</code> — это таблица <b>на этом шаге</b>, а не исходная df.</li>
+    <li><b>query</b> — фильтр, записанный словами: <code class="i">query("status == 'delivered'")</code>. Переменную из кода подставляют через <code class="i">@</code>: <code class="i">query("amount &gt; @porog")</code>.</li>
+    <li><b>pipe</b> — «пропусти таблицу через мою функцию». Так повторяющиеся шаги выносят в функцию с понятным именем.</li>
+  </ul>
+</div>
+<p>Ниже два способа посчитать одно и то же: выручку доставленных заказов по категориям. Сравни, какой легче читать.</p>
+<div class="cards"><div class="card"><div class="q"><b>1. Было: промежуточные переменные.</b> Каждая строка создаёт новую df, их легко перепутать.</div><pre class="code" data-cm>df1 = df.dropna(subset=[&quot;amount&quot;])
+df2 = df1[df1[&quot;status&quot;] == &quot;delivered&quot;]
+df3 = df2.groupby(&quot;category&quot;)[&quot;amount&quot;].sum()
+df4 = df3.sort_values(ascending=False)
+df4</pre><div class="out">category
+Электроника    609386000.0
+Одежда         191719000.0
+Дом            189889000.0
+Продукты        87059000.0
+Красота         70075000.0
+Name: amount, dtype: float64</div><p class="plain"><b>Простыми словами:</b> четыре переменные ради одного ответа. Если в df2 случайно написать df вместо df1, ошибку никто не заметит.</p></div>
+<div class="card"><div class="q"><b>2. Стало: одна цепочка.</b> Читается сверху вниз, как рецепт.</div><pre class="code" data-cm>report = (
+    df
+    .dropna(subset=[&quot;amount&quot;])
+    .query(&quot;status == &#x27;delivered&#x27;&quot;)
+    .groupby(&quot;category&quot;)[&quot;amount&quot;]
+    .sum()
+    .sort_values(ascending=False)
+)
+report</pre><div class="out">category
+Электроника    609386000.0
+Одежда         191719000.0
+Дом            189889000.0
+Продукты        87059000.0
+Красота         70075000.0
+Name: amount, dtype: float64</div><p class="plain"><b>Простыми словами:</b> тот же результат, но каждый шаг — отдельная строка: убрать пустые суммы → оставить доставленные → сгруппировать по категории → сложить → отсортировать.</p></div>
+<div class="card"><div class="q"><b>3. assign + lambda.</b> Новая колонка прямо в цепочке.</div><pre class="code" data-cm>(
+    df
+    .assign(region=lambda d: d[&quot;region&quot;].str.strip().str.capitalize(),
+            amount_mln=lambda d: (d[&quot;amount&quot;] / 1_000_000).round(2))
+    [&quot;region&quot;]
+    .value_counts()
+)</pre><div class="out">region
+Ташкент      791
+Самарканд    404
+Фергана      305
+Бухара       265
+Наманган     235
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> <code class="i">lambda d:</code> значит «возьми таблицу, которая пришла на этот шаг, и посчитай по ней». Было 15 разных написаний региона, после очистки осталось 5.</p></div>
+<div class="card"><div class="q"><b>4. query с переменной.</b> <code class="i">@</code> подставляет значение из кода.</div><pre class="code" data-cm>porog = df[&quot;amount&quot;].median()
+df.query(&quot;amount &gt; @porog and payment == &#x27;card&#x27;&quot;).shape</pre><div class="out">(629, 8)</div><p class="plain"><b>Простыми словами:</b> без <code class="i">@</code> pandas искал бы колонку с именем porog и выдал ошибку.</p></div></div>
+<div class="simple"><span class="tag">По шагам: что происходит с таблицей в цепочке</span>
+  <p>Цепочку удобно читать вслух, слово «потом» вместо точки: «возьми заказы, <b>потом</b> оставь доставленные, <b>потом</b> раздели по категориям…». На каждом шаге таблица меняется:</p>
+  <ol class="flow">
+    <li><code class="i">df</code><span>все заказы — строк: 2000, колонок: 8</span></li>
+    <li><code class="i">.dropna(subset=["amount"])</code><span>убрали заказы без суммы — строк осталось: 1942</span></li>
+    <li><code class="i">.query("status == 'delivered'")</code><span>оставили доставленные — строк осталось: 1607</span></li>
+    <li><code class="i">.groupby("category")["amount"]</code><span>разложили заказы по категориям (их 5) — это ещё не ответ, а «стопки» заказов</span></li>
+    <li><code class="i">.sum()</code><span>в каждой стопке сложили суммы — получилась Series: одно число на категорию</span></li>
+    <li><code class="i">.sort_values(ascending=False)</code><span>поставили самую большую категорию наверх</span></li>
+  </ol>
+  <p>Если что-то пошло не так, достаточно найти шаг, после которого строк стало «подозрительно» много или мало (как — в примере 8 ниже).</p>
+</div>
+<div class="simple"><span class="tag">Что такое lambda</span>
+  <p><code class="i">lambda d: d["amount"] / 1_000_000</code> — это маленькая функция без имени, записанная в одну строку. Читается так: «получи таблицу <b>d</b> и верни <code class="i">d["amount"] / 1 000 000</code>».</p>
+  <p>Зачем она в assign? В середине цепочки у таблицы нет имени: после <code class="i">.query(...)</code> это уже не исходная <code class="i">df</code>, а новая, отфильтрованная. lambda говорит pandas: «подставь сюда ту таблицу, которая сейчас идёт по цепочке».</p>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>5. lambda — это просто короткая функция.</b> Обе записи дают одно и то же.</div><pre class="code" data-cm>def to_mln(d):
+    return (d[&quot;amount&quot;] / 1_000_000).round(2)
+
+a = df.assign(amount_mln=to_mln)[&quot;amount_mln&quot;].head(3)
+b = df.assign(amount_mln=lambda d: (d[&quot;amount&quot;] / 1_000_000).round(2))[&quot;amount_mln&quot;].head(3)
+print(a.tolist())
+print(b.tolist())</pre><div class="out">[0.37, 0.39, 0.53]
+[0.37, 0.39, 0.53]</div><p class="plain"><b>Простыми словами:</b> слева обычная функция с именем, справа lambda без имени. Для одной короткой формулы lambda удобнее: не нужно придумывать имя и писать отдельный def.</p></div>
+<div class="card"><div class="q"><b>6. where: оставить значение только там, где условие верно.</b> Пригодится в задаче 7.</div><pre class="code" data-cm>(
+    df
+    .assign(paid=lambda d: d[&quot;amount&quot;].where(d[&quot;status&quot;] == &quot;delivered&quot;))
+    [[&quot;status&quot;, &quot;amount&quot;, &quot;paid&quot;]]
+    .head(5)
+)</pre><div class="out">      status    amount      paid
+0  delivered  371000.0  371000.0
+1  delivered  387000.0  387000.0
+2  delivered  527000.0  527000.0
+3  delivered  189000.0  189000.0
+4  delivered  188000.0  188000.0</div><p class="plain"><b>Простыми словами:</b> <code class="i">where(условие)</code> оставляет сумму там, где условие True, а в остальных строках ставит NaN. Так в одной таблице можно считать и все заказы (по order_id), и выручку только доставленных (сумма paid сама пропустит пустые).</p></div></div>
+    </section>
+    <section id="pipe">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Свои шаги через pipe и как искать ошибку в цепочке</h2>
+      <div class="simple"><span class="tag">Как читать код с pipe</span>
+  <ul>
+    <li><code class="i">def clean_region(d):</code> — «создаю функцию clean_region, она принимает таблицу d». Внутри — обычные шаги, в конце <code class="i">return</code> отдаёт результат.</li>
+    <li><code class="i">df.pipe(clean_region)</code> — то же самое, что <code class="i">clean_region(df)</code>, но встаёт в цепочку как обычный метод.</li>
+    <li>Чтобы найти ошибку в длинной цепочке, <b>закомментируй</b> нижние шаги (<code class="i">#</code> в начале строки) и запусти: так видно, на каком шаге результат стал неправильным.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>7. Свой шаг через pipe.</b> Функцию можно переиспользовать в любом отчёте.</div><pre class="code" data-cm>def clean_region(d):
+    return d.assign(region=d[&quot;region&quot;].str.strip().str.capitalize())
+
+df.pipe(clean_region)[&quot;region&quot;].nunique()</pre><div class="out">5</div><p class="plain"><b>Простыми словами:</b> функция с понятным названием объясняет шаг лучше любого комментария. В следующем отчёте её достаточно вызвать ещё раз.</p></div>
+<div class="card"><div class="q"><b>8. Подсмотреть размер посередине цепочки.</b></div><pre class="code" data-cm>def show_shape(d, label):
+    print(label, d.shape)
+    return d
+
+(
+    df
+    .pipe(show_shape, &quot;всего:&quot;)
+    .query(&quot;status == &#x27;delivered&#x27;&quot;)
+    .pipe(show_shape, &quot;доставлено:&quot;)
+    .dropna(subset=[&quot;amount&quot;])
+    .pipe(show_shape, &quot;с суммой:&quot;)
+    [&quot;amount&quot;].sum()
+)</pre><div class="out">всего: (2000, 8)
+доставлено: (1661, 8)
+с суммой: (1607, 8)
+1148128000.0</div><p class="plain"><b>Простыми словами:</b> функция печатает размер и отдаёт таблицу дальше без изменений. Так видно, сколько строк потерялось на каждом шаге.</p></div></div>
+<div class="callout"><b>Правило аналитика.</b> Одна цепочка — один вопрос. Если шагов больше 10–12, раздели цепочку на две с понятными именами: <code class="i">clean = (…)</code> и <code class="i">report = (…)</code>.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок в цепочках</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Нет скобок вокруг цепочки</h3><div class="bad">report = df
+    .query(&#34;status == &#39;delivered&#39;&#34;)   # SyntaxError</div><div class="good">report = (df
+    .query(&#34;status == &#39;delivered&#39;&#34;))</div><p>Строка, которая начинается с точки, — ошибка, если вся цепочка не взята в круглые скобки.</p></div>
+        <div class="trap"><span class="n">2</span><h3>df вместо d внутри assign</h3><div class="bad">.assign(region_ok=df[&#34;region&#34;].str.strip())</div><div class="good">.assign(region_ok=lambda d: d[&#34;region&#34;].str.strip())</div><p><code class="i">df</code> — исходная таблица, она не знает про предыдущие шаги цепочки. <code class="i">lambda d</code> берёт таблицу именно на этом шаге.</p></div>
+        <div class="trap"><span class="n">3</span><h3>inplace=True в цепочке</h3><div class="bad">df.dropna(inplace=True).query(...)   # AttributeError: &#39;NoneType&#39;</div><div class="good">df.dropna().query(...)</div><p>С <code class="i">inplace=True</code> метод ничего не возвращает (None), и следующему шагу нечего обрабатывать. В цепочках inplace не используют.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Забыли @ в query</h3><div class="bad">df.query(&#34;amount &gt; porog&#34;)    # UndefinedVariableError</div><div class="good">df.query(&#34;amount &gt; @porog&#34;)</div><p>Без <code class="i">@</code> pandas ищет колонку с таким именем, а не переменную из кода.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Слишком длинная цепочка</h3><p>Цепочка на 25 шагов так же нечитаема, как простыня с df1…df7. Делай 2–3 цепочки с понятными именами и выноси повторяющиеся шаги в функции через <code class="i">pipe</code>.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 7 строк, которые надо помнить</h3>
+        <ol><li>(df .шаг1() .шаг2()) <span>— цепочка в скобках, каждый шаг на своей строке</span></li><li>.assign(new=lambda d: d[&#34;a&#34;] * 2) <span>— новая колонка по таблице на этом шаге</span></li><li>.query(&#34;status == &#39;delivered&#39;&#34;) <span>— фильтр словами</span></li><li>.query(&#34;amount &gt; @porog&#34;) <span>— переменная из кода</span></li><li>.groupby(&#34;a&#34;).agg(n=(&#34;b&#34;, &#34;count&#34;)) <span>— агрегация с понятными именами</span></li><li>def step(d): return d… <span>— свой шаг в функции</span></li><li>.pipe(step) <span>— вставить свою функцию в цепочку</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Зачем вся цепочка берётся в круглые скобки?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Так быстрее работает</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Чтобы каждый шаг можно было писать с новой строки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Без скобок pandas не загрузится</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Скобки ставят только вокруг query</span></button></div>
+          <div class="why" hidden>Скобки говорят Python: выражение продолжается на следующих строках. Без них строка, начинающаяся с точки, — синтаксическая ошибка.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Что такое <code>d</code> в <code>.assign(x=lambda d: d["a"] * 2)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Исходная таблица df</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Таблица на этом шаге цепочки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Колонка a</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Номер строки</span></button></div>
+          <div class="why" hidden>lambda получает таблицу, которая пришла на этот шаг, со всеми изменениями предыдущих шагов.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Как подставить переменную <code>porog</code> в query?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>query("amount > porog")</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>query("amount > @porog")</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>query("amount > {porog}")</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>query(amount > porog)</code></span></button></div>
+          <div class="why" hidden>@ перед именем значит «возьми переменную из кода».</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Что вернёт <code>df.dropna(inplace=True)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Новую таблицу</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>None</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Число удалённых строк</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибку</span></button></div>
+          <div class="why" hidden>С inplace=True метод меняет df на месте и возвращает None, поэтому продолжить цепочку нельзя.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="0">
+          <p>5. <code>df.pipe(clean)</code> — это то же самое, что…</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>clean(df)</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>df.clean</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df[clean]</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df.apply(clean)</code></span></button></div>
+          <div class="why" hidden>pipe просто передаёт таблицу в функцию. Зато так функция встаёт в цепочку как обычный метод.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Первая цепочка</h3>
+            <ol class='steps-t'><li>Одной цепочкой в скобках: оставь только доставленные заказы (<code class='i'>status == "delivered"</code>) через <code class='i'>query</code>.</li> <li>Посчитай, сколько их в каждом канале (<code class='i'>channel</code>), через <code class='i'>value_counts()</code>.</li></ol> <p class='rule-t'>Без промежуточных переменных: только <code class='i'>(df .query(…) …)</code>.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 13 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">(
+    df
+    # твой код
+)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">channel
+app    1137
+web     524
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>(
+    df
+    # твой код
+)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Цепочка — это шаги один под другим, каждый начинается с точки и работает с результатом прошлого шага. Шаг 1: оставить доставленные. Шаг 2: взять колонку канала. Шаг 3: посчитать.</p>
+<p><b>Чем это сделать.</b> <code class="i">.query("status == 'delivered'")</code> — фильтр текстом. После него можно сразу написать <code class="i">["channel"]</code> — взять колонку, и <code class="i">.value_counts()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>(
+    df
+    .query(&#34;status == &#39;___&#39;&#34;)
+    [&#34;___&#34;]
+    .___()
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Внутри query, который в двойных кавычках, слово delivered пишется в одинарных: <code class="i">'delivered'</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Колонка через assign</h3>
+            <ol class='steps-t'><li>Через <code class='i'>assign</code> добавь колонку <code class='i'>amount_mln</code> — сумма в миллионах, 2 знака после точки.</li> <li>В той же цепочке выбери 3 самых дорогих заказа (<code class='i'>nlargest(3, "amount")</code>) и покажи колонки <b>order_id, amount_mln</b>.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 13 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">(
+    df
+    # твой код
+)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">     order_id  amount_mln
+665     50666        6.27
+690     50691        6.21
+672     50673        5.74</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>(
+    df
+    # твой код
+)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> В цепочке у таблицы нет имени, поэтому в assign используют lambda: «возьми таблицу, которая сейчас идёт по цепочке, и посчитай из неё». Потом выбери 3 крупнейших заказа и нужные колонки.</p>
+<p><b>Чем это сделать.</b> <code class="i">.assign(x=lambda d: d["amount"] / 1_000_000)</code> — d — это таблица на этом шаге. <code class="i">.nlargest(3, "amount")</code>, потом <code class="i">[["col1", "col2"]]</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>(
+    df
+    .assign(amount_mln=lambda d: (d[&#34;___&#34;] / 1_000_000).round(___))
+    .nlargest(___, &#34;amount&#34;)
+    [[&#34;___&#34;, &#34;___&#34;]]
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без lambda (<code class="i">amount_mln=df["amount"] / 1e6</code>) код сработает здесь, но сломается, если перед assign стоит фильтр.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Чистый регион в цепочке</h3>
+            <ol class='steps-t'><li>В цепочке почисти колонку <code class='i'>region</code>: убери пробелы по краям и сделай первую букву большой (<code class='i'>str.strip().str.capitalize()</code>).</li> <li>Посчитай заказы по регионам через <code class='i'>value_counts()</code>.</li></ol> <p class='rule-t'>Должно получиться 5 регионов.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 13 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">(
+    df
+    # твой код
+)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">region
+Ташкент      791
+Самарканд    404
+Фергана      305
+Бухара       265
+Наманган     235
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>(
+    df
+    # твой код
+)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Почистить колонку в цепочке — значит перезаписать её через assign тем же именем. Дальше бери её и считай частоты.</p>
+<p><b>Чем это сделать.</b> <code class="i">.assign(region=lambda d: d["region"].str.strip().str.capitalize())</code> — колонка region станет чистой.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>(
+    df
+    .assign(region=lambda d: d[&#34;region&#34;].str.___().str.___())
+    [&#34;region&#34;]
+    .value_counts()
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> capitalize делает «ташкент» → «Ташкент», но не убирает пробелы — strip нужен до него.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Порог через @</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>porog</code> медиану колонки <code class='i'>amount</code>.</li> <li>Через <code class='i'>query</code> с <code class='i'>@porog</code> оставь заказы дороже медианы.</li> <li>Выведи доли способов оплаты среди них: <code class='i'>value_counts(normalize=True)</code>, 3 знака.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 13 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">porog =
+
+# твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">payment
+card    0.649
+cash    0.351
+Name: proportion, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>porog =
+
+# твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай медиану заранее и положи её в переменную. Внутри query на обычную переменную Python можно сослаться, поставив перед её именем знак @.</p>
+<p><b>Чем это сделать.</b> <code class="i">.query("amount > @porog")</code> — сравнить с переменной porog. <code class="i">value_counts(normalize=True).round(3)</code> — доли с 3 знаками.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>porog = df[&#34;amount&#34;].___()
+(
+    df
+    .query(&#34;amount &gt; @___&#34;)
+    [&#34;___&#34;]
+    .value_counts(normalize=___)
+    .round(3)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без @ pandas будет искать <b>колонку</b> с именем porog и упадёт с ошибкой.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Свой шаг через pipe</h3>
+            <ol class='steps-t'><li>Напиши функцию <code class='i'>clean</code>: она принимает таблицу <code class='i'>d</code>, чистит <code class='i'>region</code> (strip + capitalize) и убирает строки без суммы (<code class='i'>dropna(subset=["amount"])</code>).</li> <li>Пропусти df через неё: <code class='i'>clean_df = df.pipe(clean)</code>.</li> <li>Напечатай <code class='i'>clean_df.shape</code> и число разных регионов в одну строку.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 13 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">def clean(d):
+    return (
+        d
+        # твой код
+    )
+
+clean_df = df.pipe(clean)
+# shape и число регионов
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(1942, 8) 5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>def clean(d):
+    return (
+        d
+        # твой код
+    )
+
+clean_df = df.pipe(clean)
+# shape и число регионов
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Функция — это свой шаг цепочки: «получи таблицу, сделай с ней дела, верни результат». Внутри функции такая же цепочка, как вне её. pipe просто передаёт таблицу в твою функцию.</p>
+<p><b>Чем это сделать.</b> <code class="i">.dropna(subset=["amount"])</code> — убрать строки, где пустая сумма. <code class="i">df.pipe(clean)</code> = <code class="i">clean(df)</code>, только внутри цепочки.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>def clean(d):
+    return (
+        d
+        .assign(region=lambda x: x[&#34;region&#34;].str.strip().str.capitalize())
+        .dropna(subset=[&#34;___&#34;])
+    )
+
+clean_df = df.pipe(clean)
+print(clean_df.___, clean_df[&#34;region&#34;].___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не забудь <code class="i">return</code>: без него функция вернёт None, и следующий шаг упадёт.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Агрегация с понятными именами</h3>
+            <ol class='steps-t'><li>Только доставленные заказы, регион почищен.</li> <li>По каждому региону: <code class='i'>orders</code> — число заказов, <code class='i'>revenue_mln</code> — сумма amount в миллионах (1 знак).</li> <li>Отсортируй по выручке от большей к меньшей.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 13 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">(
+    df
+    # твой код
+)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           orders  revenue_mln
+region
+Ташкент       651        422.1
+Самарканд     336        304.1
+Фергана       253        172.4
+Бухара        216        135.9
+Наманган      205        113.6</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>(
+    df
+    # твой код
+)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Шаги: оставить доставленные → почистить регион → сгруппировать по региону и посчитать число и сумму → перевести сумму в миллионы → оставить две колонки → отсортировать.</p>
+<p><b>Чем это сделать.</b> <code class="i">.agg(orders=("order_id", "count"), revenue=("amount", "sum"))</code>, потом <code class="i">.assign(revenue_mln=lambda d: (d["revenue"] / 1e6).round(1))</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>(
+    df
+    .query(&#34;status == &#39;delivered&#39;&#34;)
+    .assign(region=___)
+    .groupby(&#34;___&#34;)
+    .agg(orders=(&#34;order_id&#34;, &#34;count&#34;), revenue=(&#34;amount&#34;, &#34;___&#34;))
+    .assign(revenue_mln=lambda d: (d[&#34;___&#34;] / 1e6).round(1))
+    [[&#34;orders&#34;, &#34;revenue_mln&#34;]]
+    .sort_values(&#34;___&#34;, ascending=False)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сначала чистка региона, потом группировка — иначе « Ташкент» и «ташкент» станут разными группами.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Еженедельный отчёт одной цепочкой</h3>
+            <p>Собери отчёт <code class='i'>report</code> по регионам одной цепочкой. Колонки:</p> <ol class='steps-t'><li><code class='i'>orders</code> — все заказы региона (любой статус);</li> <li><code class='i'>cancel_pct</code> — % отменённых заказов, 1 знак;</li> <li><code class='i'>revenue_mln</code> — выручка только доставленных заказов в млн, 1 знак.</li></ol> <p class='rule-t'>Отсортируй по выручке. Подсказка-приём: колонка <code class='i'>paid</code> = сумма, если заказ доставлен, иначе пусто: <code class='i'>d["amount"].where(d["status"] == "delivered")</code>.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 13 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">report = (
+    df
+    # твой код
+)
+report
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           orders  cancel_pct  revenue_mln
+region
+Ташкент       791        12.5        422.1
+Самарканд     404        11.4        304.1
+Фергана       305        13.4        172.4
+Бухара        265        12.1        135.9
+Наманган      235         9.8        113.6</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>report = (
+    df
+    # твой код
+)
+report
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Хитрость в том, что заказы считаем по всем статусам, а выручку — только по доставленным. Поэтому до группировки сделай колонку paid: сумма у доставленных и пусто у остальных. Сумма пропустит пустые сама.</p>
+<p><b>Чем это сделать.</b> <code class="i">d["amount"].where(d["status"] == "delivered")</code> — сумма только доставленных. Доля отмен — среднее маски <code class="i">("is_cancel", "mean")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>report = (
+    df
+    .assign(region=___,
+            is_cancel=lambda d: d[&#34;status&#34;] == &#34;___&#34;,
+            paid=lambda d: d[&#34;amount&#34;].where(d[&#34;status&#34;] == &#34;___&#34;))
+    .groupby(&#34;region&#34;)
+    .agg(orders=(&#34;order_id&#34;, &#34;count&#34;), cancel_pct=(&#34;is_cancel&#34;, &#34;___&#34;), revenue_mln=(&#34;paid&#34;, &#34;___&#34;))
+    .assign(cancel_pct=lambda d: (d[&#34;cancel_pct&#34;] * ___).round(1),
+            revenue_mln=lambda d: (d[&#34;revenue_mln&#34;] / ___).round(1))
+    .sort_values(&#34;revenue_mln&#34;, ascending=False)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если сначала отфильтровать доставленные, отмены исчезнут из таблицы и доля отмен станет 0.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Жасуру</h2>
+      <div class="case">
+        <p>Напиши ответ Жасуру в Telegram. Не больше 5 предложений. Структура: <b>что ты изменил в коде (без терминов) → главные цифры отчёта по регионам → 1 риск в данных → что команде делать с кодом дальше</b>. Только цифры, которые ты получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Выручка Ташкента</span><span class="fact-chip">Выручка Самарканда</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Жасур, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Как твой ответ объясняет, что ты изменил в коде?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Простыми словами: код стал одним блоком, который читается сверху вниз как рецепт</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Перечислением названий методов без объяснения</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Никак, сразу цифры</span></button></div>
+            <div class="why" hidden>Жасуру важна суть изменения, а не названия функций.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Какой риск в данных ты называешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Регион записан по-разному, и без очистки отчёт снова сломается</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Данных слишком много</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Рисков нет</span></button></div>
+            <div class="why" hidden>15 вариантов написания на 5 регионов — без очистки группировка разваливается.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Что ты предлагаешь команде дальше?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Вынести очистку в общую функцию и использовать во всех отчётах</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Каждый раз чистить данные вручную в Excel</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Ничего не менять</span></button></div>
+            <div class="why" hidden>Общая функция (pipe) убирает повтор кода и ошибки в разных отчётах.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Жасур, привет! Переписал отчёт: теперь это один блок кода, который читается сверху вниз как рецепт — почистить регион, посчитать заказы, отмены и выручку. Лидер по выручке — Ташкент: 422,1 млн сум при 791 заказах, второй Самарканд — 304,1 млн; доля отмен по регионам от 9,8% до 13,4%. Риск: регион в выгрузке записан по-разному (15 вариантов на 5 регионов), поэтому без очистки отчёт снова поломается, а у 58 заказов нет суммы. Предлагаю вынести очистку региона в общую функцию и использовать её во всех отчётах.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Изменения в коде объяснены без терминов</li><li>Цифры совпадают с задачей 7: выручка и заказы Ташкента и Самарканда, доля отмен</li><li>Назван риск: грязный регион или пропуски в сумме</li><li>Есть следующий шаг для команды</li><li>Не больше 5 предложений</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 13</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/12-concat-melt-pivot/"><small>← Урок 12</small><b>concat, melt, pivot, stack: длинный и широкий формат</b></a><a class="nx" href="../../lessons/14-mini-proekt-2/"><small>Проект 14 →</small><b>Мини-проект 2: продуктовый отчёт по сегментам</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430", "value": 422100000}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0430", "value": 304100000}], "logic": [{"a": 0, "o": ["\u041f\u0440\u043e\u0441\u0442\u044b\u043c\u0438 \u0441\u043b\u043e\u0432\u0430\u043c\u0438: \u043a\u043e\u0434 \u0441\u0442\u0430\u043b \u043e\u0434\u043d\u0438\u043c \u0431\u043b\u043e\u043a\u043e\u043c, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u0441\u0432\u0435\u0440\u0445\u0443 \u0432\u043d\u0438\u0437 \u043a\u0430\u043a \u0440\u0435\u0446\u0435\u043f\u0442", "\u041f\u0435\u0440\u0435\u0447\u0438\u0441\u043b\u0435\u043d\u0438\u0435\u043c \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0439 \u043c\u0435\u0442\u043e\u0434\u043e\u0432 \u0431\u0435\u0437 \u043e\u0431\u044a\u044f\u0441\u043d\u0435\u043d\u0438\u044f", "\u041d\u0438\u043a\u0430\u043a, \u0441\u0440\u0430\u0437\u0443 \u0446\u0438\u0444\u0440\u044b"], "q": "\u041a\u0430\u043a \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0435\u0442, \u0447\u0442\u043e \u0442\u044b \u0438\u0437\u043c\u0435\u043d\u0438\u043b \u0432 \u043a\u043e\u0434\u0435?", "why": "\u0416\u0430\u0441\u0443\u0440\u0443 \u0432\u0430\u0436\u043d\u0430 \u0441\u0443\u0442\u044c \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u044f, \u0430 \u043d\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0444\u0443\u043d\u043a\u0446\u0438\u0439."}, {"a": 0, "o": ["\u0420\u0435\u0433\u0438\u043e\u043d \u0437\u0430\u043f\u0438\u0441\u0430\u043d \u043f\u043e-\u0440\u0430\u0437\u043d\u043e\u043c\u0443, \u0438 \u0431\u0435\u0437 \u043e\u0447\u0438\u0441\u0442\u043a\u0438 \u043e\u0442\u0447\u0451\u0442 \u0441\u043d\u043e\u0432\u0430 \u0441\u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f", "\u0414\u0430\u043d\u043d\u044b\u0445 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e", "\u0420\u0438\u0441\u043a\u043e\u0432 \u043d\u0435\u0442"], "q": "\u041a\u0430\u043a\u043e\u0439 \u0440\u0438\u0441\u043a \u0432 \u0434\u0430\u043d\u043d\u044b\u0445 \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "15 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u043e\u0432 \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u043d\u0430 5 \u0440\u0435\u0433\u0438\u043e\u043d\u043e\u0432 \u2014 \u0431\u0435\u0437 \u043e\u0447\u0438\u0441\u0442\u043a\u0438 \u0433\u0440\u0443\u043f\u043f\u0438\u0440\u043e\u0432\u043a\u0430 \u0440\u0430\u0437\u0432\u0430\u043b\u0438\u0432\u0430\u0435\u0442\u0441\u044f."}, {"a": 0, "o": ["\u0412\u044b\u043d\u0435\u0441\u0442\u0438 \u043e\u0447\u0438\u0441\u0442\u043a\u0443 \u0432 \u043e\u0431\u0449\u0443\u044e \u0444\u0443\u043d\u043a\u0446\u0438\u044e \u0438 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u044c \u0432\u043e \u0432\u0441\u0435\u0445 \u043e\u0442\u0447\u0451\u0442\u0430\u0445", "\u041a\u0430\u0436\u0434\u044b\u0439 \u0440\u0430\u0437 \u0447\u0438\u0441\u0442\u0438\u0442\u044c \u0434\u0430\u043d\u043d\u044b\u0435 \u0432\u0440\u0443\u0447\u043d\u0443\u044e \u0432 Excel", "\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043c\u0435\u043d\u044f\u0442\u044c"], "q": "\u0427\u0442\u043e \u0442\u044b \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u0435\u0448\u044c \u043a\u043e\u043c\u0430\u043d\u0434\u0435 \u0434\u0430\u043b\u044c\u0448\u0435?", "why": "\u041e\u0431\u0449\u0430\u044f \u0444\u0443\u043d\u043a\u0446\u0438\u044f (pipe) \u0443\u0431\u0438\u0440\u0430\u0435\u0442 \u043f\u043e\u0432\u0442\u043e\u0440 \u043a\u043e\u0434\u0430 \u0438 \u043e\u0448\u0438\u0431\u043a\u0438 \u0432 \u0440\u0430\u0437\u043d\u044b\u0445 \u043e\u0442\u0447\u0451\u0442\u0430\u0445."}]}, "case_model": "\u0416\u0430\u0441\u0443\u0440, \u043f\u0440\u0438\u0432\u0435\u0442! \u041f\u0435\u0440\u0435\u043f\u0438\u0441\u0430\u043b \u043e\u0442\u0447\u0451\u0442: \u0442\u0435\u043f\u0435\u0440\u044c \u044d\u0442\u043e \u043e\u0434\u0438\u043d \u0431\u043b\u043e\u043a \u043a\u043e\u0434\u0430, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u0447\u0438\u0442\u0430\u0435\u0442\u0441\u044f \u0441\u0432\u0435\u0440\u0445\u0443 \u0432\u043d\u0438\u0437 \u043a\u0430\u043a \u0440\u0435\u0446\u0435\u043f\u0442 \u2014 \u043f\u043e\u0447\u0438\u0441\u0442\u0438\u0442\u044c \u0440\u0435\u0433\u0438\u043e\u043d, \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u0442\u044c \u0437\u0430\u043a\u0430\u0437\u044b, \u043e\u0442\u043c\u0435\u043d\u044b \u0438 \u0432\u044b\u0440\u0443\u0447\u043a\u0443. \u041b\u0438\u0434\u0435\u0440 \u043f\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0435 \u2014 \u0422\u0430\u0448\u043a\u0435\u043d\u0442: 422,1 \u043c\u043b\u043d \u0441\u0443\u043c \u043f\u0440\u0438 791 \u0437\u0430\u043a\u0430\u0437\u0430\u0445, \u0432\u0442\u043e\u0440\u043e\u0439 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u2014 304,1 \u043c\u043b\u043d; \u0434\u043e\u043b\u044f \u043e\u0442\u043c\u0435\u043d \u043f\u043e \u0440\u0435\u0433\u0438\u043e\u043d\u0430\u043c \u043e\u0442 9,8% \u0434\u043e 13,4%. \u0420\u0438\u0441\u043a: \u0440\u0435\u0433\u0438\u043e\u043d \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u0437\u0430\u043f\u0438\u0441\u0430\u043d \u043f\u043e-\u0440\u0430\u0437\u043d\u043e\u043c\u0443 (15 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u043e\u0432 \u043d\u0430 5 \u0440\u0435\u0433\u0438\u043e\u043d\u043e\u0432), \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0431\u0435\u0437 \u043e\u0447\u0438\u0441\u0442\u043a\u0438 \u043e\u0442\u0447\u0451\u0442 \u0441\u043d\u043e\u0432\u0430 \u043f\u043e\u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f, \u0430 \u0443 58 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0435\u0442 \u0441\u0443\u043c\u043c\u044b. \u041f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0432\u044b\u043d\u0435\u0441\u0442\u0438 \u043e\u0447\u0438\u0441\u0442\u043a\u0443 \u0440\u0435\u0433\u0438\u043e\u043d\u0430 \u0432 \u043e\u0431\u0449\u0443\u044e \u0444\u0443\u043d\u043a\u0446\u0438\u044e \u0438 \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u044c \u0435\u0451 \u0432\u043e \u0432\u0441\u0435\u0445 \u043e\u0442\u0447\u0451\u0442\u0430\u0445.", "case_xp": 30, "cheat": [["(df .\u0448\u0430\u04331() .\u0448\u0430\u04332())", "\u0446\u0435\u043f\u043e\u0447\u043a\u0430 \u0432 \u0441\u043a\u043e\u0431\u043a\u0430\u0445, \u043a\u0430\u0436\u0434\u044b\u0439 \u0448\u0430\u0433 \u043d\u0430 \u0441\u0432\u043e\u0435\u0439 \u0441\u0442\u0440\u043e\u043a\u0435"], [".assign(new=lambda d: d[\"a\"] * 2)", "\u043d\u043e\u0432\u0430\u044f \u043a\u043e\u043b\u043e\u043d\u043a\u0430 \u043f\u043e \u0442\u0430\u0431\u043b\u0438\u0446\u0435 \u043d\u0430 \u044d\u0442\u043e\u043c \u0448\u0430\u0433\u0435"], [".query(\"status == \u0027delivered\u0027\")", "\u0444\u0438\u043b\u044c\u0442\u0440 \u0441\u043b\u043e\u0432\u0430\u043c\u0438"], [".query(\"amount \u003e @porog\")", "\u043f\u0435\u0440\u0435\u043c\u0435\u043d\u043d\u0430\u044f \u0438\u0437 \u043a\u043e\u0434\u0430"], [".groupby(\"a\").agg(n=(\"b\", \"count\"))", "\u0430\u0433\u0440\u0435\u0433\u0430\u0446\u0438\u044f \u0441 \u043f\u043e\u043d\u044f\u0442\u043d\u044b\u043c\u0438 \u0438\u043c\u0435\u043d\u0430\u043c\u0438"], ["def step(d): return d\u2026", "\u0441\u0432\u043e\u0439 \u0448\u0430\u0433 \u0432 \u0444\u0443\u043d\u043a\u0446\u0438\u0438"], [".pipe(step)", "\u0432\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u0441\u0432\u043e\u044e \u0444\u0443\u043d\u043a\u0446\u0438\u044e \u0432 \u0446\u0435\u043f\u043e\u0447\u043a\u0443"]], "data": "../../data/", "datasets": ["savdo_orders.csv"], "day": 13, "hint_cost": 5, "quiz": [1, 1, 1, 1, 0], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"savdo_orders.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["channel", "app 1137", "web 524"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["order_id amount_mln", "665 50666 6.27", "690 50691 6.21", "672 50673 5.74"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["region", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 791", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 404", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 305", "\u0411\u0443\u0445\u0430\u0440\u0430 265", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 235"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["payment", "card 0.649", "cash 0.351"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["(1942, 8) 5"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["orders revenue_mln", "region", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 651 422.1", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 336 304.1", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 253 172.4", "\u0411\u0443\u0445\u0430\u0440\u0430 216 135.9", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 205 113.6"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["orders cancel_pct revenue_mln", "region", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 791 12.5 422.1", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 404 11.4 304.1", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 305 13.4 172.4", "\u0411\u0443\u0445\u0430\u0440\u0430 265 12.1 135.9", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 235 9.8 113.6"], "setup": "", "xp": 25}], "theory": ["brief", "chain", "pipe", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

@@ -1,0 +1,713 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 10. pivot_table и crosstab — Pandas Sprint</title>
+<meta name="description" content="Урок 10 курса Pandas Sprint — pivot_table и crosstab. Собрать сводную таблицу, как в Excel, но кодом.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/10-pivot-table-crosstab/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 10. pivot_table и crosstab — Pandas Sprint">
+<meta property="og:description" content="Урок 10 курса Pandas Sprint — pivot_table и crosstab. Собрать сводную таблицу, как в Excel, но кодом.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/10-pivot-table-crosstab/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="10">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>pivot_table</a></li><li><a href="#tools"><span class="dot">✓</span>6 приёмов</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">SUM(CASE WHEN …) на каждый столбец → одна строка pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В SQL сводную таблицу ты пишешь руками: по одному CASE WHEN на каждую категорию. В pandas столбцы появляются сами.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT region, SUM(CASE WHEN category=&#39;Дом&#39; THEN amount END) AS &#34;Дом&#34;, … GROUP BY region</code></td><td><code>d.pivot_table(index=&#34;region&#34;, columns=&#34;category&#34;, values=&#34;amount&#34;, aggfunc=&#34;sum&#34;)</code></td><td>шахматка сумм</td></tr><tr><td><code>GROUP BY region, category (длинный список)</code></td><td><code>d.groupby([&#34;region&#34;, &#34;category&#34;])[&#34;amount&#34;].sum().unstack()</code></td><td>то же самое через groupby</td></tr><tr><td><code>… GROUP BY ROLLUP(region)</code></td><td><code>pivot_table(..., margins=True, margins_name=&#34;Итого&#34;)</code></td><td>строка и столбец итогов</td></tr><tr><td><code>SELECT payment, status, COUNT(*) GROUP BY payment, status</code></td><td><code>pd.crosstab(df[&#34;payment&#34;], df[&#34;status&#34;])</code></td><td>счётчик пар</td></tr><tr><td><code>COUNT(*) / SUM(COUNT(*)) OVER (PARTITION BY payment)</code></td><td><code>pd.crosstab(df[&#34;payment&#34;], df[&#34;status&#34;], normalize=&#34;index&#34;)</code></td><td>доли внутри строки</td></tr><tr><td><code>AVG(CASE WHEN status=&#39;cancelled&#39; THEN 1 ELSE 0 END)</code></td><td><code>pivot_table(values=&#34;is_cancel&#34;, aggfunc=&#34;mean&#34;)</code></td><td>доля отмен = среднее True/False</td></tr><tr><td><code>COALESCE(SUM(...), 0)</code></td><td><code>pivot_table(..., fill_value=0)</code></td><td>пустая клетка → 0</td></tr><tr><td><code>SUM(x) / SUM(SUM(x)) OVER (PARTITION BY region)</code></td><td><code>pv.div(pv.sum(axis=1), axis=0)</code></td><td>доля категории внутри региона</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>pivot ≠ pivot_table.</b> <code class="i">df.pivot(...)</code> ничего не считает: он только переставляет и падает с ошибкой <code class="i">ValueError: Index contains duplicate entries</code>, если у пары «регион + категория» больше одной строки. Для отчётов почти всегда нужен <code class="i">pivot_table</code> — он сворачивает дубли через aggfunc.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 10 из 30 · Неделя 2 · Агрегации</div>
+      <h1>pivot_table и crosstab: <mark>отчёт-шахматка</mark> за одну строку</h1>
+      <p class="lead">groupby даёт длинный список «регион + категория → сумма». Начальник хочет другое: таблицу, где регионы — строки, категории — столбцы, а в клетках деньги, как сводная таблица в Excel. Это pivot_table. А crosstab — быстрый счётчик «сколько раз встретилась пара»: например, сколько отмен при оплате наличными.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Маркетплейс Savdo Market хочет перенести маркетинг-бюджет в Ташкент («лидер везде») и отключить оплату наличными в Фергане («там все отмены»). Построить сводные таблицы по 2 000 заказам и сказать коммерческому директору, где он прав, а где нет.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Строить шахматку «строки × столбцы → сумма»: <code class="i">pivot_table(index=, columns=, values=, aggfunc=)</code></li><li>Добавлять строку и столбец «Итого»: <code class="i">margins=True, margins_name="Итого"</code></li><li>Считать пары и доли пар: <code class="i">pd.crosstab(a, b, normalize="index")</code></li><li>Считать долю отмен как среднее True/False и доли категорий внутри региона: <code class="i">pv.div(pv.sum(axis=1), axis=0)</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>«Ташкент лидирует везде, а Фергана отменяет»</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Т</span>Тимур <small>коммерческий директор Savdo Market · 09:15</small></div>
+          <p>Привет! Выгрузил заказы за 01–21.10. По-моему, всё очевидно: <b>Ташкент лидирует во всех категориях</b> — переносим туда 70% маркетинг-бюджета, Самарканд урезаем, он слабый.</p>
+<div class="file">▤ savdo_orders.csv · 2 000 заказов</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Т</span>Тимур <small>09:17</small></div>
+          <p>И второе: отмены. Мне сказали, что <b>в Фергане все отмены из-за наличных</b>. Хочу отключить там оплату наличными. Сделай одну табличку «регион × категория» и одну по отменам — завтра в 10 у CEO.</p>
+        </div>
+      </div>
+      <p class="note">Savdo Market — учебный маркетплейс. Данные сгенерированы, но грязные как настоящие: регион записан по-разному (<b>«Ташкент»</b>, <b>«ташкент»</b>, <b>«Ташкент »</b> с пробелом в конце) — 15 написаний пяти регионов; у 58 заказов нет суммы (<b>NaN</b>). Выручка — только заказы со статусом <code class="i">delivered</code>. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/savdo_orders.csv" download>Скачать savdo_orders.csv</a><span class="note">2 000 строк · 8 колонок · 120 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;savdo_orders.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Сводная таблица = шахматная доска из groupby</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь классный журнал. Слева — фамилии учеников (это <b>строки</b>). Сверху — предметы (это <b>столбцы</b>). В клетке на пересечении — оценка. Ты не читаешь длинный список «Иванов, математика, 5; Иванов, физика, 4…». Ты смотришь на <b>сетку</b> и сразу видишь всё.</p>
+<ul>
+<li><b>pivot_table</b> — делает такую сетку из таблицы. Ты говоришь: что поставить в строки (<b>index</b>), что в столбцы (<b>columns</b>), какие числа класть в клетки (<b>values</b>) и что с ними делать (<b>aggfunc</b>: сложить "sum", среднее "mean", посчитать "count").</li>
+<li><b>Под капотом это groupby.</b> <code class="i">pivot_table(index="region", columns="category", values="amount", aggfunc="sum")</code> = <code class="i">groupby(["region","category"])["amount"].sum()</code>, только длинный список разложен в сетку.</li>
+<li><b>margins=True</b> — добавить строку и столбец «Итого», как последняя строка в Excel. Имя им даёт <b>margins_name</b>.</li>
+<li><b>crosstab</b> — сетка-счётчик: «сколько раз встретилась пара». Сколько заказов «наличные + отменён».</li>
+<li><b>normalize="index"</b> — вместо штук показать <b>доли внутри каждой строки</b>: каждая строка в сумме даёт 1 (то есть 100%).</li>
+<li><b>NaN в клетке</b> — такой пары просто не было. <b>fill_value=0</b> ставит вместо пустоты ноль.</li>
+</ul>
+<p>Главная мысль дня: <b>большие абсолютные числа часто означают просто «там больше заказов»</b>. Чтобы сравнивать честно, смотри доли и средние.</p>
+</div>
+<h3>История с маленькими числами</h3>
+<p>Два ларька продают яблоки и груши. Продажи за день: ларёк А — яблоки 3, груши 1, яблоки 2. Ларёк Б — груши 4. Вот длинный список и сетка из него:</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">ларёк ↓ / фрукт →</th><th>груши</th><th>яблоки</th><th class="ser">Итого<span class="dt">margins</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">А</td><td>1</td><td>5 <span class="note">(3 + 2)</span></td><td class="ser">6</td></tr>
+<tr><td class="idx">Б</td><td>4</td><td class="nan">NaN → 0</td><td class="ser">4</td></tr>
+<tr><td class="idx">Итого</td><td>5</td><td>5</td><td class="ser">10</td></tr>
+</tbody>
+</table>
+</div>
+<p>Ларёк А продал больше (6 против 4). Но груш больше продал Б: 4 против 1. «Лидер по итогу» ≠ «лидер в каждом столбце». А если смотреть доли внутри строки: у А груши — 1 из 6 (17%), у Б — 4 из 4 (100%). Это и есть <code class="i">normalize="index"</code>.</p>
+<div class="legend">
+<div><b>index · строки</b>Что идёт слева. Например, регион.</div>
+<div><b>columns · столбцы</b>Что идёт сверху. Категория. Каждое значение — свой столбец.</div>
+<div><b>values + aggfunc · клетка</b>Какое число и как свернуть: sum, mean, count.</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Шесть приёмов: сетка, итоги, счётчик, доли</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">d = df[df["status"] == "delivered"]</code> — маска из урока 2: оставить только доставленные заказы. Выручку считаем только по ним.</li>
+<li><code class="i">d.pivot_table(index="region", columns="category", values="amount", aggfunc="sum")</code> — четыре именованных аргумента через запятую. Порядок не важен, важны имена слева от <code class="i">=</code>.</li>
+<li><code class="i">aggfunc="sum"</code> — имя функции в кавычках, как в agg (урок 8). Можно список: <code class="i">aggfunc=["count", "mean"]</code> — тогда столбцов станет в 2 раза больше.</li>
+<li><code class="i">pd.crosstab(df["payment"], df["status"])</code> — функция из <b>pd</b>, а не метод df. Ей дают две <b>Series</b> (две колонки): первая — строки, вторая — столбцы.</li>
+<li><code class="i">.mul(100)</code> — то же, что <code class="i">* 100</code>, но удобно ставить в цепочку через точку.</li>
+<li><code class="i">pv.sum(axis=1)</code> — сумма <b>по строке</b> (вдоль, слева направо): итог каждого региона. <code class="i">axis=0</code> — сумма по столбцу (сверху вниз). <code class="i">pv.div(x, axis=0)</code> — делить каждую строку на её число из x.</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле Savdo Market. Карточки идут подряд: в карточке 1 почистили region, дальше работаем с чистым.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. Сначала ключ: регионов 5, написаний 15.</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+df = pd.read_csv("savdo_orders.csv")
+print(df["region"].nunique())
+df["region"] = df["region"].str.strip().str.capitalize()
+df["region"].value_counts()</pre><div class="out">15
+region
+Ташкент      791
+Самарканд    404
+Фергана      305
+Бухара       265
+Наманган     235
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> было 15 «регионов», потому что «ташкент» и «Ташкент » для pandas — разные слова. <b>strip</b> срезает пробелы по краям, <b>capitalize</b> делает первую букву большой, остальные маленькими. Без этого в сводной было бы 15 строк вместо 5.</p></div>
+<div class="card"><div class="q"><b>2. crosstab: сколько заказов в каждой паре «регион × статус».</b></div>
+<pre class="code" data-cm="">pd.crosstab(df["region"], df["status"], margins=True, margins_name="Итого")</pre><div class="out">status     cancelled  delivered  returned  Итого
+region
+Бухара            32        216        17    265
+Наманган          23        205         7    235
+Самарканд         46        336        22    404
+Ташкент           99        651        41    791
+Фергана           41        253        11    305
+Итого            241       1661        98   2000</div><p class="plain"><b>Простыми словами:</b> каждая клетка — «сколько раз встретилась пара». В Ташкенте 99 отмен, в Фергане 41. Ташкент больше — но там и заказов в 2.6 раза больше (791 против 305). Штуки сравнивать нечестно. Строка и столбец «Итого» — от <b>margins</b>.</p></div>
+<div class="card"><div class="q"><b>3. pivot_table: выручка «регион × категория», млн сум.</b></div>
+<pre class="code" data-cm="">d = df[df["status"] == "delivered"]
+pv = d.pivot_table(index="region", columns="category",
+                   values="amount", aggfunc="sum")
+(pv / 1e6).round(1)</pre><div class="out">category    Дом  Красота  Одежда  Продукты  Электроника
+region
+Бухара     24.3     12.8    19.8      12.1         66.9
+Наманган   20.6      7.3    28.2      11.1         46.4
+Самарканд  41.9     13.3    35.8      14.4        198.7
+Ташкент    75.7     23.9    72.8      37.2        212.5
+Фергана    27.3     12.9    35.2      12.2         84.9</div><p class="plain"><b>Простыми словами:</b> строки — регионы, столбцы — категории, в клетке — сумма доставленных заказов. <code class="i">1e6</code> — это 1 000 000 (единица и 6 нулей). Ташкент первый в каждом столбце — Тимур тут прав. Но посмотри на Электронику: Самарканд 198.7 почти догнал Ташкент 212.5, имея вдвое меньше заказов.</p></div>
+<div class="card"><div class="q"><b>4. normalize="index": доли внутри строки, а не штуки.</b></div>
+<pre class="code" data-cm="">pd.crosstab(df["payment"], df["status"],
+            normalize="index").mul(100).round(1)</pre><div class="out">status   cancelled  delivered  returned
+payment
+card           7.8       87.1       5.1
+cash          19.9       75.6       4.5</div><p class="plain"><b>Простыми словами:</b> каждая строка теперь в сумме 100%. Из всех заказов за наличные <b>19.9%</b> отменяются, по карте — <b>7.8%</b>. Разница в 2.5 раза. Это по всей стране, не только в Фергане.</p></div>
+<div class="card"><div class="q"><b>5. Доля отмен = среднее True/False, в шахматке.</b></div>
+<pre class="code" data-cm="">df["is_cancel"] = df["status"] == "cancelled"
+df.pivot_table(index="region", columns="payment",
+               values="is_cancel", aggfunc="mean").mul(100).round(1)</pre><div class="out">payment    card  cash
+region
+Бухара      7.4  21.3
+Наманган    6.4  16.7
+Самарканд   7.3  19.0
+Ташкент     8.3  19.7
+Фергана     8.5  22.6</div><p class="plain"><b>Простыми словами:</b> True считается как 1, False как 0. Среднее нулей и единиц = доля единиц (запомни приём: <code class="i">mask.mean()</code>). Фергана наличные — 22.6%, чуть выше всех. Но Бухара 21.3%, Ташкент 19.7%. Наличные отменяются <b>везде</b>, Фергана не особенная.</p></div>
+<div class="card"><div class="q"><b>6. Доля категории внутри региона: делим строку на её итог.</b></div>
+<pre class="code" data-cm="">share = pv.div(pv.sum(axis=1), axis=0).mul(100).round(1)
+share["Электроника"].sort_values(ascending=False)</pre><div class="out">region
+Самарканд    65.3
+Ташкент      50.4
+Бухара       49.2
+Фергана      49.2
+Наманган     40.9
+Name: Электроника, dtype: float64</div><p class="plain"><b>Простыми словами:</b> <code class="i">pv.sum(axis=1)</code> — итог каждого региона. <code class="i">div(..., axis=0)</code> делит каждую строку на её итог. В Самарканде электроника — <b>65.3%</b> выручки. Самарканд — не «слабый», а регион дорогих покупок.</p></div>
+</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Сводная по грязному ключу</h3><div class="bad">df.pivot_table(index=&#34;region&#34;, ...)   # 15 строк: «ташкент», «Ташкент »…</div><div class="good">df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()</div><p>Сначала чистый ключ (урок 6), потом сводная. Иначе Ташкент разъедется на 3 строки и будет выглядеть меньше Самарканда.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Выручка с отменами</h3><div class="bad">df.pivot_table(index=&#34;region&#34;, values=&#34;amount&#34;, aggfunc=&#34;sum&#34;)   # + 158 млн отменённых</div><div class="good">d = df[df[&#34;status&#34;] == &#34;delivered&#34;]; d.pivot_table(...)</div><p>Отменённый заказ — не деньги. В отменах 158.0 млн сум. Без фильтра выручка завышена.</p></div>
+        <div class="trap"><span class="n">3</span><h3>pivot вместо pivot_table</h3><div class="bad">d.pivot(index=&#34;region&#34;, columns=&#34;category&#34;, values=&#34;amount&#34;)   # ValueError: duplicate entries</div><div class="good">d.pivot_table(index=&#34;region&#34;, columns=&#34;category&#34;, values=&#34;amount&#34;, aggfunc=&#34;sum&#34;)</div><p>pivot не умеет складывать. У пары «Ташкент + Дом» сотни заказов — ему некуда их деть.</p></div>
+        <div class="trap"><span class="n">4</span><h3>aggfunc забыли — получили среднее</h3><div class="bad">d.pivot_table(index=&#34;region&#34;, columns=&#34;category&#34;, values=&#34;amount&#34;)   # mean!</div><div class="good">d.pivot_table(..., values=&#34;amount&#34;, aggfunc=&#34;sum&#34;)</div><p>По умолчанию aggfunc = "mean". Таблица выглядит правдоподобно, но это средний чек, а не выручка. Пиши aggfunc всегда.</p></div>
+        <div class="trap"><span class="n">5</span><h3>normalize не тот</h3><div class="bad">pd.crosstab(df[&#34;payment&#34;], df[&#34;status&#34;], normalize=&#34;columns&#34;)   # доли внутри статуса</div><div class="good">pd.crosstab(df[&#34;payment&#34;], df[&#34;status&#34;], normalize=&#34;index&#34;)   # доля отмен у наличных</div><p>"index" — каждая строка = 100%. "columns" — каждый столбец = 100% («какая часть всех отмен — наличные»). Вопрос «как часто отменяют наличные» — это "index".</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize() <span>— сначала чистый ключ</span></li><li>d = df[df[&#34;status&#34;] == &#34;delivered&#34;] <span>— выручка только по доставленным</span></li><li>d.pivot_table(index=&#34;region&#34;, columns=&#34;category&#34;, values=&#34;amount&#34;, aggfunc=&#34;sum&#34;) <span>— шахматка</span></li><li>pivot_table(..., margins=True, margins_name=&#34;Итого&#34;, fill_value=0) <span>— итоги и нули</span></li><li>pd.crosstab(df[&#34;region&#34;], df[&#34;status&#34;]) <span>— счётчик пар</span></li><li>pd.crosstab(a, b, normalize=&#34;index&#34;).mul(100).round(1) <span>— доли внутри строки, %</span></li><li>pivot_table(values=&#34;is_cancel&#34;, aggfunc=&#34;mean&#34;) <span>— доля True в каждой клетке</span></li><li>pv.div(pv.sum(axis=1), axis=0) <span>— доля столбца внутри строки</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что делает <code>pivot_table</code>, если не указать <code>aggfunc</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Считает сумму</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Считает среднее (mean)</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Падает с ошибкой</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Считает количество</span></button></div>
+          <div class="why" hidden>По умолчанию aggfunc="mean". Для выручки пиши aggfunc="sum" всегда.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Чем <code>df.pivot(...)</code> отличается от <code>df.pivot_table(...)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>pivot только переставляет и падает на дублях пар, pivot_table сворачивает их через aggfunc</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>pivot быстрее и считает сумму</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>pivot_table не умеет столбцы</span></button></div>
+          <div class="why" hidden>У пары «Ташкент + Дом» сотни строк. pivot не знает, что с ними делать: ValueError. pivot_table складывает.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. <code>pd.crosstab(df["payment"], df["status"], normalize="index")</code> — что в сумме даёт 1?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Каждый столбец</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Каждая строка</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Вся таблица</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ничего</span></button></div>
+          <div class="why" hidden>"index" = строки. Каждый способ оплаты — 100%, внутри видно долю отмен: cash 19.9%, card 7.8%.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Зачем <code>margins=True</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Убрать NaN</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Добавить строку и столбец итогов</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Отсортировать</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Округлить</span></button></div>
+          <div class="why" hidden>margins добавляет «All» (или имя из margins_name): итог каждой строки и каждого столбца, как ROLLUP.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Ташкент — 422 млн выручки, Самарканд — 304 млн. Можно сказать «Самарканд слабый»?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Да, меньше значит хуже</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Нет: в Самарканде вдвое меньше заказов, но самый высокий средний чек (950 тыс.) и 65% выручки — электроника</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Да, потому что отмен больше</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нельзя ничего сказать</span></button></div>
+          <div class="why" hidden>Абсолютная сумма растёт с числом заказов. Сравнивай средние и доли: средний чек Самарканда 950 347 против 675 358 у Ташкента.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Счётчик «регион × статус» с итогами</h3>
+            <ol class='steps-t'><li>Выведи, сколько разных написаний у сырого region (<code class='i'>nunique</code>).</li><li>Почисти region: strip + capitalize.</li><li>Построй crosstab region × status со строкой и столбцом «Итого».</li></ol><p class='rule-t'>Итоги — margins=True, margins_name="Итого".</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 10 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># 1. сколько написаний
+
+# 2. чистый region
+df[&#34;region&#34;] =
+
+# 3. crosstab с итогами
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">15
+status     cancelled  delivered  returned  Итого
+region
+Бухара            32        216        17    265
+Наманган          23        205         7    235
+Самарканд         46        336        22    404
+Ташкент           99        651        41    791
+Фергана           41        253        11    305
+Итого            241       1661        98   2000</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. сколько написаний
+
+# 2. чистый region
+df[&#34;region&#34;] =
+
+# 3. crosstab с итогами
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала узнай, сколькими способами записан регион, почисти его (пробелы и первая буква большая). Потом построй «шахматку»: регионы — строки, статусы — столбцы, в клетках — сколько заказов. Итоги добавляются одной настройкой.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.capitalize()</code> — первая буква большая, остальные маленькие. <code class="i">pd.crosstab(строки, столбцы, margins=True, margins_name="Итого")</code> — таблица частот с итогами.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df[&#34;region&#34;].___())
+df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.___()
+pd.crosstab(df[&#34;___&#34;], df[&#34;___&#34;], margins=___, margins_name=&#34;Итого&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> В crosstab передают сами колонки (<code class="i">df["region"]</code>), а не их имена текстом.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Шахматка выручки «регион × категория»</h3>
+            <ol class='steps-t'><li>Почисти region.</li><li>Оставь только delivered в d.</li><li>pivot_table: строки region, столбцы category, сумма amount.</li><li>Выведи в млн сум, 1 знак.</li></ol><p class='rule-t'>aggfunc пиши явно. Делить на 1e6, потом round(1).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 10 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+d =
+pv =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category    Дом  Красота  Одежда  Продукты  Электроника
+region
+Бухара     24.3     12.8    19.8      12.1         66.9
+Наманган   20.6      7.3    28.2      11.1         46.4
+Самарканд  41.9     13.3    35.8      14.4        198.7
+Ташкент    75.7     23.9    72.8      37.2        212.5
+Фергана    27.3     12.9    35.2      12.2         84.9</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+d =
+pv =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Это сводная таблица, как в Excel: что в строки, что в столбцы, что считать и как. Считаем только доставленные заказы, а в конце переводим суммы в миллионы.</p>
+<p><b>Чем это сделать.</b> <code class="i">d.pivot_table(index="строки", columns="столбцы", values="что", aggfunc="sum")</code>. Миллионы: <code class="i">(pv / 1e6).round(1)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>d = df[df[&#34;status&#34;] == &#34;___&#34;]
+pv = d.pivot_table(index=&#34;___&#34;, columns=&#34;___&#34;, values=&#34;___&#34;, aggfunc=&#34;___&#34;)
+(pv / ___).round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">aggfunc="sum"</code> pivot_table посчитает <b>среднее</b> — получится средний чек, а не выручка.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Итоги: выручка регионов и доля электроники</h3>
+            <ol class='steps-t'><li>Та же сводная, но с margins=True, margins_name="Итого".</li><li>Выведи столбец «Итого» в млн (1 знак), по убыванию.</li><li>Выведи долю Электроники во всей выручке, %, 1 знак — из клеток «Итого».</li></ol><p class='rule-t'>Клетка: pvm.loc["строка", "столбец"]. Число руками не вписывай.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 10 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+d = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+pvm =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">region
+Итого        1148.1
+Ташкент       422.1
+Самарканд     304.1
+Фергана       172.4
+Бухара        135.9
+Наманган      113.6
+Name: Итого, dtype: float64
+53.1</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+d = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+pvm =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> С итогами в сводной появляются строка и столбец «Итого». Столбец «Итого» — это выручка каждого региона. Доля электроники = итог по электронике / итог всей таблицы; обе цифры лежат в нижней строке «Итого».</p>
+<p><b>Чем это сделать.</b> <code class="i">pvm["Итого"]</code> — столбец. <code class="i">pvm.loc["строка", "столбец"]</code> — одна клетка.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>pvm = d.pivot_table(index=&#34;region&#34;, columns=&#34;category&#34;, values=&#34;amount&#34;,
+                    aggfunc=&#34;sum&#34;, margins=___, margins_name=&#34;___&#34;)
+print((pvm[&#34;___&#34;] / 1e6).round(1).sort_values(ascending=False))
+print(round(pvm.loc[&#34;Итого&#34;, &#34;___&#34;] / pvm.loc[&#34;___&#34;, &#34;___&#34;] * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> После сортировки столбца строка «Итого» окажется первой — это нормально, она самая большая.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Как часто отменяют наличные</h3>
+            <ol class='steps-t'><li>crosstab payment × status.</li><li>Доли внутри каждой строки, в %, 1 знак.</li><li>Комментарием (#) ответь: во сколько раз доля отмен у cash выше, чем у card.</li></ol><p class='rule-t'>Каждая строка = 100%. Комментарий — по смыслу, своими словами.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 10 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4"># доли статусов внутри каждого способа оплаты
+
+# во сколько раз:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">status   cancelled  delivered  returned
+payment
+card           7.8       87.1       5.1
+cash          19.9       75.6       4.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># доли статусов внутри каждого способа оплаты
+
+# во сколько раз:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Нужны доли статусов внутри каждого способа оплаты: каждая строка таблицы должна давать в сумме 100%. crosstab умеет так нормировать сам. Потом сравни долю отмен у cash и у card.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.crosstab(a, b, normalize="index")</code> — доли внутри каждой строки. <code class="i">.mul(100).round(1)</code> — в проценты.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>pd.crosstab(df[&#34;___&#34;], df[&#34;___&#34;], normalize=&#34;___&#34;).mul(100).round(1)
+# во сколько раз: доля отмен cash / доля отмен card = ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">normalize="columns"</code> даст доли внутри каждого статуса — это другой вопрос.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Проверить слова Тимура про Фергану</h3>
+            <ol class='steps-t'><li>Почисти region. Создай колонку is_cancel (True, если cancelled) — урок 3.</li><li>pivot_table: строки region, столбцы payment, доля отмен в %, 1 знак.</li><li>Отсортируй по cash от большего.</li><li>Комментарием: Фергана — особый случай или нет?</li></ol><p class='rule-t'>Доля True = mean (короче, чем len(df[mask]) / len(df)).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 10 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+df[&#34;is_cancel&#34;] =
+
+# Фергана особенная?
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">payment    card  cash
+region
+Фергана     8.5  22.6
+Бухара      7.4  21.3
+Ташкент     8.3  19.7
+Самарканд   7.3  19.0
+Наманган    6.4  16.7</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+df[&#34;is_cancel&#34;] =
+
+# Фергана особенная?
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>Фергана cash 22.6% — лишь чуть выше Бухары 21.3%: наличные отменяют везде</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Доля отмен — это среднее маски «отменён». В сводной таблице маску можно поставить в values, а среднее выбрать как способ подсчёта. Потом сравни Фергану с другими регионами в колонке cash.</p>
+<p><b>Чем это сделать.</b> <code class="i">df["is_cancel"] = df["status"] == "cancelled"</code>. <code class="i">pivot_table(index="region", columns="payment", values="is_cancel", aggfunc="mean")</code> — доля отмен в каждой клетке.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;is_cancel&#34;] = df[&#34;status&#34;] == &#34;___&#34;
+rc = df.pivot_table(index=&#34;___&#34;, columns=&#34;___&#34;, values=&#34;is_cancel&#34;, aggfunc=&#34;___&#34;).mul(100).round(1)
+print(rc.sort_values(&#34;___&#34;, ascending=False))
+# Фергана особенная? ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Для доли нужен <code class="i">aggfunc="mean"</code>. "sum" даст количество отмен, а не долю.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl h">Сложно</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Из чего состоит выручка Самарканда</h3>
+            <ol class='steps-t'><li>Сводная выручки region × category (delivered).</li><li>Доли категорий внутри каждого региона, %, 1 знак.</li><li>Выведи строку Самарканда по убыванию.</li></ol><p class='rule-t'>Делим каждую строку на её сумму: div(..., axis=0). Повтор урока 9 (доли).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 10 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+d = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+pv =
+share =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category
+Электроника    65.3
+Дом            13.8
+Одежда         11.8
+Продукты        4.7
+Красота         4.4
+Name: Самарканд, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+d = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+pv =
+share =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Чтобы получить состав выручки внутри региона, каждую строку сводной надо поделить на сумму <b>этой же строки</b>. Потом возьми строку Самарканда и отсортируй.</p>
+<p><b>Чем это сделать.</b> <code class="i">pv.sum(axis=1)</code> — сумма каждой строки. <code class="i">pv.div(s, axis=0)</code> — поделить каждую строку на своё число. <code class="i">share.loc["Самарканд"]</code> — одна строка.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>pv = d.pivot_table(index=&#34;region&#34;, columns=&#34;category&#34;, values=&#34;amount&#34;, aggfunc=&#34;sum&#34;)
+share = pv.div(pv.sum(axis=___), axis=___).mul(100).round(1)
+share.loc[&#34;___&#34;].sort_values(ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">pv / pv.sum(axis=1)</code> без div делит не по строкам, а пытается совместить подписи — получатся NaN.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Повтор: size, count и средний чек по регионам</h3>
+            <ol class='steps-t'><li>Почисти region, возьми delivered.</li><li>groupby region → agg: orders (size), with_amount (count), avg_check (mean) — урок 8.</li><li>avg_check округли до целого, сортируй по нему от большего.</li><li>Комментарием: почему orders ≠ with_amount?</li></ol><p class='rule-t'>Named aggregation: agg(name=("col", "func")) или ["amount"].agg(name="func").</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 10 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+d = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+t =
+
+# почему orders != with_amount:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           orders  with_amount  avg_check
+region
+Самарканд     336          320   950347.0
+Фергана       253          246   700878.0
+Ташкент       651          625   675358.0
+Бухара        216          214   635042.0
+Наманган      205          202   562391.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;region&#34;] = df[&#34;region&#34;].str.strip().str.capitalize()
+d = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+t =
+
+# почему orders != with_amount:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Повтор урока 8: по каждому региону — сколько заказов, у скольких есть сумма и средний чек. Разница между первыми двумя числами — заказы без суммы.</p>
+<p><b>Чем это сделать.</b> <code class="i">d.groupby("region")["amount"].agg(orders="size", with_amount="count", avg_check="mean")</code>. "size" считает все строки, "count" — только заполненные.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>t = d.groupby(&#34;___&#34;)[&#34;amount&#34;].agg(orders=&#34;___&#34;, with_amount=&#34;___&#34;, avg_check=&#34;___&#34;)
+t[&#34;avg_check&#34;] = t[&#34;avg_check&#34;].round(___)
+t.sort_values(&#34;___&#34;, ascending=False)
+# orders != with_amount, потому что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Округляй только avg_check: если округлить всю таблицу, ничего не сломается, но так нагляднее, что меняется.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Тимуру до встречи с CEO</h2>
+      <div class="case">
+        <p>Напиши ответ Тимуру в Telegram. Не больше 6 предложений. Структура: <b>где он прав (Ташкент — №1 по выручке во всех категориях) → что он не видит про Самарканд (цифры) → отмены: правда ли это «проблема Ферганы» (доля отмен cash vs card, по регионам) → 1 риск или оговорка → рекомендация и следующий шаг.</b></p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Электроника Самарканда</span><span class="fact-chip">Отмены при оплате наличными</span><span class="fact-chip">Отмены при оплате картой</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Тимур, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Где, по твоему ответу, Тимур прав?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ташкент — №1 по выручке во всех категориях</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Самарканд — №1 по выручке</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Тимур не прав ни в чём</span></button></div>
+            <div class="why" hidden>Ташкент первый во всех пяти категориях — с этим спорить не нужно.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что Тимур не видит про Самарканд?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>При вдвое меньшем числе заказов Самарканд почти догнал Ташкент в электронике, и средний чек там самый высокий</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Самарканд отстаёт во всех категориях</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В Самарканде больше всего заказов</span></button></div>
+            <div class="why" hidden>198,7 млн против 212,5 млн в электронике при 404 заказах против 791; средний чек — 950 347 сум.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Отмены — это «проблема Ферганы»?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Нет: это проблема наличных — их отменяют чаще во всех регионах</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Да, в Фергане отменяют намного чаще, чем везде</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Отмен почти нет</span></button></div>
+            <div class="why" hidden>Наличными отменяют 19,9%, картой — 7,8%, и так во всех регионах. Фергана лишь чуть выше Бухары.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Тимур, привет! Ты прав: Ташкент — №1 по выручке во всех пяти категориях. Но Самарканд при вдвое меньшем числе заказов (404 против 791) почти догнал его в электронике — 198,7 млн против 212,5 млн, а средний чек там самый высокий: 950 347 сум. Отмены — проблема не Ферганы, а наличных: при оплате наличными отменяют 19,9% заказов, картой — 7,8%, и так во всех регионах. Оговорка: у 58 заказов нет суммы, выручка немного занижена. Рекомендую поощрять оплату картой во всех регионах и отдельно посмотреть на электронику в Самарканде.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Признано, где Тимур прав</li><li>Самарканд: 198,7 против 212,5 млн, средний чек 950 347</li><li>Отмены: наличные 19,9% против карты 7,8% во всех регионах</li><li>Есть оговорка</li><li>Есть рекомендация и следующий шаг</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 10</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/09-groupby-transform-filter/"><small>← Урок 9</small><b>groupby продвинутый: transform, filter, доли</b></a><a class="nx" href="../../lessons/11-merge/"><small>Урок 11 →</small><b>merge: джойны без дублей и потерь</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0430", "value": 198700000}, {"name": "\u041e\u0442\u043c\u0435\u043d\u044b \u043f\u0440\u0438 \u043e\u043f\u043b\u0430\u0442\u0435 \u043d\u0430\u043b\u0438\u0447\u043d\u044b\u043c\u0438", "pct": true, "value": 19.9}, {"name": "\u041e\u0442\u043c\u0435\u043d\u044b \u043f\u0440\u0438 \u043e\u043f\u043b\u0430\u0442\u0435 \u043a\u0430\u0440\u0442\u043e\u0439", "pct": true, "value": 7.8}], "logic": [{"a": 0, "o": ["\u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 \u21161 \u043f\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0435 \u0432\u043e \u0432\u0441\u0435\u0445 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u0445", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u2014 \u21161 \u043f\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0435", "\u0422\u0438\u043c\u0443\u0440 \u043d\u0435 \u043f\u0440\u0430\u0432 \u043d\u0438 \u0432 \u0447\u0451\u043c"], "q": "\u0413\u0434\u0435, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0422\u0438\u043c\u0443\u0440 \u043f\u0440\u0430\u0432?", "why": "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u043f\u0435\u0440\u0432\u044b\u0439 \u0432\u043e \u0432\u0441\u0435\u0445 \u043f\u044f\u0442\u0438 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u0445 \u2014 \u0441 \u044d\u0442\u0438\u043c \u0441\u043f\u043e\u0440\u0438\u0442\u044c \u043d\u0435 \u043d\u0443\u0436\u043d\u043e."}, {"a": 0, "o": ["\u041f\u0440\u0438 \u0432\u0434\u0432\u043e\u0435 \u043c\u0435\u043d\u044c\u0448\u0435\u043c \u0447\u0438\u0441\u043b\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u043f\u043e\u0447\u0442\u0438 \u0434\u043e\u0433\u043d\u0430\u043b \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u0432 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0435, \u0438 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u0442\u0430\u043c \u0441\u0430\u043c\u044b\u0439 \u0432\u044b\u0441\u043e\u043a\u0438\u0439", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u043e\u0442\u0441\u0442\u0430\u0451\u0442 \u0432\u043e \u0432\u0441\u0435\u0445 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u0445", "\u0412 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0435 \u0431\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u0437\u0430\u043a\u0430\u0437\u043e\u0432"], "q": "\u0427\u0442\u043e \u0422\u0438\u043c\u0443\u0440 \u043d\u0435 \u0432\u0438\u0434\u0438\u0442 \u043f\u0440\u043e \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434?", "why": "198,7 \u043c\u043b\u043d \u043f\u0440\u043e\u0442\u0438\u0432 212,5 \u043c\u043b\u043d \u0432 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0435 \u043f\u0440\u0438 404 \u0437\u0430\u043a\u0430\u0437\u0430\u0445 \u043f\u0440\u043e\u0442\u0438\u0432 791; \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u2014 950 347 \u0441\u0443\u043c."}, {"a": 0, "o": ["\u041d\u0435\u0442: \u044d\u0442\u043e \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0430 \u043d\u0430\u043b\u0438\u0447\u043d\u044b\u0445 \u2014 \u0438\u0445 \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 \u0447\u0430\u0449\u0435 \u0432\u043e \u0432\u0441\u0435\u0445 \u0440\u0435\u0433\u0438\u043e\u043d\u0430\u0445", "\u0414\u0430, \u0432 \u0424\u0435\u0440\u0433\u0430\u043d\u0435 \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 \u043d\u0430\u043c\u043d\u043e\u0433\u043e \u0447\u0430\u0449\u0435, \u0447\u0435\u043c \u0432\u0435\u0437\u0434\u0435", "\u041e\u0442\u043c\u0435\u043d \u043f\u043e\u0447\u0442\u0438 \u043d\u0435\u0442"], "q": "\u041e\u0442\u043c\u0435\u043d\u044b \u2014 \u044d\u0442\u043e \u00ab\u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0430 \u0424\u0435\u0440\u0433\u0430\u043d\u044b\u00bb?", "why": "\u041d\u0430\u043b\u0438\u0447\u043d\u044b\u043c\u0438 \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 19,9%, \u043a\u0430\u0440\u0442\u043e\u0439 \u2014 7,8%, \u0438 \u0442\u0430\u043a \u0432\u043e \u0432\u0441\u0435\u0445 \u0440\u0435\u0433\u0438\u043e\u043d\u0430\u0445. \u0424\u0435\u0440\u0433\u0430\u043d\u0430 \u043b\u0438\u0448\u044c \u0447\u0443\u0442\u044c \u0432\u044b\u0448\u0435 \u0411\u0443\u0445\u0430\u0440\u044b."}]}, "case_model": "\u0422\u0438\u043c\u0443\u0440, \u043f\u0440\u0438\u0432\u0435\u0442! \u0422\u044b \u043f\u0440\u0430\u0432: \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 \u21161 \u043f\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0435 \u0432\u043e \u0432\u0441\u0435\u0445 \u043f\u044f\u0442\u0438 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u0445. \u041d\u043e \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u043f\u0440\u0438 \u0432\u0434\u0432\u043e\u0435 \u043c\u0435\u043d\u044c\u0448\u0435\u043c \u0447\u0438\u0441\u043b\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 (404 \u043f\u0440\u043e\u0442\u0438\u0432 791) \u043f\u043e\u0447\u0442\u0438 \u0434\u043e\u0433\u043d\u0430\u043b \u0435\u0433\u043e \u0432 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0435 \u2014 198,7 \u043c\u043b\u043d \u043f\u0440\u043e\u0442\u0438\u0432 212,5 \u043c\u043b\u043d, \u0430 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u0442\u0430\u043c \u0441\u0430\u043c\u044b\u0439 \u0432\u044b\u0441\u043e\u043a\u0438\u0439: 950 347 \u0441\u0443\u043c. \u041e\u0442\u043c\u0435\u043d\u044b \u2014 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0430 \u043d\u0435 \u0424\u0435\u0440\u0433\u0430\u043d\u044b, \u0430 \u043d\u0430\u043b\u0438\u0447\u043d\u044b\u0445: \u043f\u0440\u0438 \u043e\u043f\u043b\u0430\u0442\u0435 \u043d\u0430\u043b\u0438\u0447\u043d\u044b\u043c\u0438 \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 19,9% \u0437\u0430\u043a\u0430\u0437\u043e\u0432, \u043a\u0430\u0440\u0442\u043e\u0439 \u2014 7,8%, \u0438 \u0442\u0430\u043a \u0432\u043e \u0432\u0441\u0435\u0445 \u0440\u0435\u0433\u0438\u043e\u043d\u0430\u0445. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u0443 58 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0435\u0442 \u0441\u0443\u043c\u043c\u044b, \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u043d\u0435\u043c\u043d\u043e\u0433\u043e \u0437\u0430\u043d\u0438\u0436\u0435\u043d\u0430. \u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u044e \u043f\u043e\u043e\u0449\u0440\u044f\u0442\u044c \u043e\u043f\u043b\u0430\u0442\u0443 \u043a\u0430\u0440\u0442\u043e\u0439 \u0432\u043e \u0432\u0441\u0435\u0445 \u0440\u0435\u0433\u0438\u043e\u043d\u0430\u0445 \u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043d\u0430 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0443 \u0432 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0435.", "case_xp": 30, "cheat": [["df[\"region\"] = df[\"region\"].str.strip().str.capitalize()", "\u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0447\u0438\u0441\u0442\u044b\u0439 \u043a\u043b\u044e\u0447"], ["d = df[df[\"status\"] == \"delivered\"]", "\u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u043c"], ["d.pivot_table(index=\"region\", columns=\"category\", values=\"amount\", aggfunc=\"sum\")", "\u0448\u0430\u0445\u043c\u0430\u0442\u043a\u0430"], ["pivot_table(..., margins=True, margins_name=\"\u0418\u0442\u043e\u0433\u043e\", fill_value=0)", "\u0438\u0442\u043e\u0433\u0438 \u0438 \u043d\u0443\u043b\u0438"], ["pd.crosstab(df[\"region\"], df[\"status\"])", "\u0441\u0447\u0451\u0442\u0447\u0438\u043a \u043f\u0430\u0440"], ["pd.crosstab(a, b, normalize=\"index\").mul(100).round(1)", "\u0434\u043e\u043b\u0438 \u0432\u043d\u0443\u0442\u0440\u0438 \u0441\u0442\u0440\u043e\u043a\u0438, %"], ["pivot_table(values=\"is_cancel\", aggfunc=\"mean\")", "\u0434\u043e\u043b\u044f True \u0432 \u043a\u0430\u0436\u0434\u043e\u0439 \u043a\u043b\u0435\u0442\u043a\u0435"], ["pv.div(pv.sum(axis=1), axis=0)", "\u0434\u043e\u043b\u044f \u0441\u0442\u043e\u043b\u0431\u0446\u0430 \u0432\u043d\u0443\u0442\u0440\u0438 \u0441\u0442\u0440\u043e\u043a\u0438"]], "data": "../../data/", "datasets": ["savdo_orders.csv"], "day": 10, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"savdo_orders.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["15", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 99 651 41 791", "\u0418\u0442\u043e\u0433\u043e 241 1661 98 2000"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["212.5", "198.7", "75.7", "7.3", "84.9"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["1148.1", "422.1", "304.1", "113.6", "53.1"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["card 7.8 87.1 5.1", "cash 19.9 75.6 4.5"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["\u0424\u0435\u0440\u0433\u0430\u043d\u0430 8.5 22.6", "\u0411\u0443\u0445\u0430\u0440\u0430 7.4 21.3", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 6.4 16.7"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430 65.3", "\u0414\u043e\u043c 13.8", "\u041a\u0440\u0430\u0441\u043e\u0442\u0430 4.4"], "setup": "", "xp": 20}, {"figure": false, "id": "t7", "keys": ["336 320 950347", "651 625 675358", "205 202 562391"], "setup": "", "xp": 20}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

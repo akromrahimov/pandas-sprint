@@ -1,0 +1,668 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 11. merge: джойны без дублей и потерь — Pandas Sprint</title>
+<meta name="description" content="Урок 11 курса Pandas Sprint — merge: джойны без дублей и потерь. Соединить две таблицы по ключу и не потерять и не задвоить строки.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/11-merge/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 11. merge: джойны без дублей и потерь — Pandas Sprint">
+<meta property="og:description" content="Урок 11 курса Pandas Sprint — merge: джойны без дублей и потерь. Соединить две таблицы по ключу и не потерять и не задвоить строки.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/11-merge/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="11">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>merge</a></li><li><a href="#tools"><span class="dot">✓</span>6 приёмов</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">JOIN, который ты пишешь каждый день → merge</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Логика та же, что в SQL. Разница одна: в SQL ты сам вспоминаешь проверить дубли, а в pandas это можно поручить validate .</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>FROM pay p JOIN users u ON p.user_id = u.user_id</code></td><td><code>pay.merge(users, on=&#34;user_id&#34;)</code></td><td>how=&#34;inner&#34; по умолчанию</td></tr><tr><td><code>FROM pay p LEFT JOIN users u ON …</code></td><td><code>pay.merge(users, on=&#34;user_id&#34;, how=&#34;left&#34;)</code></td><td>все платежи остаются</td></tr><tr><td><code>FULL OUTER JOIN</code></td><td><code>how=&#34;outer&#34;</code></td><td>всё из обеих таблиц</td></tr><tr><td><code>ON p.uid = u.user_id (разные имена)</code></td><td><code>left_on=&#34;uid&#34;, right_on=&#34;user_id&#34;</code></td><td>ключ называется по-разному</td></tr><tr><td><code>SELECT user_id, COUNT(*) … GROUP BY 1 HAVING COUNT(*) &gt; 1</code></td><td><code>users[&#34;user_id&#34;].duplicated().sum()</code></td><td>проверка дублей ключа</td></tr><tr><td><code>… LEFT JOIN … WHERE u.user_id IS NULL (anti-join)</code></td><td><code>pay[~pay[&#34;user_id&#34;].isin(users[&#34;user_id&#34;])]</code></td><td>платежи без пользователя</td></tr><tr><td><code>ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY updated_at DESC) = 1</code></td><td><code>users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)</code></td><td>последняя версия строки</td></tr><tr><td><code>(нет аналога)</code></td><td><code>validate=&#34;many_to_one&#34; , indicator=True</code></td><td>охрана джойна</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Совпадающие колонки.</b> Если в обеих таблицах есть колонка с одинаковым именем (не ключ), pandas не перезапишет её, а сделает две: <code class="i">amount_x</code> и <code class="i">amount_y</code>. Имена окончаний задаёт <code class="i">suffixes=("_pay", "_user")</code>. В SQL ты бы писал <code class="i">p.amount</code> и <code class="i">u.amount</code>.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 11 из 30 · Неделя 2 · Агрегации</div>
+      <h1>merge: <mark>джойны без дублей и потерь</mark></h1>
+      <p class="lead">Данные почти всегда лежат в нескольких таблицах: платежи отдельно, пользователи отдельно. Чтобы ответить на вопрос «сколько платят клиенты каждого тарифа», таблицы нужно соединить. В pandas это merge. Синтаксис учится за 5 минут, сложно другое: соединение молча удваивает строки или теряет их. Сегодня учимся это замечать.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Подписочный сервис Tomosha+ (кино и сериалы) хочет поднять цену тарифа basic: «basic приносит больше всех денег, и итог сходится с бухгалтерией». Склеить платежи с пользователями правильно и показать, что итог сходится случайно : внутри две ошибки, которые взаимно гасятся.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Склеивать таблицы: <code class="i">pay.merge(users, on="user_id", how="left")</code></li><li>Проверять ключ до джойна: <code class="i">is_unique</code>, <code class="i">duplicated()</code></li><li>Ловить взрыв джойна: <code class="i">validate="many_to_one"</code> и сравнение <code class="i">len</code> до/после</li><li>Находить потерянные строки: <code class="i">indicator=True</code> и anti-join через <code class="i">~isin</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>«basic — наш главный тариф, поднимаем цену»</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Н</span>Нигора <small>руководитель продукта Tomosha+ · 10:05</small></div>
+          <p>Привет! Склеила платежи за июль–сентябрь с базой пользователей (inner join по user_id). <b>Basic принёс 22.3 млн</b> — больше, чем standard и premium. Итог 66.1 млн почти сходится с бухгалтерией (66.0), значит, джойн правильный.</p>
+<div class="file">▤ tomosha_payments.csv · 1 261 платёж</div><div class="file">▤ tomosha_users.csv · справочник пользователей</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Н</span>Нигора <small>10:07</small></div>
+          <p>Предлагаю поднять цену basic с 39 до 49 тысяч. Перепроверь, пожалуйста, разбивку по тарифам — в пятницу защищаю на совете.</p>
+        </div>
+      </div>
+      <p class="note">Tomosha+ — учебный сервис. Данные сгенерированы, но грязные как настоящие: в справочнике <b>24 человека записаны дважды</b> (сменили тариф — выгрузка добавила новую строку, старую не удалила); в платежах есть <b>user_id, которых нет в справочнике</b> (удалённые и тестовые аккаунты); у 25 платежей нет суммы (NaN); город записан по-разному. Выручка — только платежи со статусом <code class="i">success</code>. Тариф человека — из его <b>последней</b> строки (самый поздний updated_at). Положи оба файла в папку <code class="i">pandas-sprint</code>. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/tomosha_users.csv" download>Скачать tomosha_users.csv</a><a class="btn main" href="../../data/tomosha_payments.csv" download>Скачать tomosha_payments.csv</a><span class="note">1 261 + 624 строки · 80 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+users = pd.read_csv(&#34;tomosha_users.csv&#34;)
+pay = pd.read_csv(&#34;tomosha_payments.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>merge = склеить две таблицы по общему номеру</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь две тетради. В первой — <b>чеки</b>: «номер ученика 7 заплатил за обед 10 000». Во второй — <b>список класса</b>: «номер 7 — Али, 5-Б». Чтобы узнать, сколько заплатил 5-Б, надо к каждому чеку <b>приписать</b> класс из списка. Ищешь в списке номер 7 и переписываешь «5-Б» рядом с чеком. Это и есть merge.</p>
+<ul>
+<li><b>Ключ</b> (<b>on</b>) — общий номер, по которому ищем: <code class="i">on="user_id"</code>.</li>
+<li><b>how</b> — что делать, если пары не нашлось. <b>inner</b> — выкинуть строку. <b>left</b> — оставить все строки левой таблицы, а пустые клетки заполнить NaN. <b>outer</b> — оставить всё из обеих.</li>
+<li><b>Беда 1 — дубль в списке.</b> Если номер 7 записан в списке <b>дважды</b>, чек номера 7 приклеится к обеим строкам. Один чек станет двумя. Деньги удвоятся. Это называют <b>взрыв джойна</b>.</li>
+<li><b>Беда 2 — номера нет в списке.</b> Чек номера 99 не найдёт пары. inner его выкинет <b>молча</b>, без ошибки. Деньги пропадут.</li>
+<li><b>validate</b> — договор, который pandas проверяет за тебя. <code class="i">"many_to_one"</code> = «справа каждый номер один раз». Нарушен — <b>MergeError</b> (ошибка склейки), а не тихая неправда.</li>
+<li><b>indicator=True</b> — добавляет колонку <b>_merge</b> с ответом «откуда строка»: both (из обеих), left_only (только слева), right_only (только справа).</li>
+</ul>
+<p>Главная мысль дня: <b>после каждого merge сравни число строк до и после</b>. Платежей было 1 261 — после left join должно остаться 1 261. Больше — дубли ключа. Меньше — потери.</p>
+</div>
+<h3>История с маленькими числами</h3>
+<p>Три чека: Али (№1) 10, Бобур (№2) 20, Вали (№9) 30 — всего 60. В списке класса Бобур записан дважды (перевели из 5-А в 5-Б), а Вали в списке нет.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">чек</th><th>№</th><th>сумма</th><th class="ser">класс после inner<span class="dt">дубль + потеря</span></th><th class="ser">после чистки + left<span class="dt">правильно</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">1</td><td>1 Али</td><td>10</td><td class="ser">5-А · 10</td><td class="ser">5-А · 10</td></tr>
+<tr><td class="idx">2</td><td>2 Бобур</td><td>20</td><td class="ser">5-А · 20 <b>и</b> 5-Б · 20</td><td class="ser">5-Б · 20</td></tr>
+<tr><td class="idx">3</td><td>9 Вали</td><td>30</td><td class="ser nan">выкинут</td><td class="ser">NaN · 30</td></tr>
+<tr><td class="idx">Итого</td><td></td><td>60</td><td class="ser">50 <span class="note">(10+20+20)</span></td><td class="ser">60</td></tr>
+</tbody>
+</table>
+</div>
+<p>После inner: Бобур посчитан дважды (+20), Вали пропал (−30). Итог 50 вместо 60. А если бы Вали заплатил не 30, а 20, правильный итог был бы 50 — и inner тоже дал бы 50. <b>Итог совпал бы, хотя внутри две ошибки</b>. Именно это случилось у Нигоры.</p>
+<div class="legend">
+<div><b>on · ключ</b>Общая колонка. Проверь, что справа она уникальна.</div>
+<div><b>how · кого оставить</b>left для «к каждому платежу добавить данные».</div>
+<div><b>validate + indicator · охрана</b>Ловят дубли и показывают потери.</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Шесть приёмов: проверка ключа, взрыв, охрана, потери</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">pay.merge(users, on="user_id", how="left")</code> — метод левой таблицы (<b>pay</b>). Первый аргумент — правая таблица. Дальше именованные аргументы: по какой колонке и как.</li>
+<li><code class="i">users["user_id"].is_unique</code> — <b>свойство</b> без скобок: True или False. <code class="i">.duplicated()</code> — <b>метод</b> со скобками: Series из True/False, True у каждого повтора. <code class="i">.sum()</code> считает True как 1.</li>
+<li><code class="i">sort_values("updated_at").drop_duplicates("user_id", keep="last")</code> — сначала по дате от ранней к поздней, потом из повторов оставить <b>последний</b> = самый свежий.</li>
+<li><code class="i">try: … except Exception as e:</code> — «попробуй; если упадёт, не останавливайся, а положи ошибку в e». Нужно, чтобы увидеть MergeError и не сломать ячейку.</li>
+<li><code class="i">~mask</code> — тильда переворачивает True ↔ False. <code class="i">~pay["user_id"].isin(users["user_id"])</code> = «номера НЕТ в справочнике».</li>
+<li><code class="i">users[["user_id", "plan"]]</code> — двойные скобки: таблица из двух колонок. Перед merge бери только нужные колонки — меньше мусора и нет <code class="i">_x/_y</code>.</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файлах Tomosha+. Карточки идут подряд: в карточке 5 появляется чистый справочник <code class="i">uc</code>.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. Сначала проверь ключ: уникален ли user_id в справочнике?</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+users = pd.read_csv("tomosha_users.csv")
+pay = pd.read_csv("tomosha_payments.csv")
+print(users.shape, pay.shape)
+users["user_id"].is_unique</pre><div class="out">(624, 6) (1261, 5)
+False</div><p class="plain"><b>Простыми словами:</b> В справочнике 624 строки, а людей 600. <code class="i">is_unique</code> — вопрос «каждый номер встречается один раз?». Ответ <b>False</b>: нет. Это первое, что делает сильный аналитик перед любым merge.</p></div>
+<div class="card"><div class="q"><b>2. Кто дублируется и почему.</b></div>
+<pre class="code" data-cm="">users[users["user_id"].duplicated(keep=False)].head(4)</pre><div class="out">    user_id signup_date      city      plan  channel  updated_at
+36     1037  2026-08-26  Наманган     basic  organic  2026-08-26
+37     1037  2026-08-26  Наманган   premium  organic  2026-09-15
+72     1072  2026-06-22    Бухара     basic      ads  2026-06-22
+73     1072  2026-06-22    Бухара  standard      ads  2026-09-15</div><p class="plain"><b>Простыми словами:</b> <code class="i">duplicated(keep=False)</code> помечает <b>все</b> копии, а не только вторую. Видно причину: человек сменил тариф, выгрузка добавила новую строку (updated_at 15.09), а старую не удалила. 24 человека записаны дважды.</p></div>
+<div class="card"><div class="q"><b>3. Взрыв джойна: строк стало больше, чем платежей.</b></div>
+<pre class="code" data-cm="">m = pay.merge(users, on="user_id", how="inner")
+print(len(pay), "→", len(m))
+len(m) - len(pay)</pre><div class="out">1261 → 1271
+10</div><p class="plain"><b>Простыми словами:</b> Каждый платёж человека-дубля склеился <b>с двумя</b> строками справочника — платёж посчитан дважды (+48 строк). А 38 платежей людей, которых нет в справочнике, inner <b>молча выкинул</b> (−38). Итог +10 выглядит невинно, но внутри две ошибки.</p></div>
+<div class="card"><div class="q"><b>4. validate: пусть pandas сам ловит дубли ключа.</b></div>
+<pre class="code" data-cm="">try:
+    pay.merge(users, on="user_id", how="left", validate="many_to_one")
+except Exception as e:
+    print(type(e).__name__)</pre><div class="out">MergeError</div><p class="plain"><b>Простыми словами:</b> <code class="i">validate="many_to_one"</code> — договор: «слева много платежей, справа у каждого номера ОДНА строка». Если договор нарушен, merge падает с <b>MergeError</b> вместо тихой ошибки в отчёте. Как CHECK в базе данных.</p></div>
+<div class="card"><div class="q"><b>5. indicator: откуда пришла каждая строка.</b></div>
+<pre class="code" data-cm="">uc = users.sort_values("updated_at").drop_duplicates("user_id", keep="last")
+o = pay.merge(uc, on="user_id", how="outer", indicator=True)
+o["_merge"].value_counts()</pre><div class="out">_merge
+both          1223
+left_only       38
+right_only      20
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> Сначала оставили последнюю строку каждого человека (<code class="i">drop_duplicates(..., keep="last")</code> после сортировки по дате). <code class="i">indicator=True</code> добавляет колонку <b>_merge</b>: both — нашлись в обеих таблицах, left_only — платёж без пользователя (38), right_only — пользователь без платежей (20).</p></div>
+<div class="card"><div class="q"><b>6. Сколько денег теряет inner join.</b></div>
+<pre class="code" data-cm="">ok = pay[pay["status"] == "success"]
+lost = ok[~ok["user_id"].isin(uc["user_id"])]
+print(len(lost), lost["user_id"].nunique())
+lost["amount"].sum() / 1e6</pre><div class="out">38 17
+2.793</div><p class="plain"><b>Простыми словами:</b> <code class="i">~</code> — «НЕ»: платежи, чьих user_id нет в справочнике. 38 успешных платежей от 17 аккаунтов на <b>2.79 млн сум</b>. В отчёте через inner они исчезают без единого предупреждения.</p></div>
+</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Джойн без проверки ключа</h3><div class="bad">m = pay.merge(users, on=&#34;user_id&#34;)   # 24 дубля → платежи посчитаны дважды</div><div class="good">users[&#34;user_id&#34;].is_unique   # сначала проверь; False → чисти</div><p>Дубли в справочнике незаметны: таблица выглядит нормально, а суммы завышены. Проверка — одна строка.</p></div>
+        <div class="trap"><span class="n">2</span><h3>«Итог сходится — значит, всё верно»</h3><div class="bad">m[&#34;amount&#34;].sum()   # 66.1 vs 66.0 в бухгалтерии — «ок»</div><div class="good">print(len(pay), len(m))   # 1261 → 1271: что-то не так</div><p>Ошибки могут гасить друг друга: +2.9 млн от дублей и −2.8 млн от потерь. Сверяй число строк и разбивку, а не только итог.</p></div>
+        <div class="trap"><span class="n">3</span><h3>inner, когда нужен left</h3><div class="bad">pay.merge(uc, on=&#34;user_id&#34;)   # 38 платежей пропали молча</div><div class="good">pay.merge(uc, on=&#34;user_id&#34;, how=&#34;left&#34;, validate=&#34;m:1&#34;)</div><p>Вопрос «сколько денег» — все платежи должны остаться. left + validate: строк ровно столько, сколько платежей.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Разные типы ключа</h3><div class="bad">pay.merge(users_txt, on=&#34;user_id&#34;)   # ValueError: You are trying to merge on int64 and str columns</div><div class="good">users_txt[&#34;user_id&#34;] = pd.to_numeric(users_txt[&#34;user_id&#34;])</div><p>Если одна выгрузка дала числа, а другая текст ("1037"), merge падает. Урок 4: приведи типы до джойна.</p></div>
+        <div class="trap"><span class="n">5</span><h3>drop_duplicates без сортировки</h3><div class="bad">users.drop_duplicates(&#34;user_id&#34;)   # keep=&#34;first&#34;: старый тариф</div><div class="good">users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)</div><p>Какую копию оставить — бизнес-решение. Нам нужен текущий тариф, то есть самая свежая строка.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>users[&#34;user_id&#34;].is_unique <span>— ключ уникален?</span></li><li>users[&#34;user_id&#34;].duplicated().sum() <span>— сколько повторов</span></li><li>uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;) <span>— последняя версия</span></li><li>m = pay.merge(uc, on=&#34;user_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;) <span>— безопасный джойн</span></li><li>print(len(pay), len(m)) <span>— строк до и после должно быть поровну</span></li><li>pay.merge(uc, on=&#34;user_id&#34;, how=&#34;outer&#34;, indicator=True)[&#34;_merge&#34;].value_counts() <span>— кто без пары</span></li><li>pay[~pay[&#34;user_id&#34;].isin(uc[&#34;user_id&#34;])] <span>— anti-join: платежи без пользователя</span></li><li>m[&#34;plan&#34;] = m[&#34;plan&#34;].fillna(&#34;нет в базе&#34;) <span>— не прячь потерянные деньги</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Платежей 1 261. После <code>pay.merge(users, on="user_id", how="left")</code> строк 1 309. Что это значит?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Всё нормально, left всегда добавляет строки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В users есть повторы user_id: платежи приклеились к нескольким строкам</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В pay есть NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>merge сломан</span></button></div>
+          <div class="why" hidden>left сохраняет число строк левой таблицы, если справа ключ уникален. +48 строк = дубли ключа в users.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Что делает <code>validate="many_to_one"</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удаляет дубли справа</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Падает с MergeError, если ключ справа не уникален</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сортирует результат</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Оставляет только совпавшие строки</span></button></div>
+          <div class="why" hidden>Это проверка, а не чистка. Чистить ты должен сам (drop_duplicates), validate только кричит.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Какой how нужен, чтобы ответить «сколько денег мы получили» и не потерять ни одного платежа?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>inner</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>left (платежи слева)</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>right</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>cross</span></button></div>
+          <div class="why" hidden>left оставляет все платежи. Тех, кого нет в справочнике, видно как NaN — их можно подписать «нет в базе».</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. <code>indicator=True</code> дал <code>right_only 20</code> при <code>pay.merge(uc, how="outer")</code>. Кто эти 20?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Платежи без пользователя</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Пользователи без единого платежа</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Дубли</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибки типов</span></button></div>
+          <div class="why" hidden>right = uc (справочник). right_only — есть в справочнике, нет в платежах.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Итог после inner-джойна 66.1 млн, в бухгалтерии 66.0. Можно сказать «джойн правильный»?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Да, разница 0.1%</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Нет: дубли добавили +2.9 млн, потери убрали −2.8 млн — ошибки погасили друг друга</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Да, если нет NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нельзя ничего сказать</span></button></div>
+          <div class="why" hidden>Сверяй число строк до/после и разбивку. По тарифам basic завышен на 8.5%, standard на 4.9%.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Проверка ключей перед джойном</h3>
+            <ol class='steps-t'><li>Выведи, уникален ли user_id в users (True/False).</li><li>Выведи, сколько в users повторов user_id.</li><li>Посчитай, сколько платежей в pay с user_id, которого НЕТ в users.</li></ol><p class='rule-t'>Три числа — три строки. isin + ~ для «нет».</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 11 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># 1. ключ уникален?
+
+# 2. сколько повторов
+
+# 3. платежи без пользователя
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">False
+24
+38</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. ключ уникален?
+
+# 2. сколько повторов
+
+# 3. платежи без пользователя
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Перед тем как склеивать две таблицы, проверь ключ: в справочнике пользователей каждый user_id должен встречаться один раз. И проверь, нет ли платежей от пользователей, которых в справочнике нет совсем.</p>
+<p><b>Чем это сделать.</b> <code class="i">.is_unique</code> — все ли значения разные. <code class="i">.duplicated().sum()</code> — сколько повторов. <code class="i">pay["user_id"].isin(users["user_id"])</code> — есть ли такой пользователь; <code class="i">~</code> — «нет».</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(users[&#34;user_id&#34;].___)
+print(users[&#34;user_id&#34;].___().sum())
+(~pay[&#34;user_id&#34;].isin(___[&#34;user_id&#34;])).sum()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Порядок в isin важен: проверяем платежи (<code class="i">pay</code>) по списку пользователей (<code class="i">users</code>), а не наоборот.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Поймать взрыв джойна</h3>
+            <ol class='steps-t'><li>Склей pay с users: how="left" по user_id.</li><li>Выведи число строк pay и число строк результата.</li><li>Выведи разницу.</li></ol><p class='rule-t'>Не чисти users в этой задаче: нужно увидеть взрыв.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 11 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">m =
+print()
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1261 1309
+48</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>m =
+print()
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Left-джойн должен оставить ровно столько строк, сколько платежей. Если строк стало больше — какие-то платежи нашли по две «пары» в справочнике и задвоились. Сравни длины до и после.</p>
+<p><b>Чем это сделать.</b> <code class="i">pay.merge(users, on="user_id", how="left")</code> — к каждому платежу приклеить данные пользователя. <code class="i">len(таблица)</code> — число строк.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>m = pay.merge(___, on=&#34;___&#34;, how=&#34;___&#34;)
+print(len(pay), len(m))
+len(m) - len(___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не чисти users в этой задаче — смысл в том, чтобы увидеть, как повторы ключа «взрывают» число строк.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Чистый справочник + validate</h3>
+            <ol class='steps-t'><li>Создай uc: последняя строка каждого user_id (сортировка по updated_at, keep="last").</li><li>Склей pay с uc: left, validate="many_to_one".</li><li>Выведи uc.shape и shape результата.</li></ol><p class='rule-t'>Строк после left должно быть ровно столько, сколько платежей.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 11 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">uc =
+m =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(600, 6)
+(1261, 10)</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>uc =
+m =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Чтобы взрыва не было, в справочнике должна остаться одна строка на пользователя — самая свежая (как в уроке 5). А чтобы pandas сам ловил такую ошибку в будущем, при склейке можно заявить ожидание «много платежей к одному пользователю».</p>
+<p><b>Чем это сделать.</b> <code class="i">sort_values("updated_at").drop_duplicates("user_id", keep="last")</code> — последняя версия. <code class="i">validate="many_to_one"</code> — merge упадёт с ошибкой, если справочник не уникален.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>uc = users.sort_values(&#34;___&#34;).drop_duplicates(&#34;___&#34;, keep=&#34;___&#34;)
+m = pay.merge(uc, on=&#34;user_id&#34;, how=&#34;left&#34;, validate=&#34;___&#34;)
+print(uc.shape)
+m.shape</pre></div><p class="hint-trap"><b>Частая ошибка.</b> validate не чистит данные — он только проверяет. Чистит drop_duplicates.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Кто остался без пары</h3>
+            <ol class='steps-t'><li>Сделай uc, как в задаче 3.</li><li>outer-джойн pay и uc с indicator=True.</li><li>Выведи value_counts колонки _merge.</li><li>Выведи, сколько разных user_id у строк left_only.</li><li>Комментарием (#): что значит right_only для бизнеса?</li></ol><p class='rule-t'>Комментарий — по смыслу, своими словами.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 11 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+o =
+
+# right_only — это:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">_merge
+both          1223
+left_only       38
+right_only      20
+Name: count, dtype: int64
+17</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+o =
+
+# right_only — это:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Outer-джойн оставляет всех: и платежи без пользователя, и пользователей без платежей. Специальная колонка покажет, откуда каждая строка: только слева, только справа или из обеих таблиц.</p>
+<p><b>Чем это сделать.</b> <code class="i">merge(..., how="outer", indicator=True)</code> добавит колонку <code class="i">_merge</code> со значениями both / left_only / right_only. <code class="i">o.loc[маска, "user_id"].nunique()</code> — сколько разных пользователей.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>o = pay.merge(uc, on=&#34;user_id&#34;, how=&#34;___&#34;, indicator=___)
+print(o[&#34;_merge&#34;].value_counts())
+o.loc[o[&#34;_merge&#34;] == &#34;___&#34;, &#34;user_id&#34;].nunique()
+# right_only — это ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> left_only — это платежи, у которых нет пользователя в справочнике; right_only — пользователи, которые ни разу не платили.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Правильная выручка по тарифам</h3>
+            <ol class='steps-t'><li>uc — как в задаче 3. ok — только status == "success".</li><li>Склей ok с uc[["user_id", "plan"]]: left, validate="m:1".</li><li>Пустой plan замени на "нет в базе".</li><li>Выручка по plan в млн сум, 2 знака, по убыванию.</li></ol><p class='rule-t'>Потерянные деньги не прячем: они отдельная строка.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 11 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+ok =
+m =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">plan
+standard      23.29
+basic         20.55
+premium       19.39
+нет в базе     2.79
+Name: amount, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+ok =
+m =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Оставь только успешные платежи, приклей к ним тариф из чистого справочника и сложи выручку по тарифам. Платежи без пользователя получат пустой тариф — не выбрасывай их, а подпиши отдельной группой.</p>
+<p><b>Чем это сделать.</b> <code class="i">uc[["user_id", "plan"]]</code> — взять из справочника только нужные колонки. <code class="i">.fillna("нет в базе")</code> — подписать пустые. Потом <code class="i">groupby("plan")["amount"].sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>ok = pay[pay[&#34;status&#34;] == &#34;___&#34;]
+m = ok.merge(uc[[&#34;user_id&#34;, &#34;___&#34;]], on=&#34;user_id&#34;, how=&#34;left&#34;, validate=&#34;m:1&#34;)
+m[&#34;plan&#34;] = m[&#34;plan&#34;].fillna(&#34;___&#34;)
+(m.groupby(&#34;plan&#34;)[&#34;amount&#34;].sum() / 1e6).round(2).sort_values(ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> groupby по умолчанию выбрасывает строки с пустым ключом — поэтому сначала fillna, потом группировка.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl h">Сложно</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Насколько ошиблась Нигора</h3>
+            <ol class='steps-t'><li>naive: ok (success) inner-джойн с СЫРЫМ users, сумма по plan.</li><li>right: ok inner-джойн с uc (validate="m:1"), сумма по plan.</li><li>Таблица cmp: колонки naive и correct в млн (2 знака) и diff_pct — на сколько % naive больше, 1 знак.</li></ol><p class='rule-t'>Один DataFrame из двух Series: pd.DataFrame({"naive": …, "correct": …}).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 11 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+ok = pay[pay[&#34;status&#34;] == &#34;success&#34;]
+naive =
+right =
+cmp =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">          naive  correct  diff_pct
+plan
+basic     22.29    20.55       8.5
+premium   19.39    19.39       0.0
+standard  24.44    23.29       4.9</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+ok = pay[pay[&#34;status&#34;] == &#34;success&#34;]
+naive =
+right =
+cmp =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай выручку по тарифам двумя способами: «как Нигора» (с сырым справочником, где есть повторы) и правильно (с чистым). Положи обе Series рядом в одну таблицу и посчитай, на сколько процентов первая больше.</p>
+<p><b>Чем это сделать.</b> Inner-джойн — это merge без how (по умолчанию). <code class="i">pd.DataFrame({"naive": s1, "correct": s2})</code> — таблица из двух Series. На сколько % больше: <code class="i">(a / b - 1) * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>naive = ok.merge(users[[&#34;user_id&#34;, &#34;plan&#34;]], on=&#34;user_id&#34;).groupby(&#34;plan&#34;)[&#34;amount&#34;].sum()
+right = ok.merge(___[[&#34;user_id&#34;, &#34;plan&#34;]], on=&#34;user_id&#34;, validate=&#34;m:1&#34;).groupby(&#34;plan&#34;)[&#34;amount&#34;].sum()
+cmp = pd.DataFrame({&#34;naive&#34;: naive / 1e6, &#34;correct&#34;: ___ / 1e6}).round(2)
+cmp[&#34;diff_pct&#34;] = ((cmp[&#34;naive&#34;] / cmp[&#34;___&#34;] - 1) * 100).round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> В naive берут <b>сырой</b> users — так и видна ошибка. Если взять uc, разница получится нулевой.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Повтор: доля пользователей без оплаты по каналам</h3>
+            <ol class='steps-t'><li>uc и ok — как раньше.</li><li>Колонка no_pay в uc: True, если user_id НЕТ среди ok (anti-join через ~isin).</li><li>Выведи общую долю no_pay в %, 1 знак.</li><li>Доля no_pay по channel в %, 1 знак, по убыванию (урок 8).</li></ol><p class='rule-t'>Доля True = mean (твоя повторная ошибка: не len(df[mask]) / len(df)).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 11 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+ok = pay[pay[&#34;status&#34;] == &#34;success&#34;]
+uc[&#34;no_pay&#34;] =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">6.7
+channel
+organic     8.1
+referral    6.3
+ads         5.6
+Name: no_pay, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+ok = pay[pay[&#34;status&#34;] == &#34;success&#34;]
+uc[&#34;no_pay&#34;] =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Пользователь без оплаты» — его user_id нет среди успешных платежей. Это проверка «есть ли в списке» с отрицанием. Доля таких — среднее маски, общее и по каналам.</p>
+<p><b>Чем это сделать.</b> <code class="i">~uc["user_id"].isin(ok["user_id"])</code> — True у тех, кто не платил. <code class="i">uc.groupby("channel")["no_pay"].mean()</code> — доля по каналам.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>uc[&#34;no_pay&#34;] = ~uc[&#34;user_id&#34;].isin(___[&#34;user_id&#34;])
+print(round(uc[&#34;no_pay&#34;].___() * 100, 1))
+uc.groupby(&#34;___&#34;)[&#34;no_pay&#34;].mean().mul(100).round(1).sort_values(ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Проверяй по <code class="i">ok</code> (успешным платежам), а не по всем: неуспешный платёж — это тоже «без оплаты».</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Нигоре до совета в пятницу</h2>
+      <div class="case">
+        <p>Напиши ответ Нигоре в Telegram. Не больше 6 предложений. Структура: <b>главный вывод (basic — не лидер) → две ошибки джойна с цифрами (дубли +, потерянные платежи −) → почему итог всё равно сошёлся → правильная разбивка по тарифам → 1 риск или оговорка → рекомендация по цене basic и следующий шаг.</b></p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Задвоенных платежей</span><span class="fact-chip">Потерянных платежей</span><span class="fact-chip">Выручка standard</span><span class="fact-chip">Выручка basic</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Нигора, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Кто, по твоему ответу, приносит больше всех денег?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>standard, а не basic</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>basic, как и думала Нигора</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>premium</span></button></div>
+            <div class="why" hidden>Правильно: standard 23,29 млн, basic 20,55 млн, premium 19,39 млн.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Почему итог всё равно сошёлся с бухгалтерией?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Две ошибки случайно погасили друг друга: задвоение добавило деньги, потерянные платежи — убрали</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ошибок не было, всё посчитано верно</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Бухгалтерия ошиблась так же</span></button></div>
+            <div class="why" hidden>+2,88 млн из-за задвоенных платежей и −2,79 млн из-за потерянных — почти одинаково.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Что ты рекомендуешь про цену basic?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Повышать рано: сначала разобраться, кто переходит с basic на standard</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Срочно повысить: basic — лидер</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Снизить цену basic</span></button></div>
+            <div class="why" hidden>Идея повысить цену опиралась на неверный вывод «basic — лидер».</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Нигора, привет! Basic — не лидер: больше всех приносит standard. В расчёте было две ошибки: старые записи пользователей задвоили 48 платежей (+2,88 млн), а 38 платежей от удалённых пользователей потерялись (−2,79 млн). Поэтому итог почти сошёлся с бухгалтерией — случайно, ошибки погасили друг друга. Правильно: standard 23,29 млн, basic 20,55 млн, premium 19,39 млн, ещё 2,79 млн — от пользователей, которых нет в базе. Оговорка: я брал текущий тариф пользователя, а часть клиентов меняла тариф в сентябре. Повышать цену basic по этим данным рано — предлагаю сначала посмотреть, кто переходит с basic на standard.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Главный вывод: basic не лидер</li><li>Обе ошибки джойна с цифрами: +2,88 и −2,79 млн</li><li>Объяснено, почему итог сошёлся случайно</li><li>Правильная разбивка по тарифам</li><li>Есть оговорка и рекомендация</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 11</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/10-pivot-table-crosstab/"><small>← Урок 10</small><b>pivot_table и crosstab</b></a><a class="nx" href="../../lessons/12-concat-melt-pivot/"><small>Урок 12 →</small><b>concat, melt, pivot, stack: длинный и широкий формат</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0417\u0430\u0434\u0432\u043e\u0435\u043d\u043d\u044b\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439", "value": 48}, {"name": "\u041f\u043e\u0442\u0435\u0440\u044f\u043d\u043d\u044b\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439", "value": 38}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 standard", "value": 23290000}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 basic", "value": 20550000}], "logic": [{"a": 0, "o": ["standard, \u0430 \u043d\u0435 basic", "basic, \u043a\u0430\u043a \u0438 \u0434\u0443\u043c\u0430\u043b\u0430 \u041d\u0438\u0433\u043e\u0440\u0430", "premium"], "q": "\u041a\u0442\u043e, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u043f\u0440\u0438\u043d\u043e\u0441\u0438\u0442 \u0431\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0445 \u0434\u0435\u043d\u0435\u0433?", "why": "\u041f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e: standard 23,29 \u043c\u043b\u043d, basic 20,55 \u043c\u043b\u043d, premium 19,39 \u043c\u043b\u043d."}, {"a": 0, "o": ["\u0414\u0432\u0435 \u043e\u0448\u0438\u0431\u043a\u0438 \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u043e \u043f\u043e\u0433\u0430\u0441\u0438\u043b\u0438 \u0434\u0440\u0443\u0433 \u0434\u0440\u0443\u0433\u0430: \u0437\u0430\u0434\u0432\u043e\u0435\u043d\u0438\u0435 \u0434\u043e\u0431\u0430\u0432\u0438\u043b\u043e \u0434\u0435\u043d\u044c\u0433\u0438, \u043f\u043e\u0442\u0435\u0440\u044f\u043d\u043d\u044b\u0435 \u043f\u043b\u0430\u0442\u0435\u0436\u0438 \u2014 \u0443\u0431\u0440\u0430\u043b\u0438", "\u041e\u0448\u0438\u0431\u043e\u043a \u043d\u0435 \u0431\u044b\u043b\u043e, \u0432\u0441\u0451 \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043d\u043e \u0432\u0435\u0440\u043d\u043e", "\u0411\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u044f \u043e\u0448\u0438\u0431\u043b\u0430\u0441\u044c \u0442\u0430\u043a \u0436\u0435"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u0438\u0442\u043e\u0433 \u0432\u0441\u0451 \u0440\u0430\u0432\u043d\u043e \u0441\u043e\u0448\u0451\u043b\u0441\u044f \u0441 \u0431\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u0435\u0439?", "why": "+2,88 \u043c\u043b\u043d \u0438\u0437-\u0437\u0430 \u0437\u0430\u0434\u0432\u043e\u0435\u043d\u043d\u044b\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439 \u0438 \u22122,79 \u043c\u043b\u043d \u0438\u0437-\u0437\u0430 \u043f\u043e\u0442\u0435\u0440\u044f\u043d\u043d\u044b\u0445 \u2014 \u043f\u043e\u0447\u0442\u0438 \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u043e."}, {"a": 0, "o": ["\u041f\u043e\u0432\u044b\u0448\u0430\u0442\u044c \u0440\u0430\u043d\u043e: \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0440\u0430\u0437\u043e\u0431\u0440\u0430\u0442\u044c\u0441\u044f, \u043a\u0442\u043e \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u0438\u0442 \u0441 basic \u043d\u0430 standard", "\u0421\u0440\u043e\u0447\u043d\u043e \u043f\u043e\u0432\u044b\u0441\u0438\u0442\u044c: basic \u2014 \u043b\u0438\u0434\u0435\u0440", "\u0421\u043d\u0438\u0437\u0438\u0442\u044c \u0446\u0435\u043d\u0443 basic"], "q": "\u0427\u0442\u043e \u0442\u044b \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u0435\u0448\u044c \u043f\u0440\u043e \u0446\u0435\u043d\u0443 basic?", "why": "\u0418\u0434\u0435\u044f \u043f\u043e\u0432\u044b\u0441\u0438\u0442\u044c \u0446\u0435\u043d\u0443 \u043e\u043f\u0438\u0440\u0430\u043b\u0430\u0441\u044c \u043d\u0430 \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0439 \u0432\u044b\u0432\u043e\u0434 \u00abbasic \u2014 \u043b\u0438\u0434\u0435\u0440\u00bb."}]}, "case_model": "\u041d\u0438\u0433\u043e\u0440\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! Basic \u2014 \u043d\u0435 \u043b\u0438\u0434\u0435\u0440: \u0431\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0445 \u043f\u0440\u0438\u043d\u043e\u0441\u0438\u0442 standard. \u0412 \u0440\u0430\u0441\u0447\u0451\u0442\u0435 \u0431\u044b\u043b\u043e \u0434\u0432\u0435 \u043e\u0448\u0438\u0431\u043a\u0438: \u0441\u0442\u0430\u0440\u044b\u0435 \u0437\u0430\u043f\u0438\u0441\u0438 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439 \u0437\u0430\u0434\u0432\u043e\u0438\u043b\u0438 48 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439 (+2,88 \u043c\u043b\u043d), \u0430 38 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439 \u043e\u0442 \u0443\u0434\u0430\u043b\u0451\u043d\u043d\u044b\u0445 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439 \u043f\u043e\u0442\u0435\u0440\u044f\u043b\u0438\u0441\u044c (\u22122,79 \u043c\u043b\u043d). \u041f\u043e\u044d\u0442\u043e\u043c\u0443 \u0438\u0442\u043e\u0433 \u043f\u043e\u0447\u0442\u0438 \u0441\u043e\u0448\u0451\u043b\u0441\u044f \u0441 \u0431\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u0435\u0439 \u2014 \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u043e, \u043e\u0448\u0438\u0431\u043a\u0438 \u043f\u043e\u0433\u0430\u0441\u0438\u043b\u0438 \u0434\u0440\u0443\u0433 \u0434\u0440\u0443\u0433\u0430. \u041f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e: standard 23,29 \u043c\u043b\u043d, basic 20,55 \u043c\u043b\u043d, premium 19,39 \u043c\u043b\u043d, \u0435\u0449\u0451 2,79 \u043c\u043b\u043d \u2014 \u043e\u0442 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439, \u043a\u043e\u0442\u043e\u0440\u044b\u0445 \u043d\u0435\u0442 \u0432 \u0431\u0430\u0437\u0435. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u044f \u0431\u0440\u0430\u043b \u0442\u0435\u043a\u0443\u0449\u0438\u0439 \u0442\u0430\u0440\u0438\u0444 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f, \u0430 \u0447\u0430\u0441\u0442\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043c\u0435\u043d\u044f\u043b\u0430 \u0442\u0430\u0440\u0438\u0444 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435. \u041f\u043e\u0432\u044b\u0448\u0430\u0442\u044c \u0446\u0435\u043d\u0443 basic \u043f\u043e \u044d\u0442\u0438\u043c \u0434\u0430\u043d\u043d\u044b\u043c \u0440\u0430\u043d\u043e \u2014 \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c, \u043a\u0442\u043e \u043f\u0435\u0440\u0435\u0445\u043e\u0434\u0438\u0442 \u0441 basic \u043d\u0430 standard.", "case_xp": 30, "cheat": [["users[\"user_id\"].is_unique", "\u043a\u043b\u044e\u0447 \u0443\u043d\u0438\u043a\u0430\u043b\u0435\u043d?"], ["users[\"user_id\"].duplicated().sum()", "\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0432\u0442\u043e\u0440\u043e\u0432"], ["uc = users.sort_values(\"updated_at\").drop_duplicates(\"user_id\", keep=\"last\")", "\u043f\u043e\u0441\u043b\u0435\u0434\u043d\u044f\u044f \u0432\u0435\u0440\u0441\u0438\u044f"], ["m = pay.merge(uc, on=\"user_id\", how=\"left\", validate=\"many_to_one\")", "\u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u044b\u0439 \u0434\u0436\u043e\u0439\u043d"], ["print(len(pay), len(m))", "\u0441\u0442\u0440\u043e\u043a \u0434\u043e \u0438 \u043f\u043e\u0441\u043b\u0435 \u0434\u043e\u043b\u0436\u043d\u043e \u0431\u044b\u0442\u044c \u043f\u043e\u0440\u043e\u0432\u043d\u0443"], ["pay.merge(uc, on=\"user_id\", how=\"outer\", indicator=True)[\"_merge\"].value_counts()", "\u043a\u0442\u043e \u0431\u0435\u0437 \u043f\u0430\u0440\u044b"], ["pay[~pay[\"user_id\"].isin(uc[\"user_id\"])]", "anti-join: \u043f\u043b\u0430\u0442\u0435\u0436\u0438 \u0431\u0435\u0437 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u044f"], ["m[\"plan\"] = m[\"plan\"].fillna(\"\u043d\u0435\u0442 \u0432 \u0431\u0430\u0437\u0435\")", "\u043d\u0435 \u043f\u0440\u044f\u0447\u044c \u043f\u043e\u0442\u0435\u0440\u044f\u043d\u043d\u044b\u0435 \u0434\u0435\u043d\u044c\u0433\u0438"]], "data": "../../data/", "datasets": ["tomosha_users.csv", "tomosha_payments.csv"], "day": 11, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nusers = pd.read_csv(\"tomosha_users.csv\")\npay = pd.read_csv(\"tomosha_payments.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["False", "24", "38"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["1261", "1309", "48"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["(600, 6)", "(1261, 10)"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["both 1223", "left_only 38", "right_only 20", "17"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["standard 23.29", "basic 20.55", "premium 19.39", "\u043d\u0435\u0442 \u0432 \u0431\u0430\u0437\u0435 2.79"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["basic 22.29 20.55 8.5", "premium 19.39 19.39 0.0", "standard 24.44 23.29 4.9"], "setup": "", "xp": 20}, {"figure": false, "id": "t7", "keys": ["6.7", "organic 8.1", "referral 6.3", "ads 5.6"], "setup": "", "xp": 20}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

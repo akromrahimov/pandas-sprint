@@ -1,0 +1,843 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Проект 28. Финальный проект, часть 1: EDA и очистка — Pandas Sprint</title>
+<meta name="description" content="Проект 28 курса Pandas Sprint — Финальный проект, часть 1: EDA и очистка. Взять реальный датасет, осмотреть и почистить его.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/28-finalnyj-proekt-1/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Проект 28. Финальный проект, часть 1: EDA и очистка — Pandas Sprint">
+<meta property="og:description" content="Проект 28 курса Pandas Sprint — Финальный проект, часть 1: EDA и очистка. Взять реальный датасет, осмотреть и почистить его.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/28-finalnyj-proekt-1/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="28">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#checklist"><span class="dot">✓</span>Чек-лист</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 240 XP</b>Задачи: <span id="tasksNow">0 из 8</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Осмотр и очистка: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты чистил данные в SQL, вот соответствия.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT COUNT(*) - COUNT(DISTINCT …)</code></td><td><code>raw.duplicated().sum()</code></td><td>полные дубли</td></tr><tr><td><code>SELECT DISTINCT …</code></td><td><code>raw.drop_duplicates()</code></td><td>убрать дубли</td></tr><tr><td><code>TRIM(INITCAP(city))</code></td><td><code>s.str.strip().str.capitalize()</code></td><td>чистый текст</td></tr><tr><td><code>CAST(REGEXP_REPLACE(price, &#39;[^0-9]&#39;, &#39;&#39;) AS INT)</code></td><td><code>pd.to_numeric(s.str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)</code></td><td>текст → число</td></tr><tr><td><code>CAST(order_time AS TIMESTAMP)</code></td><td><code>pd.to_datetime(s)</code></td><td>текст → дата</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Проект 28 из 30 · Неделя 4 · Бизнес-кейсы</div>
+      <h1>Финальный проект, часть 1: <mark>осмотр и очистка</mark></h1>
+      <p class="lead">Финальный проект — как первая настоящая задача на работе: большая грязная выгрузка за 9 месяцев, никто не знает, что в ней не так, а через два дня нужен отчёт для руководства. Сегодня первая половина работы, без которой вторая не имеет смысла: осмотреть данные, найти все проблемы, почистить и написать отчёт о качестве данных.</p>
+      <div class="chips"><span class="chip">8 шагов проекта + кейс</span><span class="chip">pandas 3.0</span><span class="chip">240 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Превратить сырую выгрузку маркетплейса UzMarket за январь–сентябрь в чистую таблицу, которой можно доверять, и описать все найденные проблемы в коротком отчёте о качестве данных.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Проходить чек-лист осмотра новых данных за 15 минут</li><li>Находить и исправлять дубли, грязный текст, числа-как-текст и даты-как-текст</li><li>Проверять выбросы и решать, что с ними делать</li><li>Писать отчёт о качестве данных (data quality report)</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Отчёт для руководства через два дня</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">С</span>Санжар <small>директор по развитию UzMarket · 10:00</small></div>
+          <p>Привет! В пятницу совет директоров решает, в какие категории и города вкладываться в следующем году. Нужен честный отчёт по продажам за январь–сентябрь. Выгрузку делали в спешке, в ней наверняка мусор. Сначала разберись с данными, а цифры — во второй части.</p>
+<div class="file">▤ uzmarket_orders.csv · заказы за 9 месяцев</div>        </div>
+      </div>
+      <p class="note">UzMarket — учебный маркетплейс, данные сгенерированы. Подвохов много, найти их — часть задания. Каждая задача — шаг проекта: перед ней уже выполнены прошлые шаги (код можно раскрыть под условием).</p>
+      <div class="dlrow"><a class="btn main" href="../../data/uzmarket_orders.csv" download>Скачать uzmarket_orders.csv</a><span class="note">4 270 строк · 351 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+raw = pd.read_csv(&#34;uzmarket_orders.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="checklist">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Чек-лист осмотра новых данных</h2>
+      <div class="simple"><span class="tag">Порядок, который экономит часы</span>
+  <ol>
+    <li><b>Размер и типы</b>: <code class="i">shape</code>, <code class="i">dtypes</code>. Число как текст и дата как текст видны сразу.</li>
+    <li><b>Пропуски</b>: <code class="i">isna().sum()</code> — где и сколько.</li>
+    <li><b>Дубли</b>: полные (<code class="i">duplicated()</code>) и по ключу (<code class="i">order_id</code>).</li>
+    <li><b>Текст</b>: <code class="i">value_counts()</code> каждой текстовой колонки — разные написания одного и того же.</li>
+    <li><b>Числа</b>: <code class="i">describe()</code> — отрицательные, нули, невозможно большие значения.</li>
+    <li><b>Даты</b>: min и max — период совпадает с ожидаемым?</li>
+    <li><b>Запиши всё</b> в отчёт о качестве: что нашёл, сколько строк, что сделал.</li>
+  </ol>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>Первый взгляд.</b></div><pre class="code" data-cm>print(raw.shape)
+raw.dtypes</pre><div class="out">(4270, 10)
+order_id         int64
+order_time         str
+customer_id      int64
+city               str
+category           str
+price              str
+qty              int64
+payment            str
+status             str
+rating         float64
+dtype: object</div><p class="plain"><b>Простыми словами:</b> price — текст (str), хотя это деньги; order_time — тоже текст. Уже два пункта для отчёта о качестве.</p></div>
+<div class="card"><div class="q"><b>Почему price — текст.</b> Смотрим значения, которые не читаются как число.</div><pre class="code" data-cm>s = raw[&quot;price&quot;]
+s[s.notna() &amp; pd.to_numeric(s, errors=&quot;coerce&quot;).isna()].head(6)</pre><div class="out">1         52 000
+6        482 000
+9        242 000
+20       312 000
+35     1 648 000
+62    313000 сум
+Name: price, dtype: str</div><p class="plain"><b>Простыми словами:</b> цены с пробелами между тысячами и с припиской «сум». Их 250 — это не мусор, а нормальные цены, записанные по-другому. Выбрасывать их нельзя.</p></div></div>
+<div class="callout"><b>Правило проекта.</b> Каждое исправление записывай: «было N строк, стало M, причина». Совет директоров спросит «а вы уверены?» — и у тебя будет ответ.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">03 · Ловушки</div>
+      <h2>Четыре ловушки большой очистки</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>dropna «на всякий случай»</h3><p>У половины заказов нет оценки — это нормально (клиенты не всегда ставят оценку). <code class="i">dropna()</code> без subset выбросит половину данных и все выводы. Удаляй только то, без чего строка бесполезна.</p></div>
+        <div class="trap"><span class="n">2</span><h3>to_numeric сразу</h3><div class="bad">pd.to_numeric(raw[&#34;price&#34;], errors=&#34;coerce&#34;)   # «1 250 000» и «950000 сум» станут NaN</div><div class="good">pd.to_numeric(raw[&#34;price&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)</div><p>Сначала убери всё, кроме цифр, потом превращай в число. Иначе нормальные цены станут «пустыми».</p></div>
+        <div class="trap"><span class="n">3</span><h3>Чистка в разных местах</h3><p>Если город чистится в одной ячейке, а цена в другой, через месяц никто не повторит очистку. Собери все шаги в одну функцию или цепочку.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Выбросы удалить сразу</h3><p>Очень дорогой заказ — не всегда ошибка: это может быть корпоративный клиент. Сначала посмотри на выброс, потом решай. В отчёте о качестве опиши решение.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка части 1</h3>
+        <ol><li>raw.shape, raw.dtypes, raw.isna().sum() <span>— первый взгляд</span></li><li>raw.duplicated().sum(); raw.drop_duplicates() <span>— полные дубли</span></li><li>s.str.strip().str.capitalize() <span>— чистый город</span></li><li>pd.to_numeric(s.str.replace(r&#34;\\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;) <span>— цена из текста</span></li><li>pd.to_datetime(s); s.dt.to_period(&#34;M&#34;) <span>— дата и месяц</span></li><li>s.quantile(0.99) <span>— граница выбросов</span></li><li>pd.Series({...}) <span>— отчёт о качестве данных</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">04 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. С чего начать осмотр новых данных?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>С графиков</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>С размера, типов и пропусков</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>С удаления выбросов</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>С отчёта</span></button></div>
+          <div class="why" hidden>shape, dtypes и isna().sum() за минуту показывают главные проблемы.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Колонка price имеет тип str. Что это скорее всего значит?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Цены в долларах</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В колонке есть значения, которые не читаются как число</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Цен нет</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Так и должно быть</span></button></div>
+          <div class="why" hidden>Одна «нечисловая» запись делает всю колонку текстом.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="2">
+          <p>3. У 45% заказов нет оценки. Что делать?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удалить эти строки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Заполнить нулём</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Оставить пустыми и учитывать базу при подсчёте среднего</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Заполнить средним</span></button></div>
+          <div class="why" hidden>Отсутствие оценки — нормальная ситуация. Средний рейтинг считают по оценённым заказам и пишут базу.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Зачем записывать каждое исправление в отчёт о качестве?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Для красоты</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Чтобы можно было объяснить и повторить очистку</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Так требует pandas</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Не нужно</span></button></div>
+          <div class="why" hidden>Руководство спросит, откуда цифры, а коллеги должны повторить очистку на новых данных.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Очень дорогой заказ в 30 раз больше медианы. Что делать первым?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удалить</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Посмотреть на него и понять, ошибка ли это</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Заменить медианой</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ничего</span></button></div>
+          <div class="why" hidden>Выброс может быть настоящим (корпоративный клиент). Решение принимают, посмотрев на данные.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">05 · Практика · 190 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Первый взгляд</h3>
+            <ol class='steps-t'><li>Напечатай <code class='i'>raw.shape</code>.</li> <li>Напечатай, сколько колонок каждого типа (<code class='i'>dtypes.value_counts()</code>).</li> <li>Выведи число пропусков только в колонках, где они есть.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 28 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># размер
+
+# типы колонок
+
+# пропуски там, где они есть
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(4270, 10)
+str        6
+int64      3
+float64    1
+Name: count, dtype: int64
+price       51
+rating    1910
+dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># размер
+
+# типы колонок
+
+# пропуски там, где они есть
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Первый осмотр незнакомой таблицы, как в уроке 1: размер, типы колонок и где есть пустые клетки.</p>
+<p><b>Чем это сделать.</b> <code class="i">raw.shape</code>, <code class="i">raw.dtypes.value_counts()</code>, <code class="i">na = raw.isna().sum()</code> и фильтр <code class="i">na[na > 0]</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(raw.___)
+print(raw.dtypes.___())
+na = raw.isna().sum()
+na[na ___ 0]</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Первые два результата печатай через print — иначе Jupyter покажет только последний.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Дубли</h3>
+            <ol class='steps-t'><li>Напечатай число полных дублей.</li> <li>Убери их → <code class='i'>df</code>.</li> <li>Напечатай <code class='i'>df.shape</code> и уникален ли <code class='i'>order_id</code> в df.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Первый взгляд» —
+print(raw.shape)
+print(raw.dtypes.value_counts())
+na = raw.isna().sum()
+na[na &gt; 0]</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 28 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># полные дубли
+
+df =
+
+# shape и уникальность order_id
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">70
+(4200, 10) True</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># полные дубли
+
+df =
+
+# shape и уникальность order_id
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай полные копии строк и убери их. Потом проверь, что номер заказа больше не повторяется.</p>
+<p><b>Чем это сделать.</b> <code class="i">raw.duplicated().sum()</code>, <code class="i">raw.drop_duplicates().copy()</code>, <code class="i">df["order_id"].is_unique</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(raw.___().sum())
+df = raw.___().copy()
+print(df.shape, df[&#34;order_id&#34;].___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">.copy()</code> нужен, чтобы дальше спокойно менять колонки df без предупреждений.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Город</h3>
+            <ol class='steps-t'><li>Напечатай, сколько разных написаний города в df.</li> <li>Почисти город (strip + capitalize) прямо в df.</li> <li>Выведи число заказов по чистым городам.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Первый взгляд» —
+print(raw.shape)
+print(raw.dtypes.value_counts())
+na = raw.isna().sum()
+na[na &gt; 0]
+# — шаг «Дубли» —
+print(raw.duplicated().sum())
+df = raw.drop_duplicates().copy()
+print(df.shape, df[&#34;order_id&#34;].is_unique)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 28 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3"># написаний до очистки
+
+df[&#34;city&#34;] =
+
+# заказы по городам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">24
+city
+Ташкент      1797
+Самарканд     708
+Бухара        499
+Фергана       442
+Наманган      418
+Андижан       336
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># написаний до очистки
+
+df[&#34;city&#34;] =
+
+# заказы по городам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай, сколькими способами записан город, почисти его и сохрани прямо в df, потом посчитай заказы по городам.</p>
+<p><b>Чем это сделать.</b> <code class="i">.nunique()</code>, <code class="i">.str.strip().str.capitalize()</code>, <code class="i">.value_counts()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df[&#34;city&#34;].___())
+df[&#34;city&#34;] = df[&#34;city&#34;].str.___().str.___()
+df[&#34;city&#34;].value_counts()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Число написаний считай до чистки — после неё останется уже 6.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Цена из текста</h3>
+            <ol class='steps-t'><li>Напечатай, сколько цен не читаются как число без очистки (не пустые, но <code class='i'>to_numeric(…, errors="coerce")</code> даёт NaN).</li> <li>Почисти: убери всё, кроме цифр (<code class='i'>str.replace(r"\D", "", regex=True)</code>), и преврати в число → колонка <code class='i'>price</code>.</li> <li>Напечатай число пустых цен после очистки и медианную цену по категориям (целые).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Первый взгляд» —
+print(raw.shape)
+print(raw.dtypes.value_counts())
+na = raw.isna().sum()
+na[na &gt; 0]
+# — шаг «Дубли» —
+print(raw.duplicated().sum())
+df = raw.drop_duplicates().copy()
+print(df.shape, df[&#34;order_id&#34;].is_unique)
+# — шаг «Город» —
+print(df[&#34;city&#34;].nunique())
+df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.capitalize()
+df[&#34;city&#34;].value_counts()</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 28 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4"># нечисловых цен до очистки
+
+df[&#34;price&#34;] =
+
+# пустых после и медиана по категориям
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">250
+50
+category
+Детям           225000.0
+Дом             336000.0
+Красота         146000.0
+Одежда          248000.0
+Продукты         91000.0
+Электроника    1905500.0
+Name: price, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># нечисловых цен до очистки
+
+df[&#34;price&#34;] =
+
+# пустых после и медиана по категориям
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Не читается как число» — клетка не пустая, но после мягкого перевода в число стала пустой. Потом почисти цену: оставь только цифры и переведи в число.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.to_numeric(..., errors="coerce")</code>, <code class="i">.notna()</code> и <code class="i">.isna()</code> через <code class="i">&</code>, <code class="i">.str.replace(r"\D", "", regex=True)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print((df[&#34;price&#34;].___() &amp; pd.to_numeric(df[&#34;price&#34;], errors=&#34;coerce&#34;).___()).sum())
+df[&#34;price&#34;] = pd.to_numeric(df[&#34;price&#34;].str.replace(r&#34;___&#34;, &#34;&#34;, regex=True), errors=&#34;___&#34;)
+print(df[&#34;price&#34;].isna().sum())
+df.groupby(&#34;category&#34;)[&#34;price&#34;].___().round(0)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Первое число считай до очистки: после неё колонка уже числовая, и «нечитаемых» не останется.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Даты и месяцы</h3>
+            <ol class='steps-t'><li>Преврати <code class='i'>order_time</code> в дату, добавь колонку <code class='i'>month</code> (to_period("M")).</li> <li>Напечатай первую и последнюю дату.</li> <li>Выведи число заказов по месяцам.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Первый взгляд» —
+print(raw.shape)
+print(raw.dtypes.value_counts())
+na = raw.isna().sum()
+na[na &gt; 0]
+# — шаг «Дубли» —
+print(raw.duplicated().sum())
+df = raw.drop_duplicates().copy()
+print(df.shape, df[&#34;order_id&#34;].is_unique)
+# — шаг «Город» —
+print(df[&#34;city&#34;].nunique())
+df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.capitalize()
+df[&#34;city&#34;].value_counts()
+# — шаг «Цена из текста» —
+print((df[&#34;price&#34;].notna() &amp; pd.to_numeric(df[&#34;price&#34;], errors=&#34;coerce&#34;).isna()).sum())
+df[&#34;price&#34;] = pd.to_numeric(df[&#34;price&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)
+print(df[&#34;price&#34;].isna().sum())
+df.groupby(&#34;category&#34;)[&#34;price&#34;].median().round(0)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 28 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">df[&#34;order_time&#34;] =
+df[&#34;month&#34;] =
+
+# первая и последняя дата
+
+# заказы по месяцам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">2026-01-01 00:02:00 2026-09-30 22:35:00
+month
+2026-01    488
+2026-02    433
+2026-03    484
+2026-04    496
+2026-05    463
+2026-06    469
+2026-07    456
+2026-08    446
+2026-09    465
+Freq: M, Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;order_time&#34;] =
+df[&#34;month&#34;] =
+
+# первая и последняя дата
+
+# заказы по месяцам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Текст в дату, потом месяц из даты. Первая и последняя дата — min и max. Заказы по месяцам — частоты, по порядку месяцев.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.to_datetime</code>, <code class="i">.dt.to_period("M")</code>, <code class="i">.value_counts().sort_index()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;order_time&#34;] = pd.___(df[&#34;order_time&#34;])
+df[&#34;month&#34;] = df[&#34;order_time&#34;].dt.to_period(&#34;___&#34;)
+print(df[&#34;order_time&#34;].min(), df[&#34;order_time&#34;].___())
+df[&#34;month&#34;].value_counts().___()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без sort_index месяцы встанут по числу заказов, а не по календарю.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Выручка и выбросы</h3>
+            <ol class='steps-t'><li>Колонка <code class='i'>revenue = price * qty</code>.</li> <li>Для доставленных заказов выведи <code class='i'>describe()</code> выручки, округлив до целых.</li> <li>Напечатай, какую долю выручки доставленных заказов дают 1% самых дорогих заказов (выше 99-го перцентиля), %, 1 знак.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Первый взгляд» —
+print(raw.shape)
+print(raw.dtypes.value_counts())
+na = raw.isna().sum()
+na[na &gt; 0]
+# — шаг «Дубли» —
+print(raw.duplicated().sum())
+df = raw.drop_duplicates().copy()
+print(df.shape, df[&#34;order_id&#34;].is_unique)
+# — шаг «Город» —
+print(df[&#34;city&#34;].nunique())
+df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.capitalize()
+df[&#34;city&#34;].value_counts()
+# — шаг «Цена из текста» —
+print((df[&#34;price&#34;].notna() &amp; pd.to_numeric(df[&#34;price&#34;], errors=&#34;coerce&#34;).isna()).sum())
+df[&#34;price&#34;] = pd.to_numeric(df[&#34;price&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)
+print(df[&#34;price&#34;].isna().sum())
+df.groupby(&#34;category&#34;)[&#34;price&#34;].median().round(0)
+# — шаг «Даты и месяцы» —
+df[&#34;order_time&#34;] = pd.to_datetime(df[&#34;order_time&#34;])
+df[&#34;month&#34;] = df[&#34;order_time&#34;].dt.to_period(&#34;M&#34;)
+print(df[&#34;order_time&#34;].min(), df[&#34;order_time&#34;].max())
+df[&#34;month&#34;].value_counts().sort_index()</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 28 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">df[&#34;revenue&#34;] =
+ok = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+
+# describe выручки
+
+# доля топ-1% заказов
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">count        3737.0
+mean       879945.0
+std       1511836.0
+min         26000.0
+25%        206000.0
+50%        366000.0
+75%        786000.0
+max      19506000.0
+Name: revenue, dtype: float64
+11.7</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;revenue&#34;] =
+ok = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+
+# describe выручки
+
+# доля топ-1% заказов
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Выручка = цена × количество. Для доставленных посмотри describe — там видно, насколько max больше медианы. Потом посчитай, какую часть денег дают самые дорогие 1% заказов.</p>
+<p><b>Чем это сделать.</b> <code class="i">.quantile(0.99)</code> — граница верхнего 1%. Доля: сумма выше границы / вся сумма × 100.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;revenue&#34;] = df[&#34;___&#34;] * df[&#34;___&#34;]
+ok = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+print(ok[&#34;revenue&#34;].describe().round(0))
+p99 = ok[&#34;revenue&#34;].quantile(___)
+print(round(ok.loc[ok[&#34;revenue&#34;] &gt; ___, &#34;revenue&#34;].sum() / ok[&#34;revenue&#34;].sum() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> 0.99 — это 99-й перцентиль; 99 без точки pandas не примет.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт о качестве данных</h3>
+            <p>Series <code class='i'>quality</code>:</p> <ol class='steps-t'><li><code class='i'>rows_raw</code>, <code class='i'>duplicates</code>, <code class='i'>rows_clean</code>;</li> <li><code class='i'>city_spellings</code> — написаний города в raw, <code class='i'>cities</code> — городов после очистки;</li> <li><code class='i'>price_missing</code> — пустых цен после очистки;</li> <li><code class='i'>rating_missing_%</code> — % заказов без оценки (1 знак).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Первый взгляд» —
+print(raw.shape)
+print(raw.dtypes.value_counts())
+na = raw.isna().sum()
+na[na &gt; 0]
+# — шаг «Дубли» —
+print(raw.duplicated().sum())
+df = raw.drop_duplicates().copy()
+print(df.shape, df[&#34;order_id&#34;].is_unique)
+# — шаг «Город» —
+print(df[&#34;city&#34;].nunique())
+df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.capitalize()
+df[&#34;city&#34;].value_counts()
+# — шаг «Цена из текста» —
+print((df[&#34;price&#34;].notna() &amp; pd.to_numeric(df[&#34;price&#34;], errors=&#34;coerce&#34;).isna()).sum())
+df[&#34;price&#34;] = pd.to_numeric(df[&#34;price&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)
+print(df[&#34;price&#34;].isna().sum())
+df.groupby(&#34;category&#34;)[&#34;price&#34;].median().round(0)
+# — шаг «Даты и месяцы» —
+df[&#34;order_time&#34;] = pd.to_datetime(df[&#34;order_time&#34;])
+df[&#34;month&#34;] = df[&#34;order_time&#34;].dt.to_period(&#34;M&#34;)
+print(df[&#34;order_time&#34;].min(), df[&#34;order_time&#34;].max())
+df[&#34;month&#34;].value_counts().sort_index()
+# — шаг «Выручка и выбросы» —
+df[&#34;revenue&#34;] = df[&#34;price&#34;] * df[&#34;qty&#34;]
+ok = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+print(ok[&#34;revenue&#34;].describe().round(0))
+p99 = ok[&#34;revenue&#34;].quantile(0.99)
+print(round(ok.loc[ok[&#34;revenue&#34;] &gt; p99, &#34;revenue&#34;].sum() / ok[&#34;revenue&#34;].sum() * 100, 1))</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 28 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">quality = pd.Series({
+    &#34;rows_raw&#34;: len(raw),
+    # продолжи
+})
+quality
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">rows_raw            4270.0
+duplicates            70.0
+rows_clean          4200.0
+city_spellings        24.0
+cities                 6.0
+price_missing         50.0
+rating_missing_%      44.8
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>quality = pd.Series({
+    &#34;rows_raw&#34;: len(raw),
+    # продолжи
+})
+quality
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Отчёт о качестве — это сборка чисел из прошлых шагов: сырая таблица raw против чистой df.</p>
+<p><b>Чем это сделать.</b> <code class="i">len()</code>, <code class="i">duplicated().sum()</code>, <code class="i">nunique()</code>, <code class="i">isna().sum()</code>, <code class="i">isna().mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>quality = pd.Series({
+    &#34;rows_raw&#34;: len(raw),
+    &#34;duplicates&#34;: raw.___().sum(),
+    &#34;rows_clean&#34;: len(___),
+    &#34;city_spellings&#34;: ___[&#34;city&#34;].nunique(),
+    &#34;cities&#34;: ___[&#34;city&#34;].nunique(),
+    &#34;price_missing&#34;: df[&#34;price&#34;].___().sum(),
+    &#34;rating_missing_%&#34;: round(df[&#34;rating&#34;].isna().___() * 100, 1),
+})</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Написания города считай по raw, а чистые города — по df.</p>          </div>
+        </article>
+        <article class="task" id="task-t8" data-task="t8" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 8</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сохранить чистую таблицу</h3>
+            <ol class='steps-t'><li>Оставь колонки: order_id, order_time, month, customer_id, city, category, price, qty, revenue, payment, status, rating → <code class='i'>clean</code>.</li> <li>Сохрани в <b>uzmarket_clean.csv</b> без индекса.</li> <li>Прочитай файл обратно и напечатай его shape и сколько в нём пустых revenue.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Первый взгляд» —
+print(raw.shape)
+print(raw.dtypes.value_counts())
+na = raw.isna().sum()
+na[na &gt; 0]
+# — шаг «Дубли» —
+print(raw.duplicated().sum())
+df = raw.drop_duplicates().copy()
+print(df.shape, df[&#34;order_id&#34;].is_unique)
+# — шаг «Город» —
+print(df[&#34;city&#34;].nunique())
+df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.capitalize()
+df[&#34;city&#34;].value_counts()
+# — шаг «Цена из текста» —
+print((df[&#34;price&#34;].notna() &amp; pd.to_numeric(df[&#34;price&#34;], errors=&#34;coerce&#34;).isna()).sum())
+df[&#34;price&#34;] = pd.to_numeric(df[&#34;price&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)
+print(df[&#34;price&#34;].isna().sum())
+df.groupby(&#34;category&#34;)[&#34;price&#34;].median().round(0)
+# — шаг «Даты и месяцы» —
+df[&#34;order_time&#34;] = pd.to_datetime(df[&#34;order_time&#34;])
+df[&#34;month&#34;] = df[&#34;order_time&#34;].dt.to_period(&#34;M&#34;)
+print(df[&#34;order_time&#34;].min(), df[&#34;order_time&#34;].max())
+df[&#34;month&#34;].value_counts().sort_index()
+# — шаг «Выручка и выбросы» —
+df[&#34;revenue&#34;] = df[&#34;price&#34;] * df[&#34;qty&#34;]
+ok = df[df[&#34;status&#34;] == &#34;delivered&#34;]
+print(ok[&#34;revenue&#34;].describe().round(0))
+p99 = ok[&#34;revenue&#34;].quantile(0.99)
+print(round(ok.loc[ok[&#34;revenue&#34;] &gt; p99, &#34;revenue&#34;].sum() / ok[&#34;revenue&#34;].sum() * 100, 1))
+# — шаг «Отчёт о качестве данных» —
+quality = pd.Series({
+    &#34;rows_raw&#34;: len(raw),
+    &#34;duplicates&#34;: raw.duplicated().sum(),
+    &#34;rows_clean&#34;: len(df),
+    &#34;city_spellings&#34;: raw[&#34;city&#34;].nunique(),
+    &#34;cities&#34;: df[&#34;city&#34;].nunique(),
+    &#34;price_missing&#34;: df[&#34;price&#34;].isna().sum(),
+    &#34;rating_missing_%&#34;: round(df[&#34;rating&#34;].isna().mean() * 100, 1),
+})
+quality</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 28 · задача 8</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 8">cols = [&#34;order_id&#34;, &#34;order_time&#34;, &#34;month&#34;, &#34;customer_id&#34;, &#34;city&#34;, &#34;category&#34;,
+        &#34;price&#34;, &#34;qty&#34;, &#34;revenue&#34;, &#34;payment&#34;, &#34;status&#34;, &#34;rating&#34;]
+clean =
+
+# сохранить и прочитать обратно
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(4200, 12) 50</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>cols = [&#34;order_id&#34;, &#34;order_time&#34;, &#34;month&#34;, &#34;customer_id&#34;, &#34;city&#34;, &#34;category&#34;,
+        &#34;price&#34;, &#34;qty&#34;, &#34;revenue&#34;, &#34;payment&#34;, &#34;status&#34;, &#34;rating&#34;]
+clean =
+
+# сохранить и прочитать обратно
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Выбери нужные колонки, сохрани таблицу в CSV без индекса и прочитай обратно — так проверяют, что файл записался правильно.</p>
+<p><b>Чем это сделать.</b> <code class="i">df[cols]</code>, <code class="i">.to_csv("файл.csv", index=False)</code>, <code class="i">pd.read_csv("файл.csv")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>clean = df[___]
+clean.to_csv(&#34;uzmarket_clean.csv&#34;, index=___)
+back = pd.read_csv(&#34;___&#34;)
+print(back.shape, back[&#34;revenue&#34;].___().sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без index=False в файле появится лишняя безымянная колонка с номерами строк.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">06 · Бизнес-кейс · 30 XP</div>
+      <h2>Отчёт о качестве данных для Санжара</h2>
+      <div class="case">
+        <p>Напиши Санжару короткий отчёт о качестве данных. Не больше 6 предложений. Структура: <b>главный вывод (можно ли доверять данным после очистки) → найденные проблемы с цифрами → что ты с ними сделал → что осталось неизвестным → что нужно исправить в выгрузке</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Строк в выгрузке</span><span class="fact-chip">Полных повторов</span><span class="fact-chip">Заказов без цены</span><span class="fact-chip">Заказов без оценки</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Санжар, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Можно ли доверять данным после очистки, по твоему ответу?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Да, с оговорками: часть проблем исправлена, часть осталась неизвестной</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Нет, данные бесполезны</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Да, проблем не было</span></button></div>
+            <div class="why" hidden>Повторы, город и цена исправлены, но у 50 заказов цены нет совсем — это нужно оговорить.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Как ты поступил с пустыми оценками?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Оставил пустыми: рейтинг считаю только по оценённым заказам</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Заполнил нулями</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Удалил все заказы без оценки</span></button></div>
+            <div class="why" hidden>Ноль исказит рейтинг, а удаление заказов исказит выручку.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Что ты предлагаешь исправить в выгрузке?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Записывать цену числом и выбирать город из списка</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ничего, мы всё почистим вручную</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Перестать выгружать данные</span></button></div>
+            <div class="why" hidden>Лучшая чистка — та, которая не нужна: проблему исправляют там, где она возникает.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Санжар, привет! Коротко: после очистки данным можно доверять, но с двумя оговорками. В выгрузке было 4270 строк, из них 70 — полные повторы (выгрузка задвоилась), я их убрал. Город был записан 24 способами на 6 городов — привёл к одному написанию. Цена была текстом: 250 цен записаны с пробелами или словом «сум» — я их распознал, а 50 заказов вообще без цены, их выручку посчитать нельзя. Оценки нет у 44,8% заказов — это нормально, рейтинг буду считать по оценённым. Для следующих выгрузок предлагаю записывать цену числом, а город выбирать из списка.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Главный вывод про доверие к данным</li><li>Дубли, город, цена, пропуски — с цифрами</li><li>Что сделано с каждой проблемой</li><li>Честно про то, что неизвестно (заказы без цены)</li><li>Предложение, как улучшить выгрузку</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">07 · Завершить урок</div>
+        <h2>Закрыть проект 28</h2>
+        <p>Урок засчитывается, когда решены все 8 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/27-interview-day/"><small>← Проект 27</small><b>Interview day: 10 задач на время</b></a><a class="nx" href="../../lessons/29-finalnyj-proekt-2/"><small>Проект 29 →</small><b>Финальный проект, часть 2: метрики, выводы, графики</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0421\u0442\u0440\u043e\u043a \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435", "value": 4270}, {"name": "\u041f\u043e\u043b\u043d\u044b\u0445 \u043f\u043e\u0432\u0442\u043e\u0440\u043e\u0432", "value": 70}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0431\u0435\u0437 \u0446\u0435\u043d\u044b", "value": 50}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0431\u0435\u0437 \u043e\u0446\u0435\u043d\u043a\u0438", "pct": true, "value": 44.8}], "logic": [{"a": 0, "o": ["\u0414\u0430, \u0441 \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0430\u043c\u0438: \u0447\u0430\u0441\u0442\u044c \u043f\u0440\u043e\u0431\u043b\u0435\u043c \u0438\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0430, \u0447\u0430\u0441\u0442\u044c \u043e\u0441\u0442\u0430\u043b\u0430\u0441\u044c \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u043e\u0439", "\u041d\u0435\u0442, \u0434\u0430\u043d\u043d\u044b\u0435 \u0431\u0435\u0441\u043f\u043e\u043b\u0435\u0437\u043d\u044b", "\u0414\u0430, \u043f\u0440\u043e\u0431\u043b\u0435\u043c \u043d\u0435 \u0431\u044b\u043b\u043e"], "q": "\u041c\u043e\u0436\u043d\u043e \u043b\u0438 \u0434\u043e\u0432\u0435\u0440\u044f\u0442\u044c \u0434\u0430\u043d\u043d\u044b\u043c \u043f\u043e\u0441\u043b\u0435 \u043e\u0447\u0438\u0441\u0442\u043a\u0438, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443?", "why": "\u041f\u043e\u0432\u0442\u043e\u0440\u044b, \u0433\u043e\u0440\u043e\u0434 \u0438 \u0446\u0435\u043d\u0430 \u0438\u0441\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u044b, \u043d\u043e \u0443 50 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0446\u0435\u043d\u044b \u043d\u0435\u0442 \u0441\u043e\u0432\u0441\u0435\u043c \u2014 \u044d\u0442\u043e \u043d\u0443\u0436\u043d\u043e \u043e\u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c."}, {"a": 0, "o": ["\u041e\u0441\u0442\u0430\u0432\u0438\u043b \u043f\u0443\u0441\u0442\u044b\u043c\u0438: \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u0441\u0447\u0438\u0442\u0430\u044e \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e \u043e\u0446\u0435\u043d\u0451\u043d\u043d\u044b\u043c \u0437\u0430\u043a\u0430\u0437\u0430\u043c", "\u0417\u0430\u043f\u043e\u043b\u043d\u0438\u043b \u043d\u0443\u043b\u044f\u043c\u0438", "\u0423\u0434\u0430\u043b\u0438\u043b \u0432\u0441\u0435 \u0437\u0430\u043a\u0430\u0437\u044b \u0431\u0435\u0437 \u043e\u0446\u0435\u043d\u043a\u0438"], "q": "\u041a\u0430\u043a \u0442\u044b \u043f\u043e\u0441\u0442\u0443\u043f\u0438\u043b \u0441 \u043f\u0443\u0441\u0442\u044b\u043c\u0438 \u043e\u0446\u0435\u043d\u043a\u0430\u043c\u0438?", "why": "\u041d\u043e\u043b\u044c \u0438\u0441\u043a\u0430\u0437\u0438\u0442 \u0440\u0435\u0439\u0442\u0438\u043d\u0433, \u0430 \u0443\u0434\u0430\u043b\u0435\u043d\u0438\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0438\u0441\u043a\u0430\u0437\u0438\u0442 \u0432\u044b\u0440\u0443\u0447\u043a\u0443."}, {"a": 0, "o": ["\u0417\u0430\u043f\u0438\u0441\u044b\u0432\u0430\u0442\u044c \u0446\u0435\u043d\u0443 \u0447\u0438\u0441\u043b\u043e\u043c \u0438 \u0432\u044b\u0431\u0438\u0440\u0430\u0442\u044c \u0433\u043e\u0440\u043e\u0434 \u0438\u0437 \u0441\u043f\u0438\u0441\u043a\u0430", "\u041d\u0438\u0447\u0435\u0433\u043e, \u043c\u044b \u0432\u0441\u0451 \u043f\u043e\u0447\u0438\u0441\u0442\u0438\u043c \u0432\u0440\u0443\u0447\u043d\u0443\u044e", "\u041f\u0435\u0440\u0435\u0441\u0442\u0430\u0442\u044c \u0432\u044b\u0433\u0440\u0443\u0436\u0430\u0442\u044c \u0434\u0430\u043d\u043d\u044b\u0435"], "q": "\u0427\u0442\u043e \u0442\u044b \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u0435\u0448\u044c \u0438\u0441\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435?", "why": "\u041b\u0443\u0447\u0448\u0430\u044f \u0447\u0438\u0441\u0442\u043a\u0430 \u2014 \u0442\u0430, \u043a\u043e\u0442\u043e\u0440\u0430\u044f \u043d\u0435 \u043d\u0443\u0436\u043d\u0430: \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0443 \u0438\u0441\u043f\u0440\u0430\u0432\u043b\u044f\u044e\u0442 \u0442\u0430\u043c, \u0433\u0434\u0435 \u043e\u043d\u0430 \u0432\u043e\u0437\u043d\u0438\u043a\u0430\u0435\u0442."}]}, "case_model": "\u0421\u0430\u043d\u0436\u0430\u0440, \u043f\u0440\u0438\u0432\u0435\u0442! \u041a\u043e\u0440\u043e\u0442\u043a\u043e: \u043f\u043e\u0441\u043b\u0435 \u043e\u0447\u0438\u0441\u0442\u043a\u0438 \u0434\u0430\u043d\u043d\u044b\u043c \u043c\u043e\u0436\u043d\u043e \u0434\u043e\u0432\u0435\u0440\u044f\u0442\u044c, \u043d\u043e \u0441 \u0434\u0432\u0443\u043c\u044f \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0430\u043c\u0438. \u0412 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u0431\u044b\u043b\u043e 4270 \u0441\u0442\u0440\u043e\u043a, \u0438\u0437 \u043d\u0438\u0445 70 \u2014 \u043f\u043e\u043b\u043d\u044b\u0435 \u043f\u043e\u0432\u0442\u043e\u0440\u044b (\u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0430 \u0437\u0430\u0434\u0432\u043e\u0438\u043b\u0430\u0441\u044c), \u044f \u0438\u0445 \u0443\u0431\u0440\u0430\u043b. \u0413\u043e\u0440\u043e\u0434 \u0431\u044b\u043b \u0437\u0430\u043f\u0438\u0441\u0430\u043d 24 \u0441\u043f\u043e\u0441\u043e\u0431\u0430\u043c\u0438 \u043d\u0430 6 \u0433\u043e\u0440\u043e\u0434\u043e\u0432 \u2014 \u043f\u0440\u0438\u0432\u0451\u043b \u043a \u043e\u0434\u043d\u043e\u043c\u0443 \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u044e. \u0426\u0435\u043d\u0430 \u0431\u044b\u043b\u0430 \u0442\u0435\u043a\u0441\u0442\u043e\u043c: 250 \u0446\u0435\u043d \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u044b \u0441 \u043f\u0440\u043e\u0431\u0435\u043b\u0430\u043c\u0438 \u0438\u043b\u0438 \u0441\u043b\u043e\u0432\u043e\u043c \u00ab\u0441\u0443\u043c\u00bb \u2014 \u044f \u0438\u0445 \u0440\u0430\u0441\u043f\u043e\u0437\u043d\u0430\u043b, \u0430 50 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0432\u043e\u043e\u0431\u0449\u0435 \u0431\u0435\u0437 \u0446\u0435\u043d\u044b, \u0438\u0445 \u0432\u044b\u0440\u0443\u0447\u043a\u0443 \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u0442\u044c \u043d\u0435\u043b\u044c\u0437\u044f. \u041e\u0446\u0435\u043d\u043a\u0438 \u043d\u0435\u0442 \u0443 44,8% \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u2014 \u044d\u0442\u043e \u043d\u043e\u0440\u043c\u0430\u043b\u044c\u043d\u043e, \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u0431\u0443\u0434\u0443 \u0441\u0447\u0438\u0442\u0430\u0442\u044c \u043f\u043e \u043e\u0446\u0435\u043d\u0451\u043d\u043d\u044b\u043c. \u0414\u043b\u044f \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0445 \u0432\u044b\u0433\u0440\u0443\u0437\u043e\u043a \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0437\u0430\u043f\u0438\u0441\u044b\u0432\u0430\u0442\u044c \u0446\u0435\u043d\u0443 \u0447\u0438\u0441\u043b\u043e\u043c, \u0430 \u0433\u043e\u0440\u043e\u0434 \u0432\u044b\u0431\u0438\u0440\u0430\u0442\u044c \u0438\u0437 \u0441\u043f\u0438\u0441\u043a\u0430.", "case_xp": 30, "cheat": [["raw.shape, raw.dtypes, raw.isna().sum()", "\u043f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434"], ["raw.duplicated().sum(); raw.drop_duplicates()", "\u043f\u043e\u043b\u043d\u044b\u0435 \u0434\u0443\u0431\u043b\u0438"], ["s.str.strip().str.capitalize()", "\u0447\u0438\u0441\u0442\u044b\u0439 \u0433\u043e\u0440\u043e\u0434"], ["pd.to_numeric(s.str.replace(r\"\\\\D\", \"\", regex=True), errors=\"coerce\")", "\u0446\u0435\u043d\u0430 \u0438\u0437 \u0442\u0435\u043a\u0441\u0442\u0430"], ["pd.to_datetime(s); s.dt.to_period(\"M\")", "\u0434\u0430\u0442\u0430 \u0438 \u043c\u0435\u0441\u044f\u0446"], ["s.quantile(0.99)", "\u0433\u0440\u0430\u043d\u0438\u0446\u0430 \u0432\u044b\u0431\u0440\u043e\u0441\u043e\u0432"], ["pd.Series({...})", "\u043e\u0442\u0447\u0451\u0442 \u043e \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0435 \u0434\u0430\u043d\u043d\u044b\u0445"]], "data": "../../data/", "datasets": ["uzmarket_orders.csv"], "day": 28, "hint_cost": 5, "quiz": [1, 1, 2, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nraw = pd.read_csv(\"uzmarket_orders.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["(4270, 10)", "str 6", "int64 3", "float64 1", "price 51", "rating 1910"], "setup": "", "xp": 20}, {"figure": false, "id": "t2", "keys": ["70", "(4200, 10) True"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434\u00bb \u2014\nprint(raw.shape)\nprint(raw.dtypes.value_counts())\nna = raw.isna().sum()\nna[na \u003e 0]", "xp": 20}, {"figure": false, "id": "t3", "keys": ["24", "city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 1797", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 708", "\u0411\u0443\u0445\u0430\u0440\u0430 499", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 442", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 418", "\u0410\u043d\u0434\u0438\u0436\u0430\u043d 336"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434\u00bb \u2014\nprint(raw.shape)\nprint(raw.dtypes.value_counts())\nna = raw.isna().sum()\nna[na \u003e 0]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0443\u0431\u043b\u0438\u00bb \u2014\nprint(raw.duplicated().sum())\ndf = raw.drop_duplicates().copy()\nprint(df.shape, df[\"order_id\"].is_unique)", "xp": 25}, {"figure": false, "id": "t4", "keys": ["250", "50", "category", "\u0414\u0435\u0442\u044f\u043c 225000.0", "\u041a\u0440\u0430\u0441\u043e\u0442\u0430 146000.0", "\u041e\u0434\u0435\u0436\u0434\u0430 248000.0", "\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b 91000.0", "\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430 1905500.0"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434\u00bb \u2014\nprint(raw.shape)\nprint(raw.dtypes.value_counts())\nna = raw.isna().sum()\nna[na \u003e 0]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0443\u0431\u043b\u0438\u00bb \u2014\nprint(raw.duplicated().sum())\ndf = raw.drop_duplicates().copy()\nprint(df.shape, df[\"order_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u043e\u0440\u043e\u0434\u00bb \u2014\nprint(df[\"city\"].nunique())\ndf[\"city\"] = df[\"city\"].str.strip().str.capitalize()\ndf[\"city\"].value_counts()", "xp": 25}, {"figure": false, "id": "t5", "keys": ["2026-01-01 00:02:00 2026-09-30 22:35:00", "month", "2026-01 488", "2026-02 433", "2026-06 469", "2026-07 456", "2026-08 446", "2026-09 465"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434\u00bb \u2014\nprint(raw.shape)\nprint(raw.dtypes.value_counts())\nna = raw.isna().sum()\nna[na \u003e 0]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0443\u0431\u043b\u0438\u00bb \u2014\nprint(raw.duplicated().sum())\ndf = raw.drop_duplicates().copy()\nprint(df.shape, df[\"order_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u043e\u0440\u043e\u0434\u00bb \u2014\nprint(df[\"city\"].nunique())\ndf[\"city\"] = df[\"city\"].str.strip().str.capitalize()\ndf[\"city\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0426\u0435\u043d\u0430 \u0438\u0437 \u0442\u0435\u043a\u0441\u0442\u0430\u00bb \u2014\nprint((df[\"price\"].notna() \u0026 pd.to_numeric(df[\"price\"], errors=\"coerce\").isna()).sum())\ndf[\"price\"] = pd.to_numeric(df[\"price\"].str.replace(r\"\\D\", \"\", regex=True), errors=\"coerce\")\nprint(df[\"price\"].isna().sum())\ndf.groupby(\"category\")[\"price\"].median().round(0)", "xp": 25}, {"figure": false, "id": "t6", "keys": ["count 3737.0", "mean 879945.0", "std 1511836.0", "min 26000.0", "50% 366000.0", "75% 786000.0", "max 19506000.0", "11.7"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434\u00bb \u2014\nprint(raw.shape)\nprint(raw.dtypes.value_counts())\nna = raw.isna().sum()\nna[na \u003e 0]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0443\u0431\u043b\u0438\u00bb \u2014\nprint(raw.duplicated().sum())\ndf = raw.drop_duplicates().copy()\nprint(df.shape, df[\"order_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u043e\u0440\u043e\u0434\u00bb \u2014\nprint(df[\"city\"].nunique())\ndf[\"city\"] = df[\"city\"].str.strip().str.capitalize()\ndf[\"city\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0426\u0435\u043d\u0430 \u0438\u0437 \u0442\u0435\u043a\u0441\u0442\u0430\u00bb \u2014\nprint((df[\"price\"].notna() \u0026 pd.to_numeric(df[\"price\"], errors=\"coerce\").isna()).sum())\ndf[\"price\"] = pd.to_numeric(df[\"price\"].str.replace(r\"\\D\", \"\", regex=True), errors=\"coerce\")\nprint(df[\"price\"].isna().sum())\ndf.groupby(\"category\")[\"price\"].median().round(0)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0430\u0442\u044b \u0438 \u043c\u0435\u0441\u044f\u0446\u044b\u00bb \u2014\ndf[\"order_time\"] = pd.to_datetime(df[\"order_time\"])\ndf[\"month\"] = df[\"order_time\"].dt.to_period(\"M\")\nprint(df[\"order_time\"].min(), df[\"order_time\"].max())\ndf[\"month\"].value_counts().sort_index()", "xp": 25}, {"figure": false, "id": "t7", "keys": ["rows_raw 4270.0", "duplicates 70.0", "rows_clean 4200.0", "city_spellings 24.0", "cities 6.0", "price_missing 50.0", "rating_missing_% 44.8"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434\u00bb \u2014\nprint(raw.shape)\nprint(raw.dtypes.value_counts())\nna = raw.isna().sum()\nna[na \u003e 0]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0443\u0431\u043b\u0438\u00bb \u2014\nprint(raw.duplicated().sum())\ndf = raw.drop_duplicates().copy()\nprint(df.shape, df[\"order_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u043e\u0440\u043e\u0434\u00bb \u2014\nprint(df[\"city\"].nunique())\ndf[\"city\"] = df[\"city\"].str.strip().str.capitalize()\ndf[\"city\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0426\u0435\u043d\u0430 \u0438\u0437 \u0442\u0435\u043a\u0441\u0442\u0430\u00bb \u2014\nprint((df[\"price\"].notna() \u0026 pd.to_numeric(df[\"price\"], errors=\"coerce\").isna()).sum())\ndf[\"price\"] = pd.to_numeric(df[\"price\"].str.replace(r\"\\D\", \"\", regex=True), errors=\"coerce\")\nprint(df[\"price\"].isna().sum())\ndf.groupby(\"category\")[\"price\"].median().round(0)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0430\u0442\u044b \u0438 \u043c\u0435\u0441\u044f\u0446\u044b\u00bb \u2014\ndf[\"order_time\"] = pd.to_datetime(df[\"order_time\"])\ndf[\"month\"] = df[\"order_time\"].dt.to_period(\"M\")\nprint(df[\"order_time\"].min(), df[\"order_time\"].max())\ndf[\"month\"].value_counts().sort_index()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0438 \u0432\u044b\u0431\u0440\u043e\u0441\u044b\u00bb \u2014\ndf[\"revenue\"] = df[\"price\"] * df[\"qty\"]\nok = df[df[\"status\"] == \"delivered\"]\nprint(ok[\"revenue\"].describe().round(0))\np99 = ok[\"revenue\"].quantile(0.99)\nprint(round(ok.loc[ok[\"revenue\"] \u003e p99, \"revenue\"].sum() / ok[\"revenue\"].sum() * 100, 1))", "xp": 25}, {"figure": false, "id": "t8", "keys": ["(4200, 12) 50"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434\u00bb \u2014\nprint(raw.shape)\nprint(raw.dtypes.value_counts())\nna = raw.isna().sum()\nna[na \u003e 0]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0443\u0431\u043b\u0438\u00bb \u2014\nprint(raw.duplicated().sum())\ndf = raw.drop_duplicates().copy()\nprint(df.shape, df[\"order_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u043e\u0440\u043e\u0434\u00bb \u2014\nprint(df[\"city\"].nunique())\ndf[\"city\"] = df[\"city\"].str.strip().str.capitalize()\ndf[\"city\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0426\u0435\u043d\u0430 \u0438\u0437 \u0442\u0435\u043a\u0441\u0442\u0430\u00bb \u2014\nprint((df[\"price\"].notna() \u0026 pd.to_numeric(df[\"price\"], errors=\"coerce\").isna()).sum())\ndf[\"price\"] = pd.to_numeric(df[\"price\"].str.replace(r\"\\D\", \"\", regex=True), errors=\"coerce\")\nprint(df[\"price\"].isna().sum())\ndf.groupby(\"category\")[\"price\"].median().round(0)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u0430\u0442\u044b \u0438 \u043c\u0435\u0441\u044f\u0446\u044b\u00bb \u2014\ndf[\"order_time\"] = pd.to_datetime(df[\"order_time\"])\ndf[\"month\"] = df[\"order_time\"].dt.to_period(\"M\")\nprint(df[\"order_time\"].min(), df[\"order_time\"].max())\ndf[\"month\"].value_counts().sort_index()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0438 \u0432\u044b\u0431\u0440\u043e\u0441\u044b\u00bb \u2014\ndf[\"revenue\"] = df[\"price\"] * df[\"qty\"]\nok = df[df[\"status\"] == \"delivered\"]\nprint(ok[\"revenue\"].describe().round(0))\np99 = ok[\"revenue\"].quantile(0.99)\nprint(round(ok.loc[ok[\"revenue\"] \u003e p99, \"revenue\"].sum() / ok[\"revenue\"].sum() * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u041e\u0442\u0447\u0451\u0442 \u043e \u043a\u0430\u0447\u0435\u0441\u0442\u0432\u0435 \u0434\u0430\u043d\u043d\u044b\u0445\u00bb \u2014\nquality = pd.Series({\n    \"rows_raw\": len(raw),\n    \"duplicates\": raw.duplicated().sum(),\n    \"rows_clean\": len(df),\n    \"city_spellings\": raw[\"city\"].nunique(),\n    \"cities\": df[\"city\"].nunique(),\n    \"price_missing\": df[\"price\"].isna().sum(),\n    \"rating_missing_%\": round(df[\"rating\"].isna().mean() * 100, 1),\n})\nquality", "xp": 25}], "theory": ["brief", "checklist", "traps"], "worker": "../../static/js/py-worker.js", "xp": 240}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

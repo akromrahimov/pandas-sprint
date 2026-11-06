@@ -1,0 +1,716 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 25. Ввод-вывод и автоматизация отчёта — Pandas Sprint</title>
+<meta name="description" content="Урок 25 курса Pandas Sprint — Ввод-вывод и автоматизация отчёта. Читать и писать Excel, работать с SQL из pandas и собрать отчёт одним скриптом.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/25-vvod-vyvod-avtomatizaciya/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 25. Ввод-вывод и автоматизация отчёта — Pandas Sprint">
+<meta property="og:description" content="Урок 25 курса Pandas Sprint — Ввод-вывод и автоматизация отчёта. Читать и писать Excel, работать с SQL из pandas и собрать отчёт одним скриптом.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/25-vvod-vyvod-avtomatizaciya/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="25">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#read"><span class="dot">✓</span>Чтение</a></li><li><a href="#excel-sql"><span class="dot">✓</span>Excel и SQL</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">SQL прямо из pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты знаешь SQL, в pandas им можно пользоваться напрямую — через базу или duckdb.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT * FROM orders</code></td><td><code>pd.read_sql(&#34;SELECT * FROM orders&#34;, con)</code></td><td>запрос к базе → DataFrame</td></tr><tr><td><code>INSERT INTO orders …</code></td><td><code>df.to_sql(&#34;orders&#34;, con, index=False)</code></td><td>таблицу pandas — в базу</td></tr><tr><td><code>SELECT city, COUNT(*) FROM df GROUP BY city</code></td><td><code>duckdb.sql(&#34;SELECT city, COUNT(*) FROM df GROUP BY city&#34;).df()</code></td><td>SQL прямо по DataFrame</td></tr><tr><td><code>выгрузка в Excel из BI</code></td><td><code>with pd.ExcelWriter(f) as w: t.to_excel(w, sheet_name=…)</code></td><td>Excel с листами</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 25 из 30 · Неделя 4 · Бизнес-кейсы</div>
+      <h1><mark>Ввод-вывод</mark> и автоматизация отчёта</h1>
+      <p class="lead">Данные приходят из разных мест: CSV, Excel от бухгалтерии, база данных. А результат нужно отдать так, как удобно руководителю, — чаще всего в Excel с несколькими листами. Сегодня учимся читать и писать Excel, делать SQL-запросы прямо из pandas и превращать отчёт в функцию, которая сама собирает файл каждую неделю.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">Excel · SQL · duckdb</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Автоматизировать еженедельный отчёт службы доставки Yetkaz: прочитать выгрузку, посчитать цифры по городам, сохранить их в Excel с несколькими листами и сделать так, чтобы на следующей неделе отчёт собирался одной командой.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Читать только нужные колонки и даты через <code class="i">read_csv(usecols=…, parse_dates=…)</code></li><li>Писать Excel с несколькими листами через <code class="i">ExcelWriter</code> и читать его обратно</li><li>Делать SQL-запросы из pandas: <code class="i">sqlite3</code> + <code class="i">read_sql</code> и duckdb</li><li>Оборачивать отчёт в функцию с параметрами периода</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Каждый понедельник — два часа в Excel</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">О</span>Ойбек <small>руководитель операций Yetkaz · 09:05</small></div>
+          <p>Привет! Каждый понедельник я вручную собираю отчёт по городам в Excel: копирую, считаю, раскрашиваю. Уходит два часа. Можно сделать так, чтобы файл собирался сам? Нужны листы: сводка по городам и отдельно по каждой неделе.</p>
+<div class="file">▤ yetkaz_orders.csv · заказы 05–18 октября</div>        </div>
+      </div>
+      <p class="note">Это выгрузка Yetkaz из урока 8: город записан грязно, у 79 заказов нет суммы. На этой странице файлы Excel и база данных создаются внутри браузера (в памяти страницы), их не нужно скачивать.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/yetkaz_orders.csv" download>Скачать yetkaz_orders.csv</a><span class="note">1 600 строк · 136 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+import sqlite3
+df = pd.read_csv(&#34;yetkaz_orders.csv&#34;, parse_dates=[&#34;order_date&#34;])</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="read">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Читать правильно: колонки, типы, даты</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>read_csv — как сканер документов: у него много настроек, и правильные настройки экономят часы ручной работы.</p>
+  <ul>
+    <li><code class="i">usecols=[…]</code> — читать только нужные колонки.</li>
+    <li><code class="i">parse_dates=["order_date"]</code> — сразу превратить колонку в даты.</li>
+    <li><code class="i">sep=";"</code>, <code class="i">decimal=","</code> — для файлов из «русского» Excel, где разделитель — точка с запятой, а дробная часть — через запятую.</li>
+    <li><code class="i">encoding="cp1251"</code> — если вместо русских букв «кракозябры» (старые файлы Windows).</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Только нужное.</b></div><pre class="code" data-cm>small = pd.read_csv(&quot;yetkaz_orders.csv&quot;, usecols=[&quot;order_id&quot;, &quot;order_date&quot;, &quot;city&quot;, &quot;amount&quot;, &quot;status&quot;],
+                    parse_dates=[&quot;order_date&quot;])
+print(small.shape)
+small.dtypes</pre><div class="out">(1600, 5)
+order_id               int64
+order_date    datetime64[us]
+city                     str
+amount               float64
+status                   str
+dtype: object</div><p class="plain"><b>Простыми словами:</b> из 12 колонок взяли 5, дата сразу стала датой. Меньше памяти и меньше путаницы.</p></div></div>
+    </section>
+    <section id="excel-sql">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Excel с листами и SQL-запросы из pandas</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+  <ul>
+    <li><code class="i">with pd.ExcelWriter("файл.xlsx") as w:</code> — «открой Excel-файл для записи». Внутри блока каждая таблица пишется на свой лист: <code class="i">table.to_excel(w, sheet_name="лист")</code>. Когда блок заканчивается, файл сохраняется.</li>
+    <li><code class="i">pd.read_excel("файл.xlsx", sheet_name="лист")</code> — прочитать нужный лист. <code class="i">pd.ExcelFile(f).sheet_names</code> — список листов.</li>
+    <li><b>sqlite3</b> — маленькая база данных прямо в Python. <code class="i">df.to_sql("orders", con)</code> кладёт таблицу в базу, <code class="i">pd.read_sql("SELECT …", con)</code> выполняет запрос и возвращает DataFrame.</li>
+    <li><b>duckdb</b> умеет выполнять SQL прямо по таблице pandas: <code class="i">duckdb.sql("SELECT … FROM df").df()</code>.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>2. Отчёт в Excel с двумя листами.</b></div><pre class="code" data-cm>clean = df.assign(city=df[&quot;city&quot;].str.strip().str.capitalize())
+by_city = clean.groupby(&quot;city&quot;).agg(orders=(&quot;order_id&quot;, &quot;count&quot;), revenue=(&quot;amount&quot;, &quot;sum&quot;))
+with pd.ExcelWriter(&quot;report.xlsx&quot;) as w:
+    by_city.to_excel(w, sheet_name=&quot;города&quot;)
+    clean.head(50).to_excel(w, sheet_name=&quot;примеры&quot;, index=False)
+pd.ExcelFile(&quot;report.xlsx&quot;).sheet_names</pre><div class="out">[&#x27;города&#x27;, &#x27;примеры&#x27;]</div><p class="plain"><b>Простыми словами:</b> один файл, два листа. Бухгалтерия откроет его обычным Excel.</p></div>
+<div class="card"><div class="q"><b>3. Прочитать лист обратно.</b> Так проверяют, что файл записался правильно.</div><pre class="code" data-cm>back = pd.read_excel(&quot;report.xlsx&quot;, sheet_name=&quot;города&quot;)
+back.head(3)</pre><div class="out">        city  orders   revenue
+0     Бухара     211  15307000
+1   Наманган     180  12476000
+2  Самарканд     327  24167000</div><p class="plain"><b>Простыми словами:</b> <code class="i">sheet_name</code> говорит, какой лист открыть. Колонка city вернулась обычной колонкой: при записи индекс (города) сохранился в файл первым столбцом.</p></div>
+<div class="card"><div class="q"><b>4. SQL-запрос к таблице.</b></div><pre class="code" data-cm>con = sqlite3.connect(&quot;:memory:&quot;)
+clean.to_sql(&quot;orders&quot;, con, index=False)
+pd.read_sql(&quot;SELECT status, COUNT(*) AS n FROM orders GROUP BY status&quot;, con)</pre><div class="out">      status     n
+0  cancelled   170
+1  delivered  1430</div><p class="plain"><b>Простыми словами:</b> <code class="i">":memory:"</code> — база живёт только пока работает код. Настоящую базу компании подключают так же, только вместо ":memory:" — адрес сервера.</p></div></div>
+<div class="simple"><span class="tag">SQL для тех, кто его не знает: 5 слов</span>
+  <p>SQL — язык запросов к базам данных. В компаниях данные часто лежат в базе, поэтому аналитику полезно читать простые запросы. Один и тот же вопрос на SQL и в pandas:</p>
+  <div class="scroll"><table class="mini">
+    <tr><th>SQL</th><th>Что значит</th><th>pandas</th></tr>
+    <tr><td>SELECT city, COUNT(*)</td><td>какие колонки и что посчитать</td><td>["city"] … .size()</td></tr>
+    <tr><td>FROM orders</td><td>из какой таблицы</td><td>clean</td></tr>
+    <tr><td>WHERE status = 'cancelled'</td><td>какие строки оставить</td><td>clean[clean["status"] == "cancelled"]</td></tr>
+    <tr><td>GROUP BY city</td><td>по чему группировать</td><td>.groupby("city")</td></tr>
+    <tr><td>ORDER BY n DESC</td><td>сортировка, DESC — по убыванию</td><td>.sort_values(ascending=False)</td></tr>
+  </table></div>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>5. Один вопрос — два языка.</b> Отмены по городам через SQL (duckdb) и через pandas.</div><pre class="code" data-cm>import duckdb
+sql = duckdb.sql(&quot;&quot;&quot;
+    SELECT city, COUNT(*) AS n
+    FROM clean
+    WHERE status = &#x27;cancelled&#x27;
+    GROUP BY city
+    ORDER BY n DESC
+&quot;&quot;&quot;).df()
+pd_way = clean[clean[&quot;status&quot;] == &quot;cancelled&quot;].groupby(&quot;city&quot;).size().sort_values(ascending=False)
+print(sql)
+print(pd_way)</pre><div class="out">        city    n
+0    Ташкент  122
+1  Самарканд   24
+2   Наманган   12
+3     Бухара   12
+city
+Ташкент      122
+Самарканд     24
+Наманган      12
+Бухара        12
+dtype: int64</div><p class="plain"><b>Простыми словами:</b> ответы одинаковые. duckdb выполняет SQL прямо по таблице pandas — просто пишешь её имя после FROM. Текст в SQL берут в одинарные кавычки: 'cancelled'.</p></div>
+<div class="card"><div class="q"><b>6. Отчёт как функция.</b> Одна функция — любой период.</div><pre class="code" data-cm>def make_report(data, start, end):
+    part = data[(data[&quot;order_date&quot;] &gt;= start) &amp; (data[&quot;order_date&quot;] &lt;= end)]
+    return part.groupby(&quot;city&quot;).agg(orders=(&quot;order_id&quot;, &quot;count&quot;))
+
+print(make_report(clean, &quot;2026-10-05&quot;, &quot;2026-10-11&quot;)[&quot;orders&quot;].sum())
+print(make_report(clean, &quot;2026-10-12&quot;, &quot;2026-10-18&quot;)[&quot;orders&quot;].sum())</pre><div class="out">817
+783</div><p class="plain"><b>Простыми словами:</b> функция получает данные и даты, а возвращает готовую сводку. Чтобы собрать отчёт за новую неделю, не нужно копировать код — достаточно вызвать функцию с другими датами. Так устроена задача 7.</p></div></div>
+<div class="callout"><b>Автоматизация.</b> Когда отчёт работает в ноутбуке, перенеси его в файл <code class="i">report.py</code> с функцией <code class="i">make_report(start, end)</code> и запускай командой <code class="i">python report.py</code>. В Windows его можно поставить в «Планировщик заданий», чтобы файл собирался сам каждый понедельник.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Четыре ловушки ввода-вывода</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Excel без with</h3><div class="bad">w = pd.ExcelWriter(&#34;r.xlsx&#34;)
+t.to_excel(w)          # файл не сохранён, пока не вызван w.close()</div><div class="good">with pd.ExcelWriter(&#34;r.xlsx&#34;) as w:
+    t.to_excel(w, sheet_name=&#34;города&#34;)</div><p>Блок with сам сохраняет и закрывает файл, даже если внутри случилась ошибка.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Лишняя колонка индекса</h3><p>По умолчанию to_excel и to_csv пишут индекс отдельной колонкой. Для таблицы строк добавляй <code class="i">index=False</code>, для сводки по городам индекс как раз нужен.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Русский Excel и CSV</h3><p>Файл из русского Excel часто разделён точкой с запятой и с запятой в дробях: <code class="i">pd.read_csv(f, sep=";", decimal=",")</code>. Если видишь одну колонку со всеми данными — проверь sep.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Отчёт с датами «вшитыми» в код</h3><p>Если период записан прямо в коде, через неделю отчёт посчитает старые цифры. Период — это параметры функции: <code class="i">make_report(start, end)</code>.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: ввод-вывод</h3>
+        <ol><li>pd.read_csv(f, usecols=[...], parse_dates=[&#34;d&#34;]) <span>— нужные колонки и даты</span></li><li>pd.read_csv(f, sep=&#34;;&#34;, decimal=&#34;,&#34;, encoding=&#34;cp1251&#34;) <span>— файл из русского Excel</span></li><li>with pd.ExcelWriter(&#34;r.xlsx&#34;) as w: t.to_excel(w, sheet_name=&#34;лист&#34;) <span>— Excel с листами</span></li><li>pd.read_excel(&#34;r.xlsx&#34;, sheet_name=&#34;лист&#34;, index_col=0) <span>— прочитать лист</span></li><li>pd.ExcelFile(&#34;r.xlsx&#34;).sheet_names <span>— список листов</span></li><li>df.to_sql(&#34;t&#34;, con, index=False); pd.read_sql(&#34;SELECT …&#34;, con) <span>— SQL через sqlite3</span></li><li>duckdb.sql(&#34;SELECT … FROM df&#34;).df() <span>— SQL прямо по таблице</span></li><li>def make_report(start, end): … <span>— отчёт как функция с параметрами</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что делает <code>usecols</code> в read_csv?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Переименовывает колонки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Читает только указанные колонки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Удаляет пустые колонки</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Сортирует колонки</span></button></div>
+          <div class="why" hidden>Ненужные колонки даже не загружаются в память.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Зачем писать Excel через <code>with pd.ExcelWriter(...) as w:</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Так быстрее</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Файл сам сохранится и закроется в конце блока</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Без with нельзя писать листы</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Чтобы был пароль</span></button></div>
+          <div class="why" hidden>with гарантирует сохранение и закрытие файла.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Что вернёт <code>pd.read_sql("SELECT ...", con)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Текст запроса</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>DataFrame с результатом</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Число строк</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ничего</span></button></div>
+          <div class="why" hidden>read_sql выполняет запрос в базе и возвращает результат таблицей pandas.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Файл из русского Excel открылся одной колонкой со всеми данными. Что попробовать?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>encoding="utf-8"</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>sep=";"</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>usecols</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>parse_dates</span></button></div>
+          <div class="why" hidden>Русский Excel часто разделяет колонки точкой с запятой.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Как сделать отчёт, который на следующей неделе посчитает новые цифры?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Скопировать ноутбук</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Сделать функцию с параметрами периода</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Записать даты в название файла</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Никак</span></button></div>
+          <div class="why" hidden>Период — параметр функции: make_report(start, end).</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Прочитать только нужное</h3>
+            <ol class='steps-t'><li>Прочитай <b>yetkaz_orders.csv</b> заново: только колонки order_id, order_date, city, amount, status, дата — датой → <code class='i'>small</code>.</li> <li>Напечатай shape и типы колонок.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 25 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">small =
+
+# shape и типы
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(1600, 5)
+order_id               int64
+order_date    datetime64[us]
+city                     str
+amount               float64
+status                   str
+dtype: object</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>small =
+
+# shape и типы
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Большие файлы не обязательно читать целиком. read_csv умеет взять только нужные колонки и сразу превратить колонку с датой в дату.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.read_csv(файл, usecols=[список колонок], parse_dates=["колонка с датой"])</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>small = pd.read_csv(&#34;yetkaz_orders.csv&#34;, usecols=[___, ___, ___, ___, ___],
+                    parse_dates=[&#34;___&#34;])
+print(small.shape)
+small.___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Имена в usecols должны точно совпадать с заголовками файла — опечатка даст ошибку.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сводка по городам</h3>
+            <ol class='steps-t'><li>Почисти город (strip + capitalize) → <code class='i'>clean</code>.</li> <li>Сводка <code class='i'>by_city</code>: <code class='i'>orders</code> — все заказы, <code class='i'>revenue_mln</code> — выручка доставленных, млн (2 знака). По убыванию выручки.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 25 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">clean =
+by_city = (
+    clean
+    # твой код
+)
+by_city
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           orders  revenue_mln
+city
+Ташкент       882        64.71
+Самарканд     327        22.48
+Бухара        211        14.31
+Наманган      180        11.66</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>clean =
+by_city = (
+    clean
+    # твой код
+)
+by_city
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Знакомый приём из урока 13: почисти город, сделай колонку «выручка только доставленных» и сгруппируй по городу.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.strip().str.capitalize()</code>, <code class="i">d["amount"].where(d["status"] == "delivered")</code>, <code class="i">.agg(orders=("order_id", "count"), revenue_mln=("paid", "sum"))</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>clean = df.assign(city=df[&#34;city&#34;].str.___().str.___())
+by_city = (
+    clean
+    .assign(paid=lambda d: d[&#34;amount&#34;].where(d[&#34;status&#34;] == &#34;___&#34;))
+    .groupby(&#34;city&#34;)
+    .agg(orders=(&#34;order_id&#34;, &#34;___&#34;), revenue_mln=(&#34;paid&#34;, &#34;___&#34;))
+    .assign(revenue_mln=lambda d: (d[&#34;revenue_mln&#34;] / 1e6).round(___))
+    .sort_values(&#34;revenue_mln&#34;, ascending=False)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сохрани чистую таблицу в <code class="i">clean</code> — она нужна в следующих задачах.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Excel с двумя листами</h3>
+            <p>Таблицы <code class='i'>clean</code> и <code class='i'>by_city</code> готовы.</p> <ol class='steps-t'><li>Запиши файл <b>yetkaz_report.xlsx</b>: лист «города» — by_city, лист «отмены» — только отменённые заказы из clean (без индекса).</li> <li>Напечатай список листов файла.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>clean = df.assign(city=df[&#34;city&#34;].str.strip().str.capitalize())
+by_city = (clean.assign(paid=lambda d: d[&#34;amount&#34;].where(d[&#34;status&#34;] == &#34;delivered&#34;))
+           .groupby(&#34;city&#34;).agg(orders=(&#34;order_id&#34;, &#34;count&#34;), revenue_mln=(&#34;paid&#34;, &#34;sum&#34;))
+           .assign(revenue_mln=lambda d: (d[&#34;revenue_mln&#34;] / 1e6).round(2))
+           .sort_values(&#34;revenue_mln&#34;, ascending=False))</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 25 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">with pd.ExcelWriter(&#34;yetkaz_report.xlsx&#34;) as w:
+    # твой код
+    pass
+
+# список листов
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">[&#39;города&#39;, &#39;отмены&#39;]</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>with pd.ExcelWriter(&#34;yetkaz_report.xlsx&#34;) as w:
+    # твой код
+    pass
+
+# список листов
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Чтобы в одном Excel-файле было несколько листов, файл открывают «писателем» и записывают в него таблицы по очереди, каждой — своё имя листа.</p>
+<p><b>Чем это сделать.</b> <code class="i">with pd.ExcelWriter("файл.xlsx") as w:</code> — открыть файл. <code class="i">таблица.to_excel(w, sheet_name="имя", index=False)</code>. Список листов: <code class="i">pd.ExcelFile("файл.xlsx").sheet_names</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>with pd.ExcelWriter(&#34;yetkaz_report.xlsx&#34;) as w:
+    by_city.to_excel(w, sheet_name=&#34;___&#34;)
+    clean[clean[&#34;status&#34;] == &#34;___&#34;].to_excel(w, sheet_name=&#34;___&#34;, index=___)
+pd.ExcelFile(&#34;yetkaz_report.xlsx&#34;).___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Строки внутри with должны быть с отступом — иначе запись пойдёт уже в закрытый файл.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Прочитать Excel обратно</h3>
+            <p>Файл <b>yetkaz_report.xlsx</b> из прошлой задачи уже создан.</p> <ol class='steps-t'><li>Прочитай лист «отмены» → <code class='i'>back</code>.</li> <li>Напечатай его shape и сколько отмен в каждом городе.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>clean = df.assign(city=df[&#34;city&#34;].str.strip().str.capitalize())
+by_city = (clean.assign(paid=lambda d: d[&#34;amount&#34;].where(d[&#34;status&#34;] == &#34;delivered&#34;))
+           .groupby(&#34;city&#34;).agg(orders=(&#34;order_id&#34;, &#34;count&#34;), revenue_mln=(&#34;paid&#34;, &#34;sum&#34;))
+           .assign(revenue_mln=lambda d: (d[&#34;revenue_mln&#34;] / 1e6).round(2))
+           .sort_values(&#34;revenue_mln&#34;, ascending=False))
+with pd.ExcelWriter(&#34;yetkaz_report.xlsx&#34;) as w:
+    by_city.to_excel(w, sheet_name=&#34;города&#34;)
+    clean[clean[&#34;status&#34;] == &#34;cancelled&#34;].to_excel(w, sheet_name=&#34;отмены&#34;, index=False)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 25 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">back =
+
+# shape и отмены по городам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(170, 12)
+city
+Ташкент      122
+Самарканд     24
+Наманган      12
+Бухара        12
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>back =
+
+# shape и отмены по городам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Excel читается так же просто, как CSV, только нужно сказать, какой лист открыть.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.read_excel("файл.xlsx", sheet_name="имя листа")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>back = pd.read_excel(&#34;yetkaz_report.xlsx&#34;, sheet_name=&#34;___&#34;)
+print(back.shape)
+back[&#34;___&#34;].value_counts()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без sheet_name откроется первый лист — «города», а не «отмены».</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>SQL через sqlite3</h3>
+            <ol class='steps-t'><li>Создай базу в памяти, запиши в неё <code class='i'>clean</code> как таблицу <b>orders</b>.</li> <li>SQL-запросом посчитай по каналу (channel): число заказов <code class='i'>n</code> и средний чек <code class='i'>avg_amount</code>, округлённый до целого (<code class='i'>ROUND(AVG(amount))</code>), по убыванию n.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>clean = df.assign(city=df[&#34;city&#34;].str.strip().str.capitalize())</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 25 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">con = sqlite3.connect(&#34;:memory:&#34;)
+clean.to_sql(&#34;orders&#34;, con, index=False)
+
+query = &#34;&#34;&#34;
+SELECT
+&#34;&#34;&#34;
+pd.read_sql(query, con)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">    channel    n  avg_amount
+0       app  986     86711.0
+1  telegram  319     72710.0
+2       web  295     85197.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>con = sqlite3.connect(&#34;:memory:&#34;)
+clean.to_sql(&#34;orders&#34;, con, index=False)
+
+query = &#34;&#34;&#34;
+SELECT
+&#34;&#34;&#34;
+pd.read_sql(query, con)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Таблицу можно положить в базу данных и спросить её на языке SQL. Нужен запрос: по каждому каналу — сколько заказов и средний чек, с сортировкой по количеству.</p>
+<p><b>Чем это сделать.</b> <code class="i">SELECT колонка, COUNT(*) AS n, ROUND(AVG(amount)) AS avg_amount FROM orders GROUP BY колонка ORDER BY n DESC</code>. <code class="i">pd.read_sql(запрос, con)</code> вернёт DataFrame.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>query = &#34;&#34;&#34;
+SELECT ___, COUNT(*) AS n, ROUND(AVG(___)) AS avg_amount
+FROM orders
+GROUP BY ___
+ORDER BY ___ DESC
+&#34;&#34;&#34;</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Каждой посчитанной колонке дай имя через AS — проверка ищет колонки n и avg_amount.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>SQL прямо по таблице: duckdb</h3>
+            <ol class='steps-t'><li>Импортируй <code class='i'>duckdb</code>.</li> <li>Запросом к таблице <code class='i'>clean</code> посчитай по городу число отменённых заказов <code class='i'>cancelled</code> и всех заказов <code class='i'>orders</code>, по убыванию cancelled.</li> <li>Получи результат как DataFrame (<code class='i'>.df()</code>).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>clean = df.assign(city=df[&#34;city&#34;].str.strip().str.capitalize())</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 25 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">import duckdb
+
+duckdb.sql(&#34;&#34;&#34;
+    SELECT
+&#34;&#34;&#34;).df()
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">        city  cancelled  orders
+0    Ташкент        122     882
+1  Самарканд         24     327
+2     Бухара         12     211
+3   Наманган         12     180</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>import duckdb
+
+duckdb.sql(&#34;&#34;&#34;
+    SELECT
+&#34;&#34;&#34;).df()
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> duckdb умеет выполнять SQL прямо по таблице pandas — просто напиши её имя после FROM. Отмены считаются условным подсчётом: «посчитай строки, где статус — отмена».</p>
+<p><b>Чем это сделать.</b> <code class="i">COUNT(*) FILTER (WHERE status = 'cancelled')</code> — сколько отмен. <code class="i">duckdb.sql(запрос).df()</code> — результат в DataFrame.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>duckdb.sql(&#34;&#34;&#34;
+    SELECT city,
+           COUNT(*) FILTER (WHERE status = &#39;___&#39;) AS cancelled,
+           COUNT(*) AS ___
+    FROM ___
+    GROUP BY ___
+    ORDER BY cancelled DESC
+&#34;&#34;&#34;).df()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> В SQL текст пишется в одинарных кавычках: <code class="i">'cancelled'</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт, который собирается сам</h3>
+            <ol class='steps-t'><li>Функция <code class='i'>make_report(data, start, end)</code>: берёт заказы с start по end включительно и возвращает по городам <code class='i'>orders</code> и <code class='i'>revenue_mln</code> (доставленные, 2 знака).</li> <li>Запиши в <b>weekly.xlsx</b> два листа: «05–11.10» и «12–18.10».</li> <li>Для каждого листа напечатай название и сумму orders.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>clean = df.assign(city=df[&#34;city&#34;].str.strip().str.capitalize())</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 25 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">def make_report(data, start, end):
+    part = data[(data[&#34;order_date&#34;] &gt;= start) &amp; (data[&#34;order_date&#34;] &lt;= end)]
+    return (
+        part
+        # твой код
+    )
+
+weeks = {&#34;05–11.10&#34;: (&#34;2026-10-05&#34;, &#34;2026-10-11&#34;), &#34;12–18.10&#34;: (&#34;2026-10-12&#34;, &#34;2026-10-18&#34;)}
+# запиши листы и напечатай итоги
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">05–11.10 817
+12–18.10 783</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>def make_report(data, start, end):
+    part = data[(data[&#34;order_date&#34;] &gt;= start) &amp; (data[&#34;order_date&#34;] &lt;= end)]
+    return (
+        part
+        # твой код
+    )
+
+weeks = {&#34;05–11.10&#34;: (&#34;2026-10-05&#34;, &#34;2026-10-11&#34;), &#34;12–18.10&#34;: (&#34;2026-10-12&#34;, &#34;2026-10-18&#34;)}
+# запиши листы и напечатай итоги
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Функция получает данные и две даты, берёт заказы между ними (это уже написано) и возвращает сводку по городам — ту же цепочку, что в задаче 2. Потом цикл по неделям: для каждой недели — сводка, лист в Excel и строка с итогом.</p>
+<p><b>Чем это сделать.</b> <code class="i">for name, (start, end) in weeks.items():</code> — перебор словаря недель. Внутри: <code class="i">rep = make_report(clean, start, end)</code>, <code class="i">rep.to_excel(w, sheet_name=name)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>with pd.ExcelWriter(&#34;weekly.xlsx&#34;) as w:
+    for name, (start, end) in weeks.___():
+        rep = make_report(___, start, end)
+        rep.to_excel(w, sheet_name=___)
+        print(name, rep[&#34;___&#34;].sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Функция должна <b>возвращать</b> таблицу (return), иначе rep окажется None.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Ойбеку</h2>
+      <div class="case">
+        <p>Напиши Ойбеку, как теперь будет устроен отчёт. Не больше 5 предложений. Структура: <b>что делает новый отчёт → какие листы в файле → главные цифры двух недель → как запускать каждый понедельник → 1 риск, за которым следить</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Заказов за первую неделю</span><span class="fact-chip">Заказов за вторую неделю</span></div>
+          <div><b>2 · Смысл</b>Потом 2 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Ойбек, привет! Теперь отчёт …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Как, по твоему ответу, теперь собирается отчёт?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Сам, одной командой: скрипт читает выгрузку, чистит данные и сохраняет Excel</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Вручную в Excel, как раньше</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Аналитик пересылает цифры в чат</span></button></div>
+            <div class="why" hidden>Главная польза — повторяемость: каждый понедельник одна и та же команда.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Какой риск ты называешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Если в выгрузке изменятся колонки или появится новое написание города, отчёт сломается — нужна проверка в начале</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Рисков нет: скрипт всегда работает</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Excel может не открыться на телефоне</span></button></div>
+            <div class="why" hidden>Автоматический отчёт ломается тихо, если данные пришли в другом виде. Проверка колонок защищает от этого.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Ойбек, привет! Теперь отчёт собирается одной командой: скрипт читает выгрузку, чистит названия городов и сам сохраняет Excel-файл. В файле по листу на каждую неделю с заказами и выручкой по городам и лист с отменами. За первую неделю (5–11 октября) — 817 заказов, за вторую — 783; лидер по выручке — Ташкент. Каждый понедельник достаточно положить новую выгрузку в папку и запустить команду python report.py — можно поставить это в планировщик, чтобы файл появлялся сам. Риск: если в выгрузке изменятся названия колонок или появится новый вариант написания города, отчёт нужно будет поправить, поэтому в начале скрипта стоит проверка колонок.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Понятно, что отчёт собирается сам</li><li>Описаны листы файла</li><li>Цифры двух недель</li><li>Как запускать каждую неделю</li><li>Риск: изменение формата выгрузки</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 25</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/24-vektorizaciya/"><small>← Урок 24</small><b>Скорость: векторизация вместо циклов и apply</b></a><a class="nx" href="../../lessons/26-otladka-lovushki/"><small>Урок 26 →</small><b>Отладка и ловушки: CoW, NaN-логика, взрыв джойна</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0437\u0430 \u043f\u0435\u0440\u0432\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e", "value": 817}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0437\u0430 \u0432\u0442\u043e\u0440\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e", "value": 783}], "logic": [{"a": 0, "o": ["\u0421\u0430\u043c, \u043e\u0434\u043d\u043e\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u043e\u0439: \u0441\u043a\u0440\u0438\u043f\u0442 \u0447\u0438\u0442\u0430\u0435\u0442 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443, \u0447\u0438\u0441\u0442\u0438\u0442 \u0434\u0430\u043d\u043d\u044b\u0435 \u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 Excel", "\u0412\u0440\u0443\u0447\u043d\u0443\u044e \u0432 Excel, \u043a\u0430\u043a \u0440\u0430\u043d\u044c\u0448\u0435", "\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a \u043f\u0435\u0440\u0435\u0441\u044b\u043b\u0430\u0435\u0442 \u0446\u0438\u0444\u0440\u044b \u0432 \u0447\u0430\u0442"], "q": "\u041a\u0430\u043a, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0442\u0435\u043f\u0435\u0440\u044c \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u043e\u0442\u0447\u0451\u0442?", "why": "\u0413\u043b\u0430\u0432\u043d\u0430\u044f \u043f\u043e\u043b\u044c\u0437\u0430 \u2014 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u043e\u0441\u0442\u044c: \u043a\u0430\u0436\u0434\u044b\u0439 \u043f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a \u043e\u0434\u043d\u0430 \u0438 \u0442\u0430 \u0436\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u0430."}, {"a": 0, "o": ["\u0415\u0441\u043b\u0438 \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0442\u0441\u044f \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u0438\u043b\u0438 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u043d\u043e\u0432\u043e\u0435 \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430, \u043e\u0442\u0447\u0451\u0442 \u0441\u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f \u2014 \u043d\u0443\u0436\u043d\u0430 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0432 \u043d\u0430\u0447\u0430\u043b\u0435", "\u0420\u0438\u0441\u043a\u043e\u0432 \u043d\u0435\u0442: \u0441\u043a\u0440\u0438\u043f\u0442 \u0432\u0441\u0435\u0433\u0434\u0430 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442", "Excel \u043c\u043e\u0436\u0435\u0442 \u043d\u0435 \u043e\u0442\u043a\u0440\u044b\u0442\u044c\u0441\u044f \u043d\u0430 \u0442\u0435\u043b\u0435\u0444\u043e\u043d\u0435"], "q": "\u041a\u0430\u043a\u043e\u0439 \u0440\u0438\u0441\u043a \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "\u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u043e\u0442\u0447\u0451\u0442 \u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f \u0442\u0438\u0445\u043e, \u0435\u0441\u043b\u0438 \u0434\u0430\u043d\u043d\u044b\u0435 \u043f\u0440\u0438\u0448\u043b\u0438 \u0432 \u0434\u0440\u0443\u0433\u043e\u043c \u0432\u0438\u0434\u0435. \u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u043e\u043b\u043e\u043d\u043e\u043a \u0437\u0430\u0449\u0438\u0449\u0430\u0435\u0442 \u043e\u0442 \u044d\u0442\u043e\u0433\u043e."}]}, "case_model": "\u041e\u0439\u0431\u0435\u043a, \u043f\u0440\u0438\u0432\u0435\u0442! \u0422\u0435\u043f\u0435\u0440\u044c \u043e\u0442\u0447\u0451\u0442 \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u043e\u0434\u043d\u043e\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u043e\u0439: \u0441\u043a\u0440\u0438\u043f\u0442 \u0447\u0438\u0442\u0430\u0435\u0442 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443, \u0447\u0438\u0441\u0442\u0438\u0442 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0433\u043e\u0440\u043e\u0434\u043e\u0432 \u0438 \u0441\u0430\u043c \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 Excel-\u0444\u0430\u0439\u043b. \u0412 \u0444\u0430\u0439\u043b\u0435 \u043f\u043e \u043b\u0438\u0441\u0442\u0443 \u043d\u0430 \u043a\u0430\u0436\u0434\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e \u0441 \u0437\u0430\u043a\u0430\u0437\u0430\u043c\u0438 \u0438 \u0432\u044b\u0440\u0443\u0447\u043a\u043e\u0439 \u043f\u043e \u0433\u043e\u0440\u043e\u0434\u0430\u043c \u0438 \u043b\u0438\u0441\u0442 \u0441 \u043e\u0442\u043c\u0435\u043d\u0430\u043c\u0438. \u0417\u0430 \u043f\u0435\u0440\u0432\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e (5\u201311 \u043e\u043a\u0442\u044f\u0431\u0440\u044f) \u2014 817 \u0437\u0430\u043a\u0430\u0437\u043e\u0432, \u0437\u0430 \u0432\u0442\u043e\u0440\u0443\u044e \u2014 783; \u043b\u0438\u0434\u0435\u0440 \u043f\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0435 \u2014 \u0422\u0430\u0448\u043a\u0435\u043d\u0442. \u041a\u0430\u0436\u0434\u044b\u0439 \u043f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a \u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u043f\u043e\u043b\u043e\u0436\u0438\u0442\u044c \u043d\u043e\u0432\u0443\u044e \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443 \u0432 \u043f\u0430\u043f\u043a\u0443 \u0438 \u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u043a\u043e\u043c\u0430\u043d\u0434\u0443 python report.py \u2014 \u043c\u043e\u0436\u043d\u043e \u043f\u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u044d\u0442\u043e \u0432 \u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0449\u0438\u043a, \u0447\u0442\u043e\u0431\u044b \u0444\u0430\u0439\u043b \u043f\u043e\u044f\u0432\u043b\u044f\u043b\u0441\u044f \u0441\u0430\u043c. \u0420\u0438\u0441\u043a: \u0435\u0441\u043b\u0438 \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0442\u0441\u044f \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u043a\u043e\u043b\u043e\u043d\u043e\u043a \u0438\u043b\u0438 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u043d\u043e\u0432\u044b\u0439 \u0432\u0430\u0440\u0438\u0430\u043d\u0442 \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u0433\u043e\u0440\u043e\u0434\u0430, \u043e\u0442\u0447\u0451\u0442 \u043d\u0443\u0436\u043d\u043e \u0431\u0443\u0434\u0435\u0442 \u043f\u043e\u043f\u0440\u0430\u0432\u0438\u0442\u044c, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0432 \u043d\u0430\u0447\u0430\u043b\u0435 \u0441\u043a\u0440\u0438\u043f\u0442\u0430 \u0441\u0442\u043e\u0438\u0442 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u043e\u043b\u043e\u043d\u043e\u043a.", "case_xp": 30, "cheat": [["pd.read_csv(f, usecols=[...], parse_dates=[\"d\"])", "\u043d\u0443\u0436\u043d\u044b\u0435 \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u0438 \u0434\u0430\u0442\u044b"], ["pd.read_csv(f, sep=\";\", decimal=\",\", encoding=\"cp1251\")", "\u0444\u0430\u0439\u043b \u0438\u0437 \u0440\u0443\u0441\u0441\u043a\u043e\u0433\u043e Excel"], ["with pd.ExcelWriter(\"r.xlsx\") as w: t.to_excel(w, sheet_name=\"\u043b\u0438\u0441\u0442\")", "Excel \u0441 \u043b\u0438\u0441\u0442\u0430\u043c\u0438"], ["pd.read_excel(\"r.xlsx\", sheet_name=\"\u043b\u0438\u0441\u0442\", index_col=0)", "\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u043b\u0438\u0441\u0442"], ["pd.ExcelFile(\"r.xlsx\").sheet_names", "\u0441\u043f\u0438\u0441\u043e\u043a \u043b\u0438\u0441\u0442\u043e\u0432"], ["df.to_sql(\"t\", con, index=False); pd.read_sql(\"SELECT \u2026\", con)", "SQL \u0447\u0435\u0440\u0435\u0437 sqlite3"], ["duckdb.sql(\"SELECT \u2026 FROM df\").df()", "SQL \u043f\u0440\u044f\u043c\u043e \u043f\u043e \u0442\u0430\u0431\u043b\u0438\u0446\u0435"], ["def make_report(start, end): \u2026", "\u043e\u0442\u0447\u0451\u0442 \u043a\u0430\u043a \u0444\u0443\u043d\u043a\u0446\u0438\u044f \u0441 \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u0430\u043c\u0438"]], "data": "../../data/", "datasets": ["yetkaz_orders.csv"], "day": 25, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport sqlite3\ndf = pd.read_csv(\"yetkaz_orders.csv\", parse_dates=[\"order_date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["(1600, 5)", "order_id int64", "order_date datetime64", "amount float64"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["orders revenue_mln", "city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 882 64.71", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 327 22.48", "\u0411\u0443\u0445\u0430\u0440\u0430 211 14.31", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 180 11.66"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["[\u0027\u0433\u043e\u0440\u043e\u0434\u0430\u0027, \u0027\u043e\u0442\u043c\u0435\u043d\u044b\u0027]"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())\nby_city = (clean.assign(paid=lambda d: d[\"amount\"].where(d[\"status\"] == \"delivered\"))\n           .groupby(\"city\").agg(orders=(\"order_id\", \"count\"), revenue_mln=(\"paid\", \"sum\"))\n           .assign(revenue_mln=lambda d: (d[\"revenue_mln\"] / 1e6).round(2))\n           .sort_values(\"revenue_mln\", ascending=False))", "xp": 15}, {"figure": false, "id": "t4", "keys": ["(170, 12)", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 122", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 24"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())\nby_city = (clean.assign(paid=lambda d: d[\"amount\"].where(d[\"status\"] == \"delivered\"))\n           .groupby(\"city\").agg(orders=(\"order_id\", \"count\"), revenue_mln=(\"paid\", \"sum\"))\n           .assign(revenue_mln=lambda d: (d[\"revenue_mln\"] / 1e6).round(2))\n           .sort_values(\"revenue_mln\", ascending=False))\nwith pd.ExcelWriter(\"yetkaz_report.xlsx\") as w:\n    by_city.to_excel(w, sheet_name=\"\u0433\u043e\u0440\u043e\u0434\u0430\")\n    clean[clean[\"status\"] == \"cancelled\"].to_excel(w, sheet_name=\"\u043e\u0442\u043c\u0435\u043d\u044b\", index=False)", "xp": 15}, {"figure": false, "id": "t5", "keys": ["channel n avg_amount", "0 app 986 86711.0", "1 telegram 319 72710.0", "2 web 295 85197.0"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 20}, {"figure": false, "id": "t6", "keys": ["\u0422\u0430\u0448\u043a\u0435\u043d\u0442 122 882", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 24 327", "\u0411\u0443\u0445\u0430\u0440\u0430 12 211", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 12 180"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 15}, {"figure": false, "id": "t7", "keys": ["05\u201311.10 817", "12\u201318.10 783"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 25}], "theory": ["brief", "read", "excel-sql", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

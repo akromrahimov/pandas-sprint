@@ -1,0 +1,707 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 2. Выбор данных: колонки, loc / iloc, фильтры — Pandas Sprint</title>
+<meta name="description" content="Урок 2 курса Pandas Sprint — Выбор данных: колонки, loc / iloc, фильтры. Достать из таблицы нужные строки и колонки по условиям.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/02-vybor-dannyh-loc-iloc/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 2. Выбор данных: колонки, loc / iloc, фильтры — Pandas Sprint">
+<meta property="og:description" content="Урок 2 курса Pandas Sprint — Выбор данных: колонки, loc / iloc, фильтры. Достать из таблицы нужные строки и колонки по условиям.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/02-vybor-dannyh-loc-iloc/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="2">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>loc и iloc</a></li><li><a href="#tools"><span class="dot">✓</span>Фильтры</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">WHERE, который ты пишешь каждый день</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Главное отличие: в SQL пишут AND , OR , NOT , а в pandas — значки &amp; , | , ~ , и каждое условие обязательно в круглых скобках.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT amount FROM tx</code></td><td><code>df[&#34;amount&#34;]</code></td><td>Series</td></tr><tr><td><code>SELECT tx_id, amount FROM tx</code></td><td><code>df[[&#34;tx_id&#34;, &#34;amount&#34;]]</code></td><td>DataFrame</td></tr><tr><td><code>WHERE status = &#39;declined&#39;</code></td><td><code>df[df[&#34;status&#34;] == &#34;declined&#34;]</code></td><td>DataFrame, только подходящие строки</td></tr><tr><td><code>WHERE a AND b</code></td><td><code>df[(усл_a) &amp; (усл_b)]</code></td><td>скобки обязательны</td></tr><tr><td><code>WHERE a OR b</code></td><td><code>df[(усл_a) | (усл_b)]</code></td><td>DataFrame</td></tr><tr><td><code>WHERE NOT a</code></td><td><code>df[~(усл_a)]</code></td><td>DataFrame</td></tr><tr><td><code>WHERE cat IN (&#39;Такси&#39;, &#39;Кафе&#39;)</code></td><td><code>df[df[&#34;cat&#34;].isin([&#34;Такси&#34;, &#34;Кафе&#34;])]</code></td><td>DataFrame</td></tr><tr><td><code>WHERE amount BETWEEN 1e5 AND 5e5</code></td><td><code>df[df[&#34;amount&#34;].between(100_000, 500_000)]</code></td><td>границы включены, как в SQL</td></tr><tr><td><code>WHERE country IS NOT NULL</code></td><td><code>df[df[&#34;country&#34;].notna()]</code></td><td>DataFrame</td></tr><tr><td><code>SELECT tx_id, amount … WHERE …</code></td><td><code>df.loc[условие, [&#34;tx_id&#34;, &#34;amount&#34;]]</code></td><td>строки и колонки за один шаг</td></tr><tr><td><code>WHERE … (как текст)</code></td><td><code>df.query(&#34;country == &#39;KZ&#39; and amount &gt; 1_000_000&#34;)</code></td><td>внутри query можно and/or</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Ловушка из SQL.</b> В SQL условие <code class="i">country &lt;&gt; 'UZ'</code> НЕ вернёт строки, где country = NULL. В pandas <code class="i">df["country"] != "UZ"</code> для NaN вернёт <b>True</b>, и пустые строки попадут в результат. На наших данных это 213 вместо 186.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 2 из 30 · Неделя 1 · Фундамент</div>
+      <h1>Выбор данных: <mark>loc, iloc и фильтры</mark></h1>
+      <p class="lead">Аналитик почти никогда не смотрит на всю таблицу сразу. Ему нужны конкретные колонки, конкретные строки и только те записи, которые подходят под условие: «отклонённые», «из-за границы», «дороже миллиона». Сегодня учимся доставать из таблицы ровно то, что нужно. Это половина всей работы в pandas.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Найти в выгрузке транзакций Oltin Pay подозрительные операции по точным условиям (страна, новое устройство, сумма) и не потерять ни одной строки из-за NaN и «грязного» текста.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Достать одну колонку (Series) или несколько (DataFrame)</li><li>Различать <code class="i">loc</code> (по метке) и <code class="i">iloc</code> (по позиции)</li><li>Фильтровать строки по нескольким условиям через <code class="i">&amp; | ~</code></li><li>Писать короткие фильтры через <code class="i">isin</code>, <code class="i">between</code>, <code class="i">query</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Срочный запрос из антифрода Oltin Pay</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Т</span>Тимур <small>руководитель антифрода · 08:12</small></div>
+          <p>Доброе утро! Банк-партнёр жалуется, что в сентябре через нас прошли странные платежи из-за границы. Выгрузил все транзакции за сентябрь. Нужно быстро понять, сколько операций отклонено и есть ли крупные платежи из-за рубежа с новых устройств.</p>
+<div class="file">▤ oltinpay_tx.csv · 1 500 транзакций</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Т</span>Тимур <small>08:13</small></div>
+          <p>Важно: если в фильтр попадёт лишнее или потеряется нужное — мы заблокируем честных клиентов. Так что проверь условия дважды.</p>
+        </div>
+      </div>
+      <p class="note">Oltin Pay — учебный платёжный сервис. Данные сгенерированы, но устроены как реальная выгрузка: у 27 транзакций не указана страна, у 18 нет суммы, а город иногда записан как «ташкент» или «Ташкент » с пробелом. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/oltinpay_tx.csv" download>Скачать oltinpay_tx.csv</a><span class="note">1 500 строк · 141 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;oltinpay_tx.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Как достать из таблицы ровно то, что нужно</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь большой шкаф с ящиками. Каждая <b>строка</b> — ящик с одной транзакцией. На каждом ящике приклеена <b>бирка</b> с номером (это Index). А ещё у каждого ящика есть <b>место в ряду</b>: первый, второй, третий…</p>
+<ul>
+<li><b>Выбрать колонку</b> — как попросить: «покажи мне из всех ящиков только сумму». <code class="i">df["amount"]</code>.</li>
+<li><b>loc</b> (от слова location — «место по названию») — ищет ящик <b>по бирке</b>: «дай ящик с биркой 23».</li>
+<li><b>iloc</b> (i = integer, «целое число») — ищет ящик <b>по месту в ряду</b>: «дай самый первый ящик», какая бы бирка на нём ни была.</li>
+<li><b>Фильтр</b> — это сито. Ты задаёшь вопрос каждому ящику: «ты отклонён?». Ящики, ответившие «да» (True), проходят через сито. Остальные (False) остаются снаружи.</li>
+<li><b>Маска</b> (mask) — это и есть список ответов «да/нет» для каждой строки. Точный термин: булева Series (Series из True и False).</li>
+</ul>
+<p>Пока ящики стоят по порядку, бирка и место совпадают: у первого ящика бирка 0. Но после фильтра часть ящиков убрали, и у первого оставшегося ящика бирка может быть 23. Вот тут loc и iloc начинают давать разные ответы.</p>
+</div>
+<p>Настоящие строки таблицы. Жёлтая колонка — Series <code class="i">df["amount"]</code>. Розовая строка прошла бы фильтр «сумма больше 10 млн»: у неё бирка <b>23</b>, хотя в отфильтрованной таблице она стоит первой.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">Index</th><th>tx_id<span class="dt">int64</span></th><th>city<span class="dt">str</span></th><th>merchant_cat<span class="dt">str</span></th><th class="ser">amount<span class="dt">float64 · Series</span></th><th>country<span class="dt">str</span></th><th>new_device<span class="dt">bool</span></th><th>status<span class="dt">str</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">0</td><td>700001</td><td>Ташкент</td><td>Коммуналка</td><td class="ser">129000.0</td><td>UZ</td><td>False</td><td>success</td></tr>
+<tr><td class="idx">1</td><td>700002</td><td>Самарканд</td><td>Переводы</td><td class="ser">1541000.0</td><td>KZ</td><td>True</td><td>declined</td></tr>
+<tr><td class="idx">2</td><td>700003</td><td>Ташкент</td><td>Переводы</td><td class="ser">1043000.0</td><td>UZ</td><td>False</td><td>success</td></tr>
+<tr><td class="idx">3</td><td>700004</td><td>Фергана</td><td>Кафе</td><td class="ser">85000.0</td><td>UZ</td><td>False</td><td>success</td></tr>
+<tr style="background:var(--pink-soft)"><td class="idx">23</td><td>700024</td><td>Самарканд</td><td>Электроника</td><td class="ser">10240000.0</td><td>UZ</td><td>False</td><td>declined</td></tr>
+</tbody>
+</table>
+</div>
+<div class="legend">
+<div><b>df["col"]</b>Одна колонка → Series.</div>
+<div><b>df.loc[строки, колонки]</b>По меткам (биркам) и именам колонок. Срез <code class="i">0:3</code> включает 3.</div>
+<div><b>df.iloc[строки, колонки]</b>По позициям 0, 1, 2… Срез <code class="i">0:3</code> НЕ включает 3, как в Python.</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Шесть приёмов выбора данных</h2>
+      <div class="simple"><span class="tag">Как читать код фильтра</span>
+<ul>
+<li><code class="i">df["status"] == "declined"</code> — «спроси у каждой строки: твой status равен declined?». Получается колонка из True/False. Это маска.</li>
+<li><code class="i">df[маска]</code> — «оставь только строки, где в маске True». Квадратные скобки здесь работают как сито.</li>
+<li><code class="i">&amp;</code> — «и то, и другое». <code class="i">|</code> — «хотя бы одно». <code class="i">~</code> — «наоборот» (True становится False).</li>
+<li><b>Круглые скобки</b> вокруг каждого условия: <code class="i">(df["a"] &gt; 1) &amp; (df["b"] == "x")</code>. Без них Python сначала выполнит <code class="i">&amp;</code>, а потом сравнение, и всё сломается.</li>
+<li><code class="i">df.loc[маска, ["tx_id", "amount"]]</code> — в квадратных скобках loc две части через запятую: <b>слева</b> какие строки, <b>справа</b> какие колонки.</li>
+<li><code class="i">1_000_000</code> — это просто 1000000. Подчёркивания Python пропускает, они нужны, чтобы человек не ошибся в нулях.</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле Oltin Pay. Твои цифры должны совпасть.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. Одна колонка или несколько?</b> Одни скобки — Series, двойные — DataFrame.</div>
+<pre class="code" data-cm="">import pandas as pd
+
+df = pd.read_csv("oltinpay_tx.csv")
+type(df["amount"])
+df[["tx_id", "amount"]].shape</pre><div class="out">&lt;class 'pandas.Series'&gt;
+(1500, 2)</div><p class="plain"><b>Простыми словами:</b> <code class="i">df["amount"]</code> — это одна колонка, вытащенная из таблицы (Series). <code class="i">df[["tx_id", "amount"]]</code> — это маленькая таблица из двух колонок: 1500 строк, 2 колонки. Внешние скобки значат «достань», внутренние — «вот список того, что достать».</p></div>
+<div class="card"><div class="q"><b>2. loc или iloc?</b> По бирке или по месту в ряду.</div>
+<pre class="code" data-cm="">df.loc[5, "amount"]     # бирка 5, колонка amount
+df.iloc[5, 6]           # 6-я строка, 7-я колонка (счёт с 0)
+df.loc[0:3].shape       # бирки 0,1,2,3
+df.iloc[0:3].shape      # места 0,1,2</pre><div class="out">27000.0
+27000.0
+(4, 11)
+(3, 11)</div><p class="plain"><b>Простыми словами:</b> пока таблица не фильтровалась, бирка 5 и место 5 — одна и та же строка, поэтому ответ одинаковый. Но срезы ведут себя по-разному: <code class="i">loc[0:3]</code> берёт бирки с 0 <b>по 3 включительно</b> (4 строки), а <code class="i">iloc[0:3]</code> — места 0, 1, 2, <b>без 3</b> (3 строки).</p></div>
+<div class="card"><div class="q"><b>3. Фильтр по одному условию.</b> Маска → сито.</div>
+<pre class="code" data-cm="">mask = df["status"] == "declined"
+mask.sum()
+df[mask].shape</pre><div class="out">133
+(133, 11)</div><p class="plain"><b>Простыми словами:</b> <code class="i">mask</code> — 1500 ответов «да/нет». <code class="i">sum()</code> считает «да» (True = 1): отклонённых транзакций 133. <code class="i">df[mask]</code> — таблица только из этих 133 строк, все 11 колонок на месте.</p></div>
+<div class="card"><div class="q"><b>4. Несколько условий.</b> <code class="i">&amp;</code> = AND, <code class="i">|</code> = OR, <code class="i">~</code> = NOT.</div>
+<pre class="code" data-cm="">df[(df["channel"] == "web") &amp; (df["amount"] &gt; 1_000_000)].shape
+df[(df["status"] == "declined") | (df["status"] == "reversed")].shape
+df[~(df["status"] == "success")].shape</pre><div class="out">(36, 11)
+(184, 11)
+(184, 11)</div><p class="plain"><b>Простыми словами:</b> 36 транзакций одновременно через web <b>и</b> дороже 1 млн. 184 транзакции либо отклонены, <b>либо</b> отменены. Третья строка спрашивает «всё, что <b>не</b> успешно» — и получает те же 184. Один и тот же вопрос можно задать двумя способами.</p></div>
+<div class="card"><div class="q"><b>5. isin и between.</b> Короткие замены IN и BETWEEN.</div>
+<pre class="code" data-cm="">df["merchant_cat"].isin(["Такси", "Кафе"]).sum()
+df["amount"].between(100_000, 500_000).sum()</pre><div class="out">505
+592</div><p class="plain"><b>Простыми словами:</b> <code class="i">isin</code> спрашивает «ты есть в этом списке?» — 505 транзакций в такси или кафе. <code class="i">between</code> спрашивает «ты между 100 000 и 500 000?», обе границы считаются — таких 592.</p></div>
+<div class="card"><div class="q"><b>6. query и loc с колонками.</b> Фильтр текстом и «строки + колонки» за раз.</div>
+<pre class="code" data-cm="">df.query("country == 'KZ' and amount &gt; 1_000_000").shape
+df.loc[df["amount"] &gt; 20_000_000, ["tx_id", "merchant_cat", "amount"]].head(3)</pre><div class="out">(13, 11)
+      tx_id merchant_cat      amount
+272  700273     Переводы  58000000.0
+477  700478     Переводы  51000000.0
+685  700686     Переводы  45000000.0</div><p class="plain"><b>Простыми словами:</b> <code class="i">query</code> — фильтр, записанный как текст, почти обычными словами; внутри него можно писать and/or. 13 транзакций из Казахстана дороже 1 млн. <code class="i">loc</code> во второй строке сразу отбирает и строки (дороже 20 млн), и нужные колонки. Слева видны бирки 272, 477, 685 — это старые номера строк из df.</p></div>
+</div>
+<div class="simple"><span class="tag">История про сито: 6 покупок в ларьке</span>
+<p>У Акмаля 6 покупок за день: 5, 40, 12, 70, 8 и 55 тысяч сум. Мама спрашивает: «какие покупки дороже 30 тысяч?»</p>
+<div><div aria-label="Шесть столбиков: 5, 40, 12, 70, 8, 55; три выше линии 30 выделены" class="story" style="grid-template-columns:repeat(6,minmax(0,1fr))"><span style="height:7%"></span><span class="rich" style="height:57%"></span><span style="height:17%"></span><span class="rich" style="height:100%"></span><span style="height:11%"></span><span class="rich" style="height:79%"></span></div>
+<div class="story-lab"><span>бирки 0 · 1 · 2 · 3 · 4 · 5</span><span>розовые прошли сито «&gt; 30»</span></div></div>
+<p>Маска: <b>[False, True, False, True, False, True]</b>. Через сито прошли покупки с бирками <b>1, 3 и 5</b>: 40, 70 и 55 тысяч. Это 3 покупки на 165 тысяч. Теперь первая покупка в новом списке стоит на <b>месте 0</b>, но её бирка — <b>1</b>. Поэтому <code class="i">iloc[0]</code> даст 40, а <code class="i">loc[0]</code> выдаст ошибку KeyError: покупки с биркой 0 в новом списке нет.</p>
+</div>
+<div class="callout"><b>Правило аналитика.</b> Перед тем как отдать отфильтрованную выборку, проверь два числа: сколько строк было и сколько осталось. Если осталось подозрительно много или мало — проверь NaN и написание текста.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>and вместо &amp;</h3><div class="bad">df[(df[&#34;amount&#34;] &gt; 1) and (df[&#34;status&#34;] == &#34;declined&#34;)]
+# ValueError: The truth value of a Series is ambiguous</div><div class="good">df[(df[&#34;amount&#34;] &gt; 1) &amp; (df[&#34;status&#34;] == &#34;declined&#34;)]</div><p><code class="i">and</code> умеет сравнивать только одно «да/нет», а у нас их 1500. Внутри <code class="i">query("...")</code> писать and можно — там pandas сам переведёт.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Условия без скобок</h3><div class="bad">df[df[&#34;channel&#34;] == &#34;web&#34; &amp; df[&#34;amount&#34;] &gt; 1_000_000]   # ошибка</div><div class="good">df[(df[&#34;channel&#34;] == &#34;web&#34;) &amp; (df[&#34;amount&#34;] &gt; 1_000_000)]   # 36 строк</div><p><code class="i">&amp;</code> в Python «сильнее», чем <code class="i">==</code> и <code class="i">&gt;</code>, и выполняется первым. Поэтому каждое условие — в свои скобки. Всегда.</p></div>
+        <div class="trap"><span class="n">3</span><h3>!= и пустые клетки</h3><div class="bad">(df[&#34;country&#34;] != &#34;UZ&#34;).sum()                              # 213 — 27 пустых попали в «иностранные»</div><div class="good">(df[&#34;country&#34;].notna() &amp; (df[&#34;country&#34;] != &#34;UZ&#34;)).sum()   # 186</div><p>Для NaN любое <code class="i">!=</code> даёт True. В антифроде это значит: заблокировать 27 клиентов, про которых мы просто ничего не знаем.</p></div>
+        <div class="trap"><span class="n">4</span><h3>== сравнивает текст буква в букву</h3><div class="bad">(df[&#34;city&#34;] == &#34;Ташкент&#34;).sum()   # 795</div><div class="good">df[&#34;city&#34;].str.strip().str.capitalize().eq(&#34;Ташкент&#34;).sum()   # 818</div><p>15 строк записаны как «ташкент», 8 — как «Ташкент » с пробелом. Для == это другие города. Как чистить текст — урок 6; сегодня главное: проверяй <code class="i">value_counts()</code> колонки до фильтра.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Изменение через двойные скобки (pandas 3.0)</h3><div class="bad">df[df[&#34;amount&#34;].isna()][&#34;amount&#34;] = 0   # ChainedAssignmentError, df не изменился</div><div class="good">df.loc[df[&#34;amount&#34;].isna(), &#34;amount&#34;] = 0   # меняет df</div><p>В pandas 3.0 работает Copy-on-Write: <code class="i">df[маска]</code> — это новая таблица-копия. Записывать в неё бесполезно. Чтобы изменить исходную таблицу, используй один <code class="i">.loc[строки, колонка] = значение</code>.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>df[&#34;col&#34;] <span>— одна колонка (Series)</span></li><li>df[[&#34;a&#34;, &#34;b&#34;]] <span>— несколько колонок (DataFrame)</span></li><li>df.loc[метка, &#34;col&#34;] / df.iloc[позиция, номер] <span>— по бирке / по месту</span></li><li>df[df[&#34;x&#34;] == &#34;v&#34;] <span>— WHERE x = &#39;v&#39;</span></li><li>df[(усл1) &amp; (усл2)] <span>— AND, | — OR, ~ — NOT; скобки обязательны</span></li><li>df[&#34;x&#34;].isin([...]) / .between(a, b) <span>— IN / BETWEEN</span></li><li>df[&#34;x&#34;].notna() &amp; (df[&#34;x&#34;] != &#34;v&#34;) <span>— != без ловушки NaN</span></li><li>df.loc[маска, [&#34;a&#34;, &#34;b&#34;]] <span>— строки и колонки сразу; так же и для записи</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что вернёт <code>df[["amount"]]</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Series</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>DataFrame из одной колонки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Число</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибку KeyError</span></button></div>
+          <div class="why" hidden>Двойные скобки — это список колонок, поэтому результат всегда DataFrame, даже если колонка одна.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Сколько строк вернёт <code>df.loc[0:3]</code>, если индекс 0, 1, 2, …?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>3</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>4</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>2</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибка</span></button></div>
+          <div class="why" hidden>loc включает правую границу: метки 0, 1, 2, 3. А iloc[0:3] — 3 строки.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Какая запись верная?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>df[df["a"] &gt; 1 and df["b"] == 2]</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>df[(df["a"] &gt; 1) &amp; (df["b"] == 2)]</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df[df["a"] &gt; 1 &amp; df["b"] == 2]</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df[(df["a"] &gt; 1) and (df["b"] == 2)]</code></span></button></div>
+          <div class="why" hidden>Для масок нужны &amp; и скобки вокруг каждого условия. and даёт ValueError, без скобок &amp; выполнится раньше сравнения.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="2">
+          <p>4. В колонке country 27 пустых. <code>(df["country"] != "UZ").sum()</code> даёт 213. Сколько настоящих иностранных?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>213</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>240</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>186</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нельзя узнать</span></button></div>
+          <div class="why" hidden>NaN != 'UZ' даёт True, поэтому 27 пустых попали внутрь: 213 − 27 = 186. Правильно: notna() &amp; (!= 'UZ').</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Как в pandas 3.0 заменить пустые amount на 0 в самой df?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>df[df["amount"].isna()]["amount"] = 0</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>df.loc[df["amount"].isna(), "amount"] = 0</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df.iloc[df["amount"].isna()] = 0</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df.query("amount.isna()") = 0</code></span></button></div>
+          <div class="why" hidden>Двойные скобки создают копию (Copy-on-Write), запись в неё не меняет df. Один .loc[строки, колонка] — меняет.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Нужные колонки</h3>
+            <ol class='steps-t'><li>Сохрани в переменную <code class='i'>small</code> только колонки <b>tx_id, amount, status</b>.</li><li>Напечатай <code class='i'>small.shape</code>.</li><li>Напечатай в одну строку <b>названия типов</b> <code class='i'>df["amount"]</code> и <code class='i'>df[["amount"]]</code> (подсказка в правиле).</li></ol><p class='rule-t'>Название типа: <code class='i'>type(x).__name__</code>. Без display() и без print(display(...</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 02 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">small =
+
+# shape
+
+# типы двух выборок
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(1500, 3)
+Series DataFrame</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>small =
+
+# shape
+
+# типы двух выборок
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Одна колонка и несколько колонок выбираются по-разному. Для нескольких колонок в скобки кладут <b>список</b> имён — поэтому скобок получается две пары.</p>
+<p><b>Чем это сделать.</b> <code class="i">df[["a", "b"]]</code> — таблица из колонок a и b. <code class="i">df["a"]</code> — одна колонка (Series), <code class="i">df[["a"]]</code> — таблица из одной колонки (DataFrame). <code class="i">type(x).__name__</code> — имя типа текстом.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>small = df[[___, ___, ___]]
+print(small.___)
+print(type(df[&#34;amount&#34;]).__name__, type(df[[___]]).__name__)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">df["tx_id", "amount"]</code> с одной парой скобок падает с KeyError: pandas ищет одну колонку с таким странным именем.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Бирка или место</h3>
+            <ol class='steps-t'><li>Через <code class='i'>iloc</code> выведи <b>tx_id первой и последней</b> строки df в одну строку.</li><li>Создай <code class='i'>big = df[df["amount"] &gt; 10_000_000]</code> и выведи <b>метки первых 3 строк</b> big списком.</li><li>Комментарием (<code class='i'># ...</code>): почему <code class='i'>big.loc[0]</code> упадёт, а <code class='i'>big.iloc[0]</code> нет?</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 02 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># tx_id первой и последней строки
+
+big = df[df[&#34;amount&#34;] &gt; 10_000_000]
+# метки первых 3 строк big
+
+# почему big.loc[0] упадёт:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">700001 701500
+[23, 272, 274]
+
++ комментарий: почему big.loc[0] упадёт</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># tx_id первой и последней строки
+
+big = df[df[&#34;amount&#34;] &gt; 10_000_000]
+# метки первых 3 строк big
+
+# почему big.loc[0] упадёт:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>big.loc[0] упадёт с KeyError: строки с меткой 0 в big нет,
+метки остались от df. big.iloc[0] берёт первую строку по позиции.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> iloc считает места по порядку, как номера мест в очереди: первое место — 0, последнее — −1. У отфильтрованной таблицы бирки строк (index) остаются старыми — их и нужно показать.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.iloc[0]</code> — первая строка по месту, <code class="i">df.iloc[-1]</code> — последняя. <code class="i">big.index</code> — бирки строк, <code class="i">[:3]</code> — первые три, <code class="i">.tolist()</code> — сделать список.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df.iloc[___][&#34;tx_id&#34;], df.iloc[___][&#34;tx_id&#34;])
+print(big.index[___].tolist())
+# big.loc[0] упадёт, потому что loc ищет ___, а в big ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> loc ищет по бирке, iloc — по месту. После фильтра бирки «рвутся», поэтому бирки 0 в big может просто не быть.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько отклонено</h3>
+            <ol class='steps-t'><li>Отфильтруй транзакции со статусом <b>declined</b>.</li><li>Напечатай ровно в таком виде: <code class='i'>Отклонено: 133, доля: 8.9%</code></li></ol><p class='rule-t'>Числа не пиши руками: количество и долю считай из df. Доля — от всех 1500 строк, 1 знак после точки.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 02 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">declined =
+
+# печать в нужном формате
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">Отклонено: 133, доля: 8.9%</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>declined =
+
+# печать в нужном формате
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала оставь только отклонённые строки — это фильтр по равенству статуса. Количество строк в результате — это «отклонено», а доля — это количество, делённое на все строки.</p>
+<p><b>Чем это сделать.</b> Фильтр: <code class="i">df[df["колонка"] == "значение"]</code>. <code class="i">len(таблица)</code> — число строк. В f-строке <code class="i">{x:.1f}</code> печатает число с 1 знаком после точки.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>declined = df[df[&#34;status&#34;] == &#34;___&#34;]
+n = len(___)
+print(f&#34;Отклонено: {n}, доля: {n / ___ * 100:.1f}%&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Внутри фильтра сравнение — два знака равно <code class="i">==</code>. Один знак <code class="i">=</code> — это присваивание, будет ошибка.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Крупные платежи из-за границы</h3>
+            <ol class='steps-t'><li>Найди транзакции, где страна <b>не UZ</b> и сумма <b>от 3 000 000</b> включительно.</li><li>Выведи их <b>количество и общую сумму</b> в одну строку.</li><li>Комментарием: почему без <code class='i'>notna()</code> получается на 1 строку больше?</li></ol><p class='rule-t'>Строки без страны (NaN) иностранными не считаем.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 02 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">foreign =
+
+foreign_big =
+
+# количество и сумма
+
+# почему без notna() больше:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">19 88844000.0
+
++ комментарий: почему без notna() их 20</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>foreign =
+
+foreign_big =
+
+# количество и сумма
+
+# почему без notna() больше:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>Без notna() получится 20: NaN != &#34;UZ&#34; даёт True,
+и строка без страны попадает в «иностранные».</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Условий три: страна указана, страна не UZ и сумма от 3 млн. Каждое условие — отдельная «маска» из True/False, а склеить их нужно через «и». Для комментария подумай: что ответит Python на вопрос «пустота не равна UZ?»</p>
+<p><b>Чем это сделать.</b> <code class="i">.notna()</code> — True, где клетка не пустая. Условия соединяются знаком <code class="i">&</code> («и»), каждое условие — в своих круглых скобках. <code class="i">.sum()</code> у колонки — сумма.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>foreign = df[&#34;country&#34;].___() &amp; (df[&#34;country&#34;] ___ &#34;UZ&#34;)
+foreign_big = df[foreign &amp; (df[&#34;amount&#34;] ___ 3_000_000)]
+print(len(foreign_big), foreign_big[&#34;___&#34;].sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без скобок вокруг сравнений <code class="i">&</code> выполнится раньше и будет ошибка. Пиши <code class="i">(a != b) & (c >= d)</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>IN и BETWEEN</h3>
+            <ol class='steps-t'><li>Выбери транзакции категорий <b>Электроника</b> или <b>Переводы</b>.</li><li>И с суммой <b>от 1 000 000 до 10 000 000</b>, обе границы включены.</li><li>Выведи <b>количество</b> и <b>медиану суммы</b> в одну строку.</li></ol><p class='rule-t'>Используй isin и between, без цепочки из четырёх ==.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 02 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">mask =
+
+selected = df[mask]
+# количество и медиана
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">250 2283000.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>mask =
+
+selected = df[mask]
+# количество и медиана
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Вместо длинного «категория = А или категория = Б» есть короткий способ «категория входит в список». И вместо «сумма ≥ X и сумма ≤ Y» — «сумма между X и Y».</p>
+<p><b>Чем это сделать.</b> <code class="i">.isin(["А", "Б"])</code> — True, если значение есть в списке (как IN в SQL). <code class="i">.between(a, b)</code> — True, если значение от a до b, обе границы включены.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>mask = df[&#34;merchant_cat&#34;].isin([___, ___]) &amp; df[&#34;amount&#34;].between(___, ___)
+selected = df[mask]
+print(len(selected), selected[&#34;amount&#34;].___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Внутрь <code class="i">isin</code> передают список — с квадратными скобками. <code class="i">isin("Электроника", "Переводы")</code> даст ошибку.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Фильтр текстом: query</h3>
+            <ol class='steps-t'><li>Через <code class='i'>query</code> выбери транзакции: <b>новое устройство</b>, статус <b>declined</b>, город <b>Ташкент</b>.</li><li>Выведи <b>количество строк</b> и <b>число разных клиентов</b>.</li><li>Через <code class='i'>loc</code> покажи колонки <b>tx_id, amount</b> первых 3 строк.</li><li>Комментарием: почему часть ташкентских транзакций в этот фильтр не попала?</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 02 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">risky = df.query(&#34;&#34;)
+
+# количество и клиенты
+
+# tx_id и amount первых 3 строк
+
+# почему часть Ташкента не попала:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">13 13
+      tx_id   amount
+44   700045  59000.0
+166  700167  63000.0
+201  700202  25000.0
+
++ комментарий: почему часть Ташкента не попала</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>risky = df.query(&#34;&#34;)
+
+# количество и клиенты
+
+# tx_id и amount первых 3 строк
+
+# почему часть Ташкента не попала:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>23 строки записаны как &#34;ташкент&#34; или &#34;Ташкент &#34; (с пробелом),
+== сравнивает текст буква в букву, поэтому они не попали.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> query — это фильтр, написанный обычным текстом, почти как фраза. Колонка с True/False в нём пишется просто по имени. Для вопроса в комментарии посмотри, как ещё записан Ташкент в колонке city: <code class="i">df["city"].unique()</code>.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.query("a and b == 'x'")</code> — условия через <code class="i">and</code>, текст внутри — в одинарных кавычках. <code class="i">df.loc[:, ["a", "b"]]</code> — все строки, только колонки a и b.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>risky = df.query(&#34;new_device and status == &#39;___&#39; and city == &#39;___&#39;&#34;)
+print(len(risky), risky[&#34;___&#34;].nunique())
+print(risky.loc[:, [___, ___]].head(3))
+# часть Ташкента не попала, потому что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Внутри query, который уже стоит в двойных кавычках, текст пиши в одинарных: <code class="i">'declined'</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Список для антифрода</h3>
+            <p>Подозрительная транзакция: <b>иностранная страна</b> (не UZ, не NaN) <b>И новое устройство И сумма от 1 000 000</b>.</p><ol class='steps-t'><li>Через <code class='i'>loc</code> сохрани в <code class='i'>suspicious</code> такие строки и только колонки <b>tx_id, user_id, amount, status</b>.</li><li>Собери Series <code class='i'>report</code> с ключами: <code class='i'>suspicious_tx</code> (сколько), <code class='i'>users</code> (разных клиентов), <code class='i'>amount_total</code> (сумма), <code class='i'>declined_%</code> (% отклонённых среди них, до 0.1), <code class='i'>share_of_foreign_%</code> (% от всех иностранных транзакций, до 0.1).</li></ol><p class='rule-t'>Всё считай из df.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 02 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">foreign =
+
+suspicious = df.loc[ , [&#34;tx_id&#34;, &#34;user_id&#34;, &#34;amount&#34;, &#34;status&#34;]]
+
+report = pd.Series({
+    &#34;suspicious_tx&#34;: ...,
+    # продолжи
+})
+report
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">suspicious_tx                9.0
+users                        9.0
+amount_total          23835000.0
+declined_%                  55.6
+share_of_foreign_%           4.8
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>foreign =
+
+suspicious = df.loc[ , [&#34;tx_id&#34;, &#34;user_id&#34;, &#34;amount&#34;, &#34;status&#34;]]
+
+report = pd.Series({
+    &#34;suspicious_tx&#34;: ...,
+    # продолжи
+})
+report
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Это три условия, как в задаче 4, только сумма от 1 млн и добавляется «новое устройство». loc позволяет за один раз и отфильтровать строки, и выбрать колонки. Потом из маленькой таблицы считаешь 5 чисел для отчёта.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.loc[маска, ["a", "b"]]</code> — строки по маске и нужные колонки. Колонка из True/False сама работает как маска. Доля отклонённых: <code class="i">(колонка == "declined").mean()</code>. Число иностранных: <code class="i">foreign.sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>foreign = ___
+suspicious = df.loc[foreign &amp; df[&#34;___&#34;] &amp; (df[&#34;amount&#34;] &gt;= ___),
+                    [&#34;tx_id&#34;, &#34;user_id&#34;, &#34;amount&#34;, &#34;status&#34;]]
+report = pd.Series({
+    &#34;suspicious_tx&#34;: len(suspicious),
+    &#34;users&#34;: ___,
+    &#34;amount_total&#34;: ___,
+    &#34;declined_%&#34;: round((suspicious[&#34;status&#34;] == &#34;___&#34;).mean() * 100, 1),
+    &#34;share_of_foreign_%&#34;: round(len(suspicious) / ___ * 100, 1),
+})</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Долю считают от всех иностранных транзакций (<code class="i">foreign.sum()</code>), а не от всей таблицы.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Тимуру</h2>
+      <div class="case">
+        <p>Напиши ответ в Telegram. Не больше 6 предложений. Структура: <b>главный вывод → 3–4 цифры → 1 риск в данных, из-за которого можно заблокировать честных клиентов → 1 следующий шаг или вопрос</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Отклонённых транзакций</span><span class="fact-chip">Подозрительных транзакций</span><span class="fact-chip">Строк без страны</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Тимур, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Что твой ответ говорит о подозрительных платежах?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Их немного, и около половины система уже отклонила</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Их очень много, нужно срочно блокировать всех иностранных клиентов</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Подозрительных платежей нет совсем</span></button></div>
+            <div class="why" hidden>Под все три признака попадают только 9 транзакций, и 5 из 9 уже отклонены (55,6%).</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Почему пустая страна (NaN) — риск для честных клиентов?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Фильтр «страна не UZ» считает пустую страну иностранной, и честного клиента можно заблокировать</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Клиенты без страны точно мошенники</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Пустая страна ни на что не влияет</span></button></div>
+            <div class="why" hidden>NaN != 'UZ' даёт True. Без проверки notna() 27 строк без страны попадают в «иностранные».</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Чем заканчивается твой ответ?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Конкретным следующим шагом или вопросом Тимуру</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Повтором всех цифр</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Ничем, ответ обрывается на рисках</span></button></div>
+            <div class="why" hidden>Хороший рабочий ответ двигает дело дальше: предлагает шаг или задаёт один точный вопрос.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Тимур, привет! Коротко: подозрительных платежей немного, и половину из них система уже отклонила. Из 1 500 сентябрьских транзакций отклонено 133 (8,9%); иностранных — 186, из них 19 крупных (от 3 млн) на 88,8 млн сум. Под признаки мошенничества (заграница + новое устройство + от 1 млн) попадают 9 транзакций на 23,8 млн сум, 5 из 9 уже отклонены. Риск: у 27 транзакций не указана страна — если фильтровать через «не UZ», их можно ошибочно принять за иностранные и заблокировать честных клиентов. Предлагаю вручную проверить 4 прошедшие подозрительные операции — скинуть их номера?</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Первое предложение — главный вывод</li><li>Цифры совпадают с задачами: 133 и 8,9%, 186 иностранных, 9 подозрительных</li><li>Назван риск пустой страны (27 строк) и что он значит для клиентов</li><li>В конце — следующий шаг или вопрос</li><li>Не больше 6 предложений</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 2</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/01-series-i-dataframe/"><small>← Урок 1</small><b>Series и DataFrame: первый взгляд на данные</b></a><a class="nx" href="../../lessons/03-novye-kolonki-sortirovka/"><small>Урок 3 →</small><b>Новые колонки, сортировка и частоты</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041e\u0442\u043a\u043b\u043e\u043d\u0451\u043d\u043d\u044b\u0445 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0439", "value": 133}, {"name": "\u041f\u043e\u0434\u043e\u0437\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0445 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0439", "value": 9}, {"name": "\u0421\u0442\u0440\u043e\u043a \u0431\u0435\u0437 \u0441\u0442\u0440\u0430\u043d\u044b", "value": 27}], "logic": [{"a": 0, "o": ["\u0418\u0445 \u043d\u0435\u043c\u043d\u043e\u0433\u043e, \u0438 \u043e\u043a\u043e\u043b\u043e \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u044b \u0441\u0438\u0441\u0442\u0435\u043c\u0430 \u0443\u0436\u0435 \u043e\u0442\u043a\u043b\u043e\u043d\u0438\u043b\u0430", "\u0418\u0445 \u043e\u0447\u0435\u043d\u044c \u043c\u043d\u043e\u0433\u043e, \u043d\u0443\u0436\u043d\u043e \u0441\u0440\u043e\u0447\u043d\u043e \u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0432\u0441\u0435\u0445 \u0438\u043d\u043e\u0441\u0442\u0440\u0430\u043d\u043d\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432", "\u041f\u043e\u0434\u043e\u0437\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439 \u043d\u0435\u0442 \u0441\u043e\u0432\u0441\u0435\u043c"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043e \u043f\u043e\u0434\u043e\u0437\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0430\u0445?", "why": "\u041f\u043e\u0434 \u0432\u0441\u0435 \u0442\u0440\u0438 \u043f\u0440\u0438\u0437\u043d\u0430\u043a\u0430 \u043f\u043e\u043f\u0430\u0434\u0430\u044e\u0442 \u0442\u043e\u043b\u044c\u043a\u043e 9 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0439, \u0438 5 \u0438\u0437 9 \u0443\u0436\u0435 \u043e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u044b (55,6%)."}, {"a": 0, "o": ["\u0424\u0438\u043b\u044c\u0442\u0440 \u00ab\u0441\u0442\u0440\u0430\u043d\u0430 \u043d\u0435 UZ\u00bb \u0441\u0447\u0438\u0442\u0430\u0435\u0442 \u043f\u0443\u0441\u0442\u0443\u044e \u0441\u0442\u0440\u0430\u043d\u0443 \u0438\u043d\u043e\u0441\u0442\u0440\u0430\u043d\u043d\u043e\u0439, \u0438 \u0447\u0435\u0441\u0442\u043d\u043e\u0433\u043e \u043a\u043b\u0438\u0435\u043d\u0442\u0430 \u043c\u043e\u0436\u043d\u043e \u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u0442\u044c", "\u041a\u043b\u0438\u0435\u043d\u0442\u044b \u0431\u0435\u0437 \u0441\u0442\u0440\u0430\u043d\u044b \u0442\u043e\u0447\u043d\u043e \u043c\u043e\u0448\u0435\u043d\u043d\u0438\u043a\u0438", "\u041f\u0443\u0441\u0442\u0430\u044f \u0441\u0442\u0440\u0430\u043d\u0430 \u043d\u0438 \u043d\u0430 \u0447\u0442\u043e \u043d\u0435 \u0432\u043b\u0438\u044f\u0435\u0442"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u043f\u0443\u0441\u0442\u0430\u044f \u0441\u0442\u0440\u0430\u043d\u0430 (NaN) \u2014 \u0440\u0438\u0441\u043a \u0434\u043b\u044f \u0447\u0435\u0441\u0442\u043d\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432?", "why": "NaN != \u0027UZ\u0027 \u0434\u0430\u0451\u0442 True. \u0411\u0435\u0437 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 notna() 27 \u0441\u0442\u0440\u043e\u043a \u0431\u0435\u0437 \u0441\u0442\u0440\u0430\u043d\u044b \u043f\u043e\u043f\u0430\u0434\u0430\u044e\u0442 \u0432 \u00ab\u0438\u043d\u043e\u0441\u0442\u0440\u0430\u043d\u043d\u044b\u0435\u00bb."}, {"a": 0, "o": ["\u041a\u043e\u043d\u043a\u0440\u0435\u0442\u043d\u044b\u043c \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u043c \u0448\u0430\u0433\u043e\u043c \u0438\u043b\u0438 \u0432\u043e\u043f\u0440\u043e\u0441\u043e\u043c \u0422\u0438\u043c\u0443\u0440\u0443", "\u041f\u043e\u0432\u0442\u043e\u0440\u043e\u043c \u0432\u0441\u0435\u0445 \u0446\u0438\u0444\u0440", "\u041d\u0438\u0447\u0435\u043c, \u043e\u0442\u0432\u0435\u0442 \u043e\u0431\u0440\u044b\u0432\u0430\u0435\u0442\u0441\u044f \u043d\u0430 \u0440\u0438\u0441\u043a\u0430\u0445"], "q": "\u0427\u0435\u043c \u0437\u0430\u043a\u0430\u043d\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442?", "why": "\u0425\u043e\u0440\u043e\u0448\u0438\u0439 \u0440\u0430\u0431\u043e\u0447\u0438\u0439 \u043e\u0442\u0432\u0435\u0442 \u0434\u0432\u0438\u0433\u0430\u0435\u0442 \u0434\u0435\u043b\u043e \u0434\u0430\u043b\u044c\u0448\u0435: \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u0435\u0442 \u0448\u0430\u0433 \u0438\u043b\u0438 \u0437\u0430\u0434\u0430\u0451\u0442 \u043e\u0434\u0438\u043d \u0442\u043e\u0447\u043d\u044b\u0439 \u0432\u043e\u043f\u0440\u043e\u0441."}]}, "case_model": "\u0422\u0438\u043c\u0443\u0440, \u043f\u0440\u0438\u0432\u0435\u0442! \u041a\u043e\u0440\u043e\u0442\u043a\u043e: \u043f\u043e\u0434\u043e\u0437\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439 \u043d\u0435\u043c\u043d\u043e\u0433\u043e, \u0438 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0443 \u0438\u0437 \u043d\u0438\u0445 \u0441\u0438\u0441\u0442\u0435\u043c\u0430 \u0443\u0436\u0435 \u043e\u0442\u043a\u043b\u043e\u043d\u0438\u043b\u0430. \u0418\u0437 1 500 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c\u0441\u043a\u0438\u0445 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0439 \u043e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e 133 (8,9%); \u0438\u043d\u043e\u0441\u0442\u0440\u0430\u043d\u043d\u044b\u0445 \u2014 186, \u0438\u0437 \u043d\u0438\u0445 19 \u043a\u0440\u0443\u043f\u043d\u044b\u0445 (\u043e\u0442 3 \u043c\u043b\u043d) \u043d\u0430 88,8 \u043c\u043b\u043d \u0441\u0443\u043c. \u041f\u043e\u0434 \u043f\u0440\u0438\u0437\u043d\u0430\u043a\u0438 \u043c\u043e\u0448\u0435\u043d\u043d\u0438\u0447\u0435\u0441\u0442\u0432\u0430 (\u0437\u0430\u0433\u0440\u0430\u043d\u0438\u0446\u0430 + \u043d\u043e\u0432\u043e\u0435 \u0443\u0441\u0442\u0440\u043e\u0439\u0441\u0442\u0432\u043e + \u043e\u0442 1 \u043c\u043b\u043d) \u043f\u043e\u043f\u0430\u0434\u0430\u044e\u0442 9 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0439 \u043d\u0430 23,8 \u043c\u043b\u043d \u0441\u0443\u043c, 5 \u0438\u0437 9 \u0443\u0436\u0435 \u043e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u044b. \u0420\u0438\u0441\u043a: \u0443 27 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0439 \u043d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u0430 \u0441\u0442\u0440\u0430\u043d\u0430 \u2014 \u0435\u0441\u043b\u0438 \u0444\u0438\u043b\u044c\u0442\u0440\u043e\u0432\u0430\u0442\u044c \u0447\u0435\u0440\u0435\u0437 \u00ab\u043d\u0435 UZ\u00bb, \u0438\u0445 \u043c\u043e\u0436\u043d\u043e \u043e\u0448\u0438\u0431\u043e\u0447\u043d\u043e \u043f\u0440\u0438\u043d\u044f\u0442\u044c \u0437\u0430 \u0438\u043d\u043e\u0441\u0442\u0440\u0430\u043d\u043d\u044b\u0435 \u0438 \u0437\u0430\u0431\u043b\u043e\u043a\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0447\u0435\u0441\u0442\u043d\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432. \u041f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0432\u0440\u0443\u0447\u043d\u0443\u044e \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c 4 \u043f\u0440\u043e\u0448\u0435\u0434\u0448\u0438\u0435 \u043f\u043e\u0434\u043e\u0437\u0440\u0438\u0442\u0435\u043b\u044c\u043d\u044b\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u2014 \u0441\u043a\u0438\u043d\u0443\u0442\u044c \u0438\u0445 \u043d\u043e\u043c\u0435\u0440\u0430?", "case_xp": 30, "cheat": [["df[\"col\"]", "\u043e\u0434\u043d\u0430 \u043a\u043e\u043b\u043e\u043d\u043a\u0430 (Series)"], ["df[[\"a\", \"b\"]]", "\u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043a\u043e\u043b\u043e\u043d\u043e\u043a (DataFrame)"], ["df.loc[\u043c\u0435\u0442\u043a\u0430, \"col\"] / df.iloc[\u043f\u043e\u0437\u0438\u0446\u0438\u044f, \u043d\u043e\u043c\u0435\u0440]", "\u043f\u043e \u0431\u0438\u0440\u043a\u0435 / \u043f\u043e \u043c\u0435\u0441\u0442\u0443"], ["df[df[\"x\"] == \"v\"]", "WHERE x = \u0027v\u0027"], ["df[(\u0443\u0441\u043b1) \u0026 (\u0443\u0441\u043b2)]", "AND, | \u2014 OR, ~ \u2014 NOT; \u0441\u043a\u043e\u0431\u043a\u0438 \u043e\u0431\u044f\u0437\u0430\u0442\u0435\u043b\u044c\u043d\u044b"], ["df[\"x\"].isin([...]) / .between(a, b)", "IN / BETWEEN"], ["df[\"x\"].notna() \u0026 (df[\"x\"] != \"v\")", "!= \u0431\u0435\u0437 \u043b\u043e\u0432\u0443\u0448\u043a\u0438 NaN"], ["df.loc[\u043c\u0430\u0441\u043a\u0430, [\"a\", \"b\"]]", "\u0441\u0442\u0440\u043e\u043a\u0438 \u0438 \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u0441\u0440\u0430\u0437\u0443; \u0442\u0430\u043a \u0436\u0435 \u0438 \u0434\u043b\u044f \u0437\u0430\u043f\u0438\u0441\u0438"]], "data": "../../data/", "datasets": ["oltinpay_tx.csv"], "day": 2, "hint_cost": 5, "quiz": [1, 1, 1, 2, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"oltinpay_tx.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["(1500, 3)", "Series DataFrame"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["700001", "701500", "23", "272", "274"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["\u041e\u0442\u043a\u043b\u043e\u043d\u0435\u043d\u043e: 133, \u0434\u043e\u043b\u044f: 8.9%"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["19", "88844000"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["250", "2283000"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["13", "700045", "700167", "700202"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["suspicious_tx 9", "users 9", "amount_total 23835000", "declined_% 55.6", "share_of_foreign_% 4.8"], "setup": "", "xp": 25}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

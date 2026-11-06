@@ -1,0 +1,770 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 3. Новые колонки, сортировка и частоты — Pandas Sprint</title>
+<meta name="description" content="Урок 3 курса Pandas Sprint — Новые колонки, сортировка и частоты. Посчитать новые колонки, отсортировать таблицу и найти самые крупные значения.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/03-novye-kolonki-sortirovka/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 3. Новые колонки, сортировка и частоты — Pandas Sprint">
+<meta property="og:description" content="Урок 3 курса Pandas Sprint — Новые колонки, сортировка и частоты. Посчитать новые колонки, отсортировать таблицу и найти самые крупные значения.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/03-novye-kolonki-sortirovka/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="3">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>Новые колонки</a></li><li><a href="#tools"><span class="dot">✓</span>Сортировка</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">SELECT …, CASE WHEN … ORDER BY … LIMIT</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Ты это пишешь каждый день. Вот как то же самое выглядит в pandas. Главное отличие: в SQL новая колонка живёт только в результате запроса, а в pandas df[&#34;x&#34;] = … меняет саму таблицу.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT *, price * qty AS revenue</code></td><td><code>df[&#34;revenue&#34;] = df[&#34;price&#34;] * df[&#34;qty&#34;]</code></td><td>меняет df</td></tr><tr><td><code>SELECT *, price * qty AS revenue</code></td><td><code>df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])</code></td><td>новая таблица</td></tr><tr><td><code>CASE WHEN qty &gt;= 3 THEN &#39;опт&#39; ELSE &#39;розница&#39; END</code></td><td><code>np.where(df[&#34;qty&#34;] &gt;= 3, &#34;опт&#34;, &#34;розница&#34;)</code></td><td>один WHEN</td></tr><tr><td><code>CASE WHEN d &lt;= 2 THEN … WHEN d &lt;= 5 THEN … ELSE … END</code></td><td><code>np.select([усл1, усл2], [&#34;…&#34;, &#34;…&#34;], default=&#34;…&#34;)</code></td><td>первое True побеждает</td></tr><tr><td><code>ORDER BY price DESC</code></td><td><code>df.sort_values(&#34;price&#34;, ascending=False)</code></td><td>NaN всегда в конце</td></tr><tr><td><code>ORDER BY category, price DESC</code></td><td><code>df.sort_values([&#34;category&#34;, &#34;price&#34;], ascending=[True, False])</code></td><td>списки одной длины</td></tr><tr><td><code>ORDER BY price DESC LIMIT 10</code></td><td><code>df.nlargest(10, &#34;price&#34;)</code></td><td>короче и быстрее</td></tr><tr><td><code>LEAST(GREATEST(disc, 0), 90)</code></td><td><code>df[&#34;discount_pct&#34;].clip(0, 90)</code></td><td>зажать в границы</td></tr><tr><td><code>SELECT region, COUNT(*) … GROUP BY region ORDER BY 2 DESC</code></td><td><code>df[&#34;region&#34;].value_counts()</code></td><td>уже отсортировано</td></tr><tr><td><code>COUNT(*) * 1.0 / SUM(COUNT(*)) OVER ()</code></td><td><code>df[&#34;region&#34;].value_counts(normalize=True)</code></td><td>доли от 0 до 1</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Ловушка из SQL.</b> В SQL <code class="i">CASE WHEN price * qty &gt;= 1000000 … ELSE 'обычный'</code> для NULL тоже уйдёт в ELSE — тут pandas ведёт себя так же. Разница в другом: в SQL ты привык видеть NULL в результате, а <code class="i">np.where</code> вернёт текст «обычный», и следов пустой цены не останется. 12 заказов без цены станут «обычными».</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 3 из 30 · Неделя 1 · Фундамент</div>
+      <h1>Новые колонки, <mark>сортировка и частоты</mark></h1>
+      <p class="lead">Сырых колонок почти никогда не хватает. Выручку нужно посчитать из цены и количества, заказы — разложить по группам «если… то…», а из тысячи строк найти десять самых крупных. Сегодня учимся создавать новые колонки, сортировать и убирать невозможные значения.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>По выгрузке заказов маркетплейса Bozor Market посчитать выручку с учётом скидки, разложить заказы по скорости доставки и показать, какие 10 заказов дают больше всего денег и сколько из них вернули.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Создать новую колонку через <code class="i">df["x"] = …</code> и <code class="i">assign</code></li><li>Писать CASE WHEN через <code class="i">np.where</code> и <code class="i">np.select</code></li><li>Сортировать по одной и нескольким колонкам, брать топ через <code class="i">nlargest</code></li><li>Обрезать невозможные значения через <code class="i">clip</code> и считать доли через <code class="i">value_counts(normalize=True)</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Категорийный менеджер Bozor Market просит топ</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Д</span>Дильноза <small>категорийный менеджер · 09:05</small></div>
+          <p>Привет! В пятницу встреча с продавцами. Мне нужно понять: сколько мы реально заработали в сентябре <b>после скидок</b>, какие заказы самые крупные и правда ли, что медленная доставка ведёт к возвратам.</p>
+<div class="file">▤ bozor_orders.csv · 1 200 заказов</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Д</span>Дильноза <small>09:06</small></div>
+          <p>Осторожно: в поле скидки продавцы иногда вбивают ерунду, я видела «скидку 200%». Не хочу, чтобы из-за этого выручка ушла в минус.</p>
+        </div>
+      </div>
+      <p class="note">Bozor Market — учебный маркетплейс. Данные сгенерированы, но грязные как настоящие: у 12 заказов нет цены, у 31 нет срока доставки, у 14 скидка невозможная (меньше 0 или больше 90%). Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/bozor_orders.csv" download>Скачать bozor_orders.csv</a><span class="note">1 200 строк · 90 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;bozor_orders.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Новая колонка — это новая графа в тетради</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь тетрадь продавца на базаре. В каждой строке записано: что продал, по какой <b>цене</b> и <b>сколько штук</b>. Вечером продавец дописывает справа новую графу «выручка» и в каждой строке умножает цену на штуки. Это и есть новая колонка.</p>
+<ul>
+<li><b>Новая колонка</b> — <code class="i">df["revenue"] = df["price"] * df["qty"]</code>. pandas умножает сразу все 1200 строк, без цикла. Это называется <b>векторная операция</b>: действие над всей колонкой за раз.</li>
+<li><b>assign</b> — то же самое, но возвращает <b>новую таблицу</b>, а старую не трогает. Удобно, когда шаги идут цепочкой.</li>
+<li><b>np.where</b> (np — библиотека numpy, «калькулятор» под капотом pandas) — «если… то… иначе…» для каждой строки. Как CASE WHEN с одним WHEN.</li>
+<li><b>np.select</b> — много «если» подряд: проверяет условия по очереди, первое верное побеждает. Как CASE WHEN с несколькими WHEN.</li>
+<li><b>sort_values</b> — разложить строки по порядку (ORDER BY). <b>nlargest(10, "x")</b> — сразу взять 10 самых больших (ORDER BY x DESC LIMIT 10).</li>
+<li><b>clip(0, 90)</b> — «зажим»: всё, что меньше 0, станет 0, всё, что больше 90, станет 90. Остальное не меняется.</li>
+</ul>
+<p>Главная ловушка дня: <b>пустая клетка (NaN) в расчётах заразна</b>. NaN × 3 = NaN. А в условии <code class="i">NaN &gt;= 1 000 000</code> ответ всегда False — и пустой заказ молча уходит в ветку «иначе».</p>
+</div>
+<p>Настоящие строки таблицы. Жёлтая колонка <b>revenue</b> — новая, её посчитал pandas. Розовая строка — заказ без цены: выручка тоже стала NaN.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">Index</th><th>order_id<span class="dt">int64</span></th><th>category<span class="dt">str</span></th><th>price<span class="dt">float64</span></th><th>qty<span class="dt">int64</span></th><th>discount_pct<span class="dt">float64</span></th><th class="ser">revenue<span class="dt">float64 · новая</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">0</td><td>400001</td><td>Одежда</td><td>275000.0</td><td>3</td><td>5.0</td><td class="ser">825000.0</td></tr>
+<tr><td class="idx">1</td><td>400002</td><td>Одежда</td><td>350000.0</td><td>1</td><td>10.0</td><td class="ser">350000.0</td></tr>
+<tr><td class="idx">2</td><td>400003</td><td>Одежда</td><td>245000.0</td><td>1</td><td>0.0</td><td class="ser">245000.0</td></tr>
+<tr style="background:var(--pink-soft)"><td class="idx">976</td><td>400977</td><td>…</td><td class="nan">NaN</td><td>…</td><td>…</td><td class="ser nan">NaN</td></tr>
+</tbody>
+</table>
+</div>
+<div class="legend">
+<div><b>df["new"] = выражение</b>Добавляет колонку в саму df. Как <code class="i">ALTER TABLE … ADD</code> + <code class="i">UPDATE</code>.</div>
+<div><b>df.assign(new=выражение)</b>Возвращает копию с новой колонкой. Результат надо сохранить: <code class="i">df = df.assign(…)</code>.</div>
+<div><b>np.where(усл, A, B)</b>Для каждой строки: если условие True — A, иначе B. NaN в условии = False.</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Шесть приёмов: посчитать, разложить, отсортировать</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">df["revenue"] = df["price"] * df["qty"]</code> — справа: «возьми колонку цен и умножь на колонку штук, строка на строку». Слева: «положи результат в графу revenue». Если графы нет — она появится.</li>
+<li><code class="i">df.assign(revenue=…)</code> — внутри скобок <b>имя без кавычек</b>, знак <code class="i">=</code> и выражение. Можно сразу несколько через запятую.</li>
+<li><code class="i">np.where(условие, "да-текст", "нет-текст")</code> — три части через запятую: вопрос, что писать при True, что при False.</li>
+<li><code class="i">np.select(conditions, choices, default="…")</code> — два списка одинаковой длины: условия и ответы. <code class="i">default</code> — что писать, если ни одно условие не True (сюда попадут и NaN).</li>
+<li><code class="i">sort_values("price", ascending=False)</code> — ascending значит «по возрастанию». False — от большого к маленькому.</li>
+<li><code class="i">.mul(100).round(1)</code> — умножить на 100 и округлить до 1 знака. Точка в начале значит: метод вызывается у результата слева.</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле Bozor Market. Твои цифры должны совпасть.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. Новая колонка через assign.</b> Цена × количество.</div>
+<pre class="code" data-cm="">import pandas as pd
+import numpy as np
+
+df = pd.read_csv("bozor_orders.csv")
+df.assign(revenue=df["price"] * df["qty"])[["order_id", "price", "qty", "revenue"]].head(3)</pre><div class="out">   order_id     price  qty   revenue
+0    400001  275000.0    3  825000.0
+1    400002  350000.0    1  350000.0
+2    400003  245000.0    1  245000.0</div><p class="plain"><b>Простыми словами:</b> 275 000 × 3 = 825 000 — pandas посчитал выручку в каждой строке сам. <code class="i">assign</code> не изменил df: он вернул новую таблицу. Чтобы колонка осталась, пиши <code class="i">df = df.assign(...)</code>.</p></div>
+<div class="card"><div class="q"><b>2. np.where — CASE WHEN с одним условием.</b></div>
+<pre class="code" data-cm="">df["deal"] = np.where(df["qty"] &gt;= 3, "опт", "розница")
+df["deal"].value_counts()</pre><div class="out">deal
+розница    786
+опт        414
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> каждой строке задали вопрос «купили 3 штуки и больше?». Да — «опт», нет — «розница». 414 оптовых заказов, 786 розничных, вместе 1200: ни одна строка не потерялась.</p></div>
+<div class="card"><div class="q"><b>3. sort_values — ORDER BY.</b> Где окажутся NaN?</div>
+<pre class="code" data-cm="">df.sort_values("price", ascending=False)[["order_id", "category", "price"]].head(3)
+df.sort_values("price")[["order_id", "price"]].tail(3)</pre><div class="out">      order_id     category      price
+602     400603  Электроника  9957000.0
+495     400496  Электроника  8982000.0
+1051    401052  Электроника  8015000.0
+      order_id  price
+976     400977    NaN
+1024    401025    NaN
+1138    401139    NaN</div><p class="plain"><b>Простыми словами:</b> самые дорогие товары — электроника, почти 10 млн. Вторая строка сортирует по возрастанию, и в конце стоят <b>пустые цены</b>: pandas всегда кладёт NaN в конец, в любую сторону сортировки. Бирки слева (602, 495) — старые номера строк, сортировка их не меняет.</p></div>
+<div class="card"><div class="q"><b>4. nlargest — топ за один шаг.</b></div>
+<pre class="code" data-cm="">df.nlargest(3, "price")[["order_id", "category", "price"]]
+df.nsmallest(3, "price")[["order_id", "category", "price"]]</pre><div class="out">      order_id     category      price
+602     400603  Электроника  9957000.0
+495     400496  Электроника  8982000.0
+1051    401052  Электроника  8015000.0
+     order_id  category    price
+214    400215  Продукты  15000.0
+787    400788  Продукты  17000.0
+558    400559  Продукты  18000.0</div><p class="plain"><b>Простыми словами:</b> <code class="i">nlargest(3, "price")</code> = «дай 3 самые дорогие строки». Ответ тот же, что у sort_values + head, но короче и не нужно помнить про ascending. <code class="i">nsmallest</code> — самые дешёвые. NaN в топ не попадают.</p></div>
+<div class="card"><div class="q"><b>5. clip — зажать невозможные значения.</b></div>
+<pre class="code" data-cm="">df["discount_pct"].agg(["min", "max", "mean"])
+df["discount_pct"].clip(0, 90).agg(["min", "max", "mean"])</pre><div class="out">min    -20.000000
+max    200.000000
+mean    17.795833
+Name: discount_pct, dtype: float64
+min      0.000000
+max     90.000000
+mean    17.516667
+Name: discount_pct, dtype: float64</div><p class="plain"><b>Простыми словами:</b> скидка −20% и 200% невозможна. <code class="i">clip(0, 90)</code> превращает −20 в 0, а 200 в 90. Таких строк 14 из 1200. Средняя скидка чуть упала: 17.8 → 17.5. Важно: clip ничего не удаляет, строк остаётся 1200.</p></div>
+<div class="card"><div class="q"><b>6. value_counts(normalize=True) — доли.</b></div>
+<pre class="code" data-cm="">df["region"].value_counts(normalize=True).mul(100).round(1)</pre><div class="out">region
+Ташкент      45.1
+Самарканд    15.3
+Андижан      14.2
+Наманган     13.2
+Бухара       12.2
+Name: proportion, dtype: float64</div><p class="plain"><b>Простыми словами:</b> <code class="i">normalize=True</code> — «покажи не штуки, а долю от всех». 0.451 × 100 = 45.1% заказов из Ташкента. Список уже отсортирован от большего к меньшему — как <code class="i">ORDER BY count DESC</code>.</p></div>
+</div>
+<div class="simple"><span class="tag">История про зажим: карманные деньги</span>
+<p>Пятеро детей записали, сколько тысяч сум потратили за неделю: <b>−5, 20, 35, 60, 150</b>. Минус пять — ошибка, тратить меньше нуля нельзя. 150 — тоже ошибка: мама даёт максимум 60. Применяем <code class="i">clip(0, 60)</code>.</p>
+<div><div aria-label="Пять столбиков: после зажима 0, 20, 35, 60, 60; крайние исправлены" class="story" style="grid-template-columns:repeat(5,minmax(0,1fr))"><span class="rich" style="height:4%"></span><span style="height:33%"></span><span style="height:58%"></span><span style="height:100%"></span><span class="rich" style="height:100%"></span></div>
+<div class="story-lab"><span>было: −5 · 20 · 35 · 60 · 150</span><span>стало: 0 · 20 · 35 · 60 · 60 (розовые исправлены)</span></div></div>
+<p>Сумма «как записали»: −5 + 20 + 35 + 60 + 150 = <b>260</b>. После зажима: 0 + 20 + 35 + 60 + 60 = <b>175</b>. Две ошибки в записи меняли итог на 85 тысяч — почти на половину. Со скидкой 200% то же самое: выручка заказа становится отрицательной, и общий итог врёт.</p>
+</div>
+<div class="callout"><b>Правило аналитика.</b> Перед любым расчётом выручки посмотри <code class="i">describe()</code> или <code class="i">agg(["min", "max"])</code> числовых колонок. Минимум и максимум за 5 секунд показывают невозможные значения.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>assign без сохранения</h3><div class="bad">df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])
+df[&#34;revenue&#34;]   # KeyError: &#39;revenue&#39;</div><div class="good">df = df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])</div><p>assign возвращает новую таблицу и не меняет старую. Не сохранил результат — колонки нет.</p></div>
+        <div class="trap"><span class="n">2</span><h3>NaN тихо уходит в «иначе»</h3><div class="bad">np.where(df[&#34;revenue&#34;] &gt;= 1_000_000, &#34;крупный&#34;, &#34;обычный&#34;)   # обычный 865 (12 из них без цены)</div><div class="good">np.select([df[&#34;revenue&#34;].isna(), df[&#34;revenue&#34;] &gt;= 1_000_000], [&#34;нет цены&#34;, &#34;крупный&#34;], default=&#34;обычный&#34;)</div><p>Сравнение с NaN всегда False. Если в колонке есть пустые — дай им свою ветку, иначе они спрячутся среди нормальных.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Порядок условий в np.select</h3><div class="bad">np.select([d &lt;= 5, d &lt;= 2], [&#34;норма&#34;, &#34;быстро&#34;])   # «быстро» не будет ни разу</div><div class="good">np.select([d &lt;= 2, d &lt;= 5], [&#34;быстро&#34;, &#34;норма&#34;], default=&#34;…&#34;)</div><p>Побеждает первое верное условие. Доставка за 1 день подходит под «≤ 5», и до «≤ 2» очередь не дойдёт. Пиши от узкого к широкому.</p></div>
+        <div class="trap"><span class="n">4</span><h3>sort_values не меняет df</h3><div class="bad">df.sort_values(&#34;price&#34;, ascending=False)
+df.head(3)   # старый порядок</div><div class="good">top = df.sort_values(&#34;price&#34;, ascending=False)
+top.head(3)</div><p>Как и assign, sort_values возвращает новую таблицу. Сохрани её в переменную. А для топа проще <code class="i">df.nlargest(3, "price")</code>.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Доля через max() вместо точного значения</h3><div class="bad">df[&#34;region&#34;].value_counts(normalize=True).max()   # «доля Ташкента» — повезло</div><div class="good">(df[&#34;region&#34;] == &#34;Ташкент&#34;).mean() * 100   # 45.1</div><p>max() вернёт долю самого большого региона, а не Ташкента. Сегодня совпало, на другой выгрузке — нет. Спрашивай про нужное значение явно.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>df[&#34;new&#34;] = df[&#34;a&#34;] * df[&#34;b&#34;] <span>— новая колонка в df</span></li><li>df = df.assign(new=df[&#34;a&#34;] * df[&#34;b&#34;]) <span>— то же, но цепочкой; сохраняй результат</span></li><li>np.where(усл, &#34;да&#34;, &#34;нет&#34;) <span>— CASE WHEN … ELSE</span></li><li>np.select([усл1, усл2], [&#34;A&#34;, &#34;B&#34;], default=&#34;C&#34;) <span>— много WHEN, от узкого к широкому</span></li><li>df.sort_values([&#34;a&#34;, &#34;b&#34;], ascending=[True, False]) <span>— ORDER BY a, b DESC</span></li><li>df.nlargest(10, &#34;x&#34;) / df.nsmallest(10, &#34;x&#34;) <span>— топ без сортировки руками</span></li><li>df[&#34;x&#34;].clip(0, 90) <span>— зажать в границы, строки не удаляются</span></li><li>df[&#34;x&#34;].value_counts(normalize=True).mul(100).round(1) <span>— доли в %</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что останется в df после строки <code>df.assign(revenue=df["price"] * df["qty"])</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Колонка revenue добавится</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ничего не изменится</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Ошибка</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Удалится price</span></button></div>
+          <div class="why" hidden>assign возвращает новую таблицу. Без <code>df = …</code> результат теряется.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. <code>np.where(df["revenue"] &gt;= 1_000_000, "крупный", "обычный")</code>. Куда попадут 12 заказов с NaN?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В «крупный»</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В «обычный»</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Останутся NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Будет ошибка</span></button></div>
+          <div class="why" hidden>NaN &gt;= 1 000 000 даёт False, значит ветка «иначе»: «обычный». Дай NaN свою ветку.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Какой порядок условий в np.select верный для «быстро ≤ 2», «норма ≤ 5»?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>[d &lt;= 5, d &lt;= 2]</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>[d &lt;= 2, d &lt;= 5]</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Порядок не важен</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>[d &gt; 2, d &gt; 5]</code></span></button></div>
+          <div class="why" hidden>Первое True побеждает. При [d ≤ 5, d ≤ 2] «быстро» не появится ни разу.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Чем <code>df.nlargest(10, "net")</code> отличается от <code>df.sort_values("net").head(10)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Второе даёт 10 самых маленьких</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Второе даёт ошибку</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>nlargest удаляет строки из df</span></button></div>
+          <div class="why" hidden>sort_values по умолчанию по возрастанию: head(10) — 10 самых маленьких. Нужно ascending=False или nlargest.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Что сделает <code>s.clip(0, 90)</code> со значениями [-5, 40, 200]?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>[40]</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>[0, 40, 90]</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>[NaN, 40, NaN]</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>[-5, 40, 90]</span></button></div>
+          <div class="why" hidden>clip не удаляет строки, а зажимает: меньше 0 → 0, больше 90 → 90.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Выручка заказа</h3>
+            <ol class='steps-t'><li>Через <code class='i'>assign</code> добавь колонку <b>revenue</b> = price × qty и <b>сохрани</b> результат в df.</li><li>Напечатай <code class='i'>df.shape</code>.</li><li>В одну строку напечатай <b>сумму revenue</b> и <b>сколько в revenue NaN</b>.</li></ol><p class='rule-t'>Без display() и без print(display(...)). Числа считай из df.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 03 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">df =
+
+# shape
+
+# сумма revenue и число NaN
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(1200, 11)
+1646483000.0 12</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df =
+
+# shape
+
+# сумма revenue и число NaN
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Выручка заказа — цена, умноженная на количество. assign не меняет таблицу сам по себе, а возвращает новую, поэтому результат нужно снова положить в <code class="i">df</code>.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.assign(новая=формула)</code> — добавить колонку. Колонки перемножаются целиком, строка за строкой: <code class="i">df["a"] * df["b"]</code>. Пустые клетки считает <code class="i">.isna().sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df = df.assign(revenue=df[&#34;___&#34;] * df[&#34;___&#34;])
+print(df.shape)
+print(df[&#34;revenue&#34;].___(), df[&#34;revenue&#34;].isna().___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">df = ...</code> колонка не сохранится: assign вернёт новую таблицу, а старая останется без revenue.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Топ-5 заказов</h3>
+            <ol class='steps-t'><li>Добавь revenue (как в задаче 1).</li><li>Через <code class='i'>nlargest</code> сохрани 5 самых крупных заказов в <code class='i'>top5</code> и выведи колонки <b>order_id, category, revenue</b>.</li><li>Проверь через <code class='i'>sort_values(...).head(5)</code>, что order_id совпадают, и выведи <b>True/False</b>.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 03 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">df = df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])
+
+top5 =
+
+# проверка через sort_values
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">      order_id     category     revenue
+814     400815  Электроника  27344000.0
+1051    401052  Электроника  24045000.0
+168     400169  Электроника  21900000.0
+217     400218  Электроника  21873000.0
+878     400879  Электроника  21865000.0
+True</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df = df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])
+
+top5 =
+
+# проверка через sort_values
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «5 самых больших по колонке» — для этого есть отдельный метод. Проверка — это сравнение двух списков номеров заказов: если они одинаковые, Python ответит True.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.nlargest(5, "колонка")</code> — 5 строк с самыми большими значениями. <code class="i">sort_values("колонка", ascending=False).head(5)</code> — то же через сортировку. <code class="i">.tolist()</code> превращает колонку в список, а <code class="i">==</code> сравнивает два списка.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>top5 = df.nlargest(___, &#34;___&#34;)
+print(top5[[&#34;order_id&#34;, &#34;category&#34;, &#34;revenue&#34;]])
+same = df.sort_values(&#34;___&#34;, ascending=___).head(5)
+print(top5[&#34;order_id&#34;].tolist() == same[&#34;___&#34;].tolist())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">ascending=True</code> сортирует от меньшего к большему. Для «самых крупных» нужно <code class="i">False</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>CASE WHEN: крупный заказ</h3>
+            <ol class='steps-t'><li>Через <code class='i'>np.where</code> создай колонку <b>size</b>: «крупный», если revenue ≥ 1 000 000, иначе «обычный». Выведи value_counts.</li><li>Исправь: заказам без цены поставь «нет цены» и снова выведи value_counts.</li><li>Комментарием: почему в шаге 1 заказы без цены оказались «обычными»?</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 03 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">df = df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])
+
+df[&#34;size&#34;] =
+
+# исправление для NaN
+
+# почему NaN стали «обычными»:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">size
+обычный    865
+крупный    335
+Name: count, dtype: int64
+size
+обычный     853
+крупный     335
+нет цены     12
+Name: count, dtype: int64
+
++ комментарий: почему NaN стали «обычными»</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df = df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])
+
+df[&#34;size&#34;] =
+
+# исправление для NaN
+
+# почему NaN стали «обычными»:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>NaN &gt;= 1_000_000 даёт False, поэтому заказы без цены попали в &#34;обычный&#34;.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> np.where — это «если … то … иначе …» для всей колонки сразу. Шаг 1 делит заказы на два вида. В шаге 2 поверх результата ещё раз спроси: «выручка пустая?» — если да, пиши «нет цены», если нет — оставь то, что уже было.</p>
+<p><b>Чем это сделать.</b> <code class="i">np.where(условие, "если да", "если нет")</code>. Пустые клетки находит <code class="i">.isna()</code>. Значением «если нет» может быть сама колонка: <code class="i">np.where(усл, "x", df["size"])</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;size&#34;] = np.where(df[&#34;revenue&#34;] &gt;= ___, &#34;крупный&#34;, &#34;___&#34;)
+print(df[&#34;size&#34;].value_counts())
+df[&#34;size&#34;] = np.where(df[&#34;revenue&#34;].___(), &#34;нет цены&#34;, df[&#34;___&#34;])
+print(df[&#34;size&#34;].value_counts())
+# NaN стали «обычными», потому что сравнение NaN &gt;= 1 000 000 даёт ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сравнение с пустой клеткой всегда даёт False — поэтому заказы без цены молча попадают в ветку «иначе».</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Невозможные скидки</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>disc_clean</code> скидку, зажатую в границы <b>от 0 до 90</b>.</li><li>Посчитай, <b>сколько значений изменилось</b>.</li><li>В одну строку: число изменённых, <b>средняя скидка до</b> и <b>после</b> (1 знак).</li></ol><p class='rule-t'>Число 14 руками не пиши — посчитай сравнением двух колонок.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 03 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">disc_clean =
+
+changed =
+
+# печать: changed, среднее до, среднее после
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">14 17.8 17.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>disc_clean =
+
+changed =
+
+# печать: changed, среднее до, среднее после
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Зажать в границы» значит: всё, что меньше 0, станет 0, а всё, что больше 90, станет 90. Изменились те значения, где старое не равно новому — сравни две колонки и посчитай True.</p>
+<p><b>Чем это сделать.</b> <code class="i">.clip(нижняя, верхняя)</code> — зажать значения в границы. <code class="i">(a != b).sum()</code> — сколько клеток различаются. <code class="i">round(x, 1)</code> — округлить до 1 знака.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>disc_clean = df[&#34;discount_pct&#34;].clip(___, ___)
+changed = (df[&#34;discount_pct&#34;] ___ disc_clean).sum()
+print(changed, round(df[&#34;discount_pct&#34;].___(), 1), round(disc_clean.___(), 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не меняй исходную колонку discount_pct: среднее «до» нужно считать по старым значениям.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Скорость доставки и возвраты</h3>
+            <ol class='steps-t'><li>Через <code class='i'>np.select</code> создай колонку <b>speed</b>: ≤ 2 дней «быстро», ≤ 5 «норма», > 5 «долго», остальные «нет данных».</li><li>Выведи value_counts колонки speed.</li><li>Для «быстро», «норма», «долго» выведи <b>долю возвратов в %</b> (1 знак), каждую с новой строки: <code class='i'>долго 14.9</code>.</li></ol><p class='rule-t'>Условия — от узкого к широкому. Доля True = .mean().</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 03 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">conditions = [
+
+]
+choices = []
+df[&#34;speed&#34;] = np.select(conditions, choices, default=&#34;нет данных&#34;)
+
+# value_counts
+
+# доля возвратов по скорости
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">speed
+норма         437
+долго         404
+быстро        328
+нет данных     31
+Name: count, dtype: int64
+быстро 5.5
+норма 5.9
+долго 14.9</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>conditions = [
+
+]
+choices = []
+df[&#34;speed&#34;] = np.select(conditions, choices, default=&#34;нет данных&#34;)
+
+# value_counts
+
+# доля возвратов по скорости
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> np.select — это np.where на много веток: список условий и список названий, проверка идёт сверху вниз, первое подходящее условие побеждает. Потом для каждой скорости возьми строки этой скорости и посчитай долю возвратов.</p>
+<p><b>Чем это сделать.</b> Условия: <code class="i">df["delivery_days"] <= 2</code> и т. д. Доля True — <code class="i">.mean()</code>. <code class="i">df.loc[маска, "колонка"]</code> — значения колонки только в нужных строках. Цикл <code class="i">for s in [...]</code> повторит расчёт для трёх скоростей.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>conditions = [
+    df[&#34;delivery_days&#34;] &lt;= ___,
+    df[&#34;delivery_days&#34;] &lt;= ___,
+    df[&#34;delivery_days&#34;] &gt; ___,
+]
+choices = [&#34;быстро&#34;, &#34;норма&#34;, &#34;долго&#34;]
+...
+for s in [&#34;быстро&#34;, &#34;норма&#34;, &#34;долго&#34;]:
+    print(s, round(df.loc[df[&#34;speed&#34;] == s, &#34;___&#34;].mean() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Порядок условий важен: если первым поставить «≤ 5», то заказы за 1–2 дня тоже станут «норма».</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>ORDER BY по двум колонкам</h3>
+            <ol class='steps-t'><li>Добавь revenue.</li><li>Отсортируй по <b>category</b> (А→Я) и внутри по <b>revenue</b> (от большего). Выведи первые 3 строки колонок <b>order_id, category, revenue</b>.</li><li>Выведи доли категорий <b>в %</b> с 1 знаком.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 03 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">df = df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])
+
+ordered =
+
+# доли категорий в %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">      order_id category    revenue
+1149    401150    Детям  2488000.0
+363     400364    Детям  2380000.0
+560     400561    Детям  2075000.0
+category
+Одежда         23.5
+Дом            21.8
+Красота        16.8
+Продукты       13.3
+Электроника    12.4
+Детям          12.2
+Name: proportion, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df = df.assign(revenue=df[&#34;price&#34;] * df[&#34;qty&#34;])
+
+ordered =
+
+# доли категорий в %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сортировка сразу по двум колонкам: сначала по первой, а при равенстве — по второй. Для каждой колонки можно задать своё направление. Доли категорий ты уже считал в уроке 1 — осталось перевести их в проценты.</p>
+<p><b>Чем это сделать.</b> <code class="i">sort_values(["a", "b"], ascending=[True, False])</code> — a по возрастанию, b по убыванию. <code class="i">value_counts(normalize=True)</code> — доли, <code class="i">.mul(100)</code> — умножить на 100, <code class="i">.round(1)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>ordered = df.sort_values([___, ___], ascending=[___, ___])
+print(ordered[[&#34;order_id&#34;, &#34;category&#34;, &#34;revenue&#34;]].head(3))
+print(df[&#34;category&#34;].value_counts(normalize=___).mul(___).round(1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Списки колонок и направлений должны быть одной длины и в одном порядке.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт для Дильнозы</h3>
+            <p>Чистая выручка заказа: <b>net = revenue × (1 − скидка / 100)</b>, где скидка уже зажата в 0–90.</p><ol class='steps-t'><li>Через <code class='i'>assign</code> добавь <b>revenue</b>, <b>disc_clean</b> и <b>net</b>.</li><li>Сохрани в <code class='i'>top10</code> 10 заказов с самым большим net.</li><li>Собери Series <code class='i'>report</code>: <code class='i'>top10_net</code> (сумма net), <code class='i'>share_of_net_%</code> (% от всей net, 0.1), <code class='i'>electronics</code> (сколько из них Электроника), <code class='i'>returned</code> (сколько возвращено), <code class='i'>avg_discount</code> (средняя disc_clean, 0.1).</li></ol><p class='rule-t'>Всё считай из df. net использует колонку, созданную в том же assign? Подумай, почему нужен второй assign.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 03 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">df = df.assign(
+    revenue=,
+    disc_clean=,
+)
+df = df.assign(net=)
+
+top10 =
+
+report = pd.Series({
+    &#34;top10_net&#34;: ...,
+    # продолжи
+})
+report
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">top10_net         176978250.0
+share_of_net_%           13.0
+electronics              10.0
+returned                  2.0
+avg_discount             13.0
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df = df.assign(
+    revenue=,
+    disc_clean=,
+)
+df = df.assign(net=)
+
+top10 =
+
+report = pd.Series({
+    &#34;top10_net&#34;: ...,
+    # продолжи
+})
+report
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала добавь revenue и disc_clean, потом отдельным шагом — net. Затем возьми 10 заказов с самым большим net и посчитай по ним 5 чисел. Внутри одного assign новая колонка ещё не существует в df — поэтому шагов два.</p>
+<p><b>Чем это сделать.</b> <code class="i">nlargest(10, "net")</code> — 10 крупнейших. Сколько электроники: <code class="i">(колонка == "Электроника").sum()</code>. Колонка returned из True/False: <code class="i">.sum()</code> — сколько True.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df = df.assign(revenue=___, disc_clean=___)
+df = df.assign(net=df[&#34;revenue&#34;] * (1 - df[&#34;___&#34;] / 100))
+top10 = df.nlargest(___, &#34;net&#34;)
+report = pd.Series({
+    &#34;top10_net&#34;: top10[&#34;net&#34;].sum(),
+    &#34;share_of_net_%&#34;: round(___ / df[&#34;net&#34;].sum() * 100, 1),
+    &#34;electronics&#34;: ___,
+    &#34;returned&#34;: ___,
+    &#34;avg_discount&#34;: round(top10[&#34;___&#34;].mean(), 1),
+})</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если в формуле net взять discount_pct вместо disc_clean, невозможные скидки (больше 90%) испортят выручку.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Дильнозе</h2>
+      <div class="case">
+        <p>Напиши ответ Дильнозе в Telegram. Не больше 6 предложений. Структура: <b>главный вывод → 3–4 цифры (чистая выручка, топ-10, возвраты по скорости доставки) → 1 риск в данных → 1 предложение для встречи с продавцами</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Доля топ-10 в чистой выручке</span><span class="fact-chip">Возвраты при доставке дольше 5 дней</span><span class="fact-chip">Заказов с невозможной скидкой</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Дильноза, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Как в твоём ответе связаны скорость доставки и возвраты?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>При долгой доставке возвращают намного чаще: примерно втрое</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Скорость доставки на возвраты не влияет</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>При быстрой доставке возвращают чаще</span></button></div>
+            <div class="why" hidden>Дольше 5 дней — 14,9% возвратов, при быстрой и обычной доставке — 5,5–5,9%.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Кто, по твоему ответу, даёт самые крупные заказы?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Электроника: все 10 крупнейших заказов — электроника</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Одежда, потому что её заказывают чаще всего</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Крупные заказы распределены по всем категориям поровну</span></button></div>
+            <div class="why" hidden>Все 10 заказов с самой большой чистой выручкой — электроника. Частая категория (одежда) не значит крупная.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Что ты предлагаешь для встречи с продавцами?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Конкретное действие, связанное с выводом: например, срок доставки не дольше 5 дней</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ничего не предлагаю, только перечисляю цифры</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Отменить все скидки</span></button></div>
+            <div class="why" hidden>Предложение должно следовать из цифр: долгая доставка втрое повышает возвраты, значит, стоит договориться о сроке.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Дильноза, привет! Главное: деньги делает дорогая электроника, а долгая доставка почти втрое повышает возвраты. Чистая выручка за сентябрь с учётом скидок — 1 358,8 млн сум; 10 самых крупных заказов дают 13,0% этой суммы, и все они — электроника. Возвраты при доставке дольше 5 дней — 14,9% против 5,5–5,9% при быстрой и обычной. Риск: у 14 заказов невозможная скидка (меньше 0 или больше 90%), я ограничил её от 0 до 90, а у 31 заказа нет срока доставки. Для встречи с продавцами предлагаю обсудить срок доставки не дольше 5 дней.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Главный вывод в первом предложении</li><li>Чистая выручка 1 358,8 млн и доля топ-10 — 13,0%</li><li>Возвраты по скорости доставки: 14,9% против 5,5–5,9%</li><li>Назван риск: странные скидки или пропуски в доставке</li><li>Есть конкретное предложение для встречи</li><li>Не больше 6 предложений</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 3</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/02-vybor-dannyh-loc-iloc/"><small>← Урок 2</small><b>Выбор данных: колонки, loc / iloc, фильтры</b></a><a class="nx" href="../../lessons/04-tipy-dannyh/"><small>Урок 4 →</small><b>Типы данных: числа, строки, категории, память</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0414\u043e\u043b\u044f \u0442\u043e\u043f-10 \u0432 \u0447\u0438\u0441\u0442\u043e\u0439 \u0432\u044b\u0440\u0443\u0447\u043a\u0435", "pct": true, "value": 13.0}, {"name": "\u0412\u043e\u0437\u0432\u0440\u0430\u0442\u044b \u043f\u0440\u0438 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0435 \u0434\u043e\u043b\u044c\u0448\u0435 5 \u0434\u043d\u0435\u0439", "pct": true, "value": 14.9}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0441 \u043d\u0435\u0432\u043e\u0437\u043c\u043e\u0436\u043d\u043e\u0439 \u0441\u043a\u0438\u0434\u043a\u043e\u0439", "value": 14}], "logic": [{"a": 0, "o": ["\u041f\u0440\u0438 \u0434\u043e\u043b\u0433\u043e\u0439 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0435 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u044e\u0442 \u043d\u0430\u043c\u043d\u043e\u0433\u043e \u0447\u0430\u0449\u0435: \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u0432\u0442\u0440\u043e\u0435", "\u0421\u043a\u043e\u0440\u043e\u0441\u0442\u044c \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438 \u043d\u0430 \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u044b \u043d\u0435 \u0432\u043b\u0438\u044f\u0435\u0442", "\u041f\u0440\u0438 \u0431\u044b\u0441\u0442\u0440\u043e\u0439 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0435 \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u044e\u0442 \u0447\u0430\u0449\u0435"], "q": "\u041a\u0430\u043a \u0432 \u0442\u0432\u043e\u0451\u043c \u043e\u0442\u0432\u0435\u0442\u0435 \u0441\u0432\u044f\u0437\u0430\u043d\u044b \u0441\u043a\u043e\u0440\u043e\u0441\u0442\u044c \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438 \u0438 \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u044b?", "why": "\u0414\u043e\u043b\u044c\u0448\u0435 5 \u0434\u043d\u0435\u0439 \u2014 14,9% \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u043e\u0432, \u043f\u0440\u0438 \u0431\u044b\u0441\u0442\u0440\u043e\u0439 \u0438 \u043e\u0431\u044b\u0447\u043d\u043e\u0439 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0435 \u2014 5,5\u20135,9%."}, {"a": 0, "o": ["\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430: \u0432\u0441\u0435 10 \u043a\u0440\u0443\u043f\u043d\u0435\u0439\u0448\u0438\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u2014 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430", "\u041e\u0434\u0435\u0436\u0434\u0430, \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0435\u0451 \u0437\u0430\u043a\u0430\u0437\u044b\u0432\u0430\u044e\u0442 \u0447\u0430\u0449\u0435 \u0432\u0441\u0435\u0433\u043e", "\u041a\u0440\u0443\u043f\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u044b \u0440\u0430\u0441\u043f\u0440\u0435\u0434\u0435\u043b\u0435\u043d\u044b \u043f\u043e \u0432\u0441\u0435\u043c \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u043c \u043f\u043e\u0440\u043e\u0432\u043d\u0443"], "q": "\u041a\u0442\u043e, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0434\u0430\u0451\u0442 \u0441\u0430\u043c\u044b\u0435 \u043a\u0440\u0443\u043f\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u044b?", "why": "\u0412\u0441\u0435 10 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0441 \u0441\u0430\u043c\u043e\u0439 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u0447\u0438\u0441\u0442\u043e\u0439 \u0432\u044b\u0440\u0443\u0447\u043a\u043e\u0439 \u2014 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430. \u0427\u0430\u0441\u0442\u0430\u044f \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f (\u043e\u0434\u0435\u0436\u0434\u0430) \u043d\u0435 \u0437\u043d\u0430\u0447\u0438\u0442 \u043a\u0440\u0443\u043f\u043d\u0430\u044f."}, {"a": 0, "o": ["\u041a\u043e\u043d\u043a\u0440\u0435\u0442\u043d\u043e\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0435, \u0441\u0432\u044f\u0437\u0430\u043d\u043d\u043e\u0435 \u0441 \u0432\u044b\u0432\u043e\u0434\u043e\u043c: \u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440, \u0441\u0440\u043e\u043a \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438 \u043d\u0435 \u0434\u043e\u043b\u044c\u0448\u0435 5 \u0434\u043d\u0435\u0439", "\u041d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e, \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u0435\u0440\u0435\u0447\u0438\u0441\u043b\u044f\u044e \u0446\u0438\u0444\u0440\u044b", "\u041e\u0442\u043c\u0435\u043d\u0438\u0442\u044c \u0432\u0441\u0435 \u0441\u043a\u0438\u0434\u043a\u0438"], "q": "\u0427\u0442\u043e \u0442\u044b \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u0435\u0448\u044c \u0434\u043b\u044f \u0432\u0441\u0442\u0440\u0435\u0447\u0438 \u0441 \u043f\u0440\u043e\u0434\u0430\u0432\u0446\u0430\u043c\u0438?", "why": "\u041f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0434\u043e\u043b\u0436\u043d\u043e \u0441\u043b\u0435\u0434\u043e\u0432\u0430\u0442\u044c \u0438\u0437 \u0446\u0438\u0444\u0440: \u0434\u043e\u043b\u0433\u0430\u044f \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430 \u0432\u0442\u0440\u043e\u0435 \u043f\u043e\u0432\u044b\u0448\u0430\u0435\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u044b, \u0437\u043d\u0430\u0447\u0438\u0442, \u0441\u0442\u043e\u0438\u0442 \u0434\u043e\u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c\u0441\u044f \u043e \u0441\u0440\u043e\u043a\u0435."}]}, "case_model": "\u0414\u0438\u043b\u044c\u043d\u043e\u0437\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u0413\u043b\u0430\u0432\u043d\u043e\u0435: \u0434\u0435\u043d\u044c\u0433\u0438 \u0434\u0435\u043b\u0430\u0435\u0442 \u0434\u043e\u0440\u043e\u0433\u0430\u044f \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430, \u0430 \u0434\u043e\u043b\u0433\u0430\u044f \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430 \u043f\u043e\u0447\u0442\u0438 \u0432\u0442\u0440\u043e\u0435 \u043f\u043e\u0432\u044b\u0448\u0430\u0435\u0442 \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u044b. \u0427\u0438\u0441\u0442\u0430\u044f \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0437\u0430 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c \u0441 \u0443\u0447\u0451\u0442\u043e\u043c \u0441\u043a\u0438\u0434\u043e\u043a \u2014 1 358,8 \u043c\u043b\u043d \u0441\u0443\u043c; 10 \u0441\u0430\u043c\u044b\u0445 \u043a\u0440\u0443\u043f\u043d\u044b\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0434\u0430\u044e\u0442 13,0% \u044d\u0442\u043e\u0439 \u0441\u0443\u043c\u043c\u044b, \u0438 \u0432\u0441\u0435 \u043e\u043d\u0438 \u2014 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430. \u0412\u043e\u0437\u0432\u0440\u0430\u0442\u044b \u043f\u0440\u0438 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0435 \u0434\u043e\u043b\u044c\u0448\u0435 5 \u0434\u043d\u0435\u0439 \u2014 14,9% \u043f\u0440\u043e\u0442\u0438\u0432 5,5\u20135,9% \u043f\u0440\u0438 \u0431\u044b\u0441\u0442\u0440\u043e\u0439 \u0438 \u043e\u0431\u044b\u0447\u043d\u043e\u0439. \u0420\u0438\u0441\u043a: \u0443 14 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0435\u0432\u043e\u0437\u043c\u043e\u0436\u043d\u0430\u044f \u0441\u043a\u0438\u0434\u043a\u0430 (\u043c\u0435\u043d\u044c\u0448\u0435 0 \u0438\u043b\u0438 \u0431\u043e\u043b\u044c\u0448\u0435 90%), \u044f \u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0438\u043b \u0435\u0451 \u043e\u0442 0 \u0434\u043e 90, \u0430 \u0443 31 \u0437\u0430\u043a\u0430\u0437\u0430 \u043d\u0435\u0442 \u0441\u0440\u043e\u043a\u0430 \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438. \u0414\u043b\u044f \u0432\u0441\u0442\u0440\u0435\u0447\u0438 \u0441 \u043f\u0440\u043e\u0434\u0430\u0432\u0446\u0430\u043c\u0438 \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u043e\u0431\u0441\u0443\u0434\u0438\u0442\u044c \u0441\u0440\u043e\u043a \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438 \u043d\u0435 \u0434\u043e\u043b\u044c\u0448\u0435 5 \u0434\u043d\u0435\u0439.", "case_xp": 30, "cheat": [["df[\"new\"] = df[\"a\"] * df[\"b\"]", "\u043d\u043e\u0432\u0430\u044f \u043a\u043e\u043b\u043e\u043d\u043a\u0430 \u0432 df"], ["df = df.assign(new=df[\"a\"] * df[\"b\"])", "\u0442\u043e \u0436\u0435, \u043d\u043e \u0446\u0435\u043f\u043e\u0447\u043a\u043e\u0439; \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0439 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442"], ["np.where(\u0443\u0441\u043b, \"\u0434\u0430\", \"\u043d\u0435\u0442\")", "CASE WHEN \u2026 ELSE"], ["np.select([\u0443\u0441\u043b1, \u0443\u0441\u043b2], [\"A\", \"B\"], default=\"C\")", "\u043c\u043d\u043e\u0433\u043e WHEN, \u043e\u0442 \u0443\u0437\u043a\u043e\u0433\u043e \u043a \u0448\u0438\u0440\u043e\u043a\u043e\u043c\u0443"], ["df.sort_values([\"a\", \"b\"], ascending=[True, False])", "ORDER BY a, b DESC"], ["df.nlargest(10, \"x\") / df.nsmallest(10, \"x\")", "\u0442\u043e\u043f \u0431\u0435\u0437 \u0441\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0438 \u0440\u0443\u043a\u0430\u043c\u0438"], ["df[\"x\"].clip(0, 90)", "\u0437\u0430\u0436\u0430\u0442\u044c \u0432 \u0433\u0440\u0430\u043d\u0438\u0446\u044b, \u0441\u0442\u0440\u043e\u043a\u0438 \u043d\u0435 \u0443\u0434\u0430\u043b\u044f\u044e\u0442\u0441\u044f"], ["df[\"x\"].value_counts(normalize=True).mul(100).round(1)", "\u0434\u043e\u043b\u0438 \u0432 %"]], "data": "../../data/", "datasets": ["bozor_orders.csv"], "day": 3, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"bozor_orders.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["(1200, 11)", "1646483000", "12"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["400815", "401052", "400169", "400218", "400879", "27344000", "True"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["865", "853", "335", "\u043d\u0435\u0442 \u0446\u0435\u043d\u044b 12"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["14", "17.8", "17.5"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["\u043d\u043e\u0440\u043c\u0430 437", "\u0434\u043e\u043b\u0433\u043e 404", "\u0431\u044b\u0441\u0442\u0440\u043e 328", "\u043d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445 31", "\u0431\u044b\u0441\u0442\u0440\u043e 5.5", "\u043d\u043e\u0440\u043c\u0430 5.9", "\u0434\u043e\u043b\u0433\u043e 14.9"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["401150", "400364", "400561", "\u041e\u0434\u0435\u0436\u0434\u0430 23.5", "\u0414\u0435\u0442\u044f\u043c 12.2"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["top10_net 176978250", "share_of_net_% 13.0", "electronics 10", "returned 2", "avg_discount 13.0"], "setup": "", "xp": 25}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

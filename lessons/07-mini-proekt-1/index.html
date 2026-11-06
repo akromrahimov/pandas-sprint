@@ -1,0 +1,916 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Проект 7. Мини-проект 1: грязная выгрузка → чистый датасет — Pandas Sprint</title>
+<meta name="description" content="Проект 7 курса Pandas Sprint — Мини-проект 1: грязная выгрузка → чистый датасет. Собрать всё за неделю в один конвейер очистки и отчёт о качестве данных.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/07-mini-proekt-1/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Проект 7. Мини-проект 1: грязная выгрузка → чистый датасет — Pandas Sprint">
+<meta property="og:description" content="Проект 7 курса Pandas Sprint — Мини-проект 1: грязная выгрузка → чистый датасет. Собрать всё за неделю в один конвейер очистки и отчёт о качестве данных.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/07-mini-proekt-1/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="7">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>Чек-лист чистки</a></li><li><a href="#tools"><span class="dot">✓</span>6 шагов</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 240 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Чистка = одна CTE, в которой каждая строка — шаг</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В SQL ты бы написал WITH clean AS (SELECT DISTINCT … TRIM(LOWER(…)) …) . В pandas то же самое — цепочка: clean.assign(...).drop(...).astype(...) . Каждая точка — следующий шаг, как следующая строка в SELECT.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT COUNT(*) - COUNT(DISTINCT *)</code></td><td><code>df.duplicated().sum()</code></td><td>2. сколько дублей</td></tr><tr><td><code>SELECT DISTINCT *</code></td><td><code>df.drop_duplicates()</code></td><td>2. убрать дубли</td></tr><tr><td><code>LOWER(TRIM(status))</code></td><td><code>s.str.strip().str.lower()</code></td><td>3. текст</td></tr><tr><td><code>CASE city WHEN &#39;Tashkent&#39; THEN &#39;ташкент&#39; END</code></td><td><code>s.replace({&#34;tashkent&#34;: &#34;ташкент&#34;})</code></td><td>3. латиница → кириллица</td></tr><tr><td><code>REPLACE(dist, &#39;,&#39;, &#39;.&#39;)::numeric</code></td><td><code>pd.to_numeric(s.str.replace(&#34;,&#34;, &#34;.&#34;), errors=&#34;coerce&#34;)</code></td><td>4. число</td></tr><tr><td><code>NULLIF(rating, 0)</code></td><td><code>s.replace(0, np.nan)</code></td><td>5. фальшивый ноль → NULL</td></tr><tr><td><code>CASE WHEN status=&#39;completed&#39; THEN fare END</code></td><td><code>fare.where(status == &#34;completed&#34;)</code></td><td>5. оставить, где условие, иначе NULL</td></tr><tr><td><code>AVG(CASE WHEN status=&#39;cancelled&#39; THEN 1.0 ELSE 0 END)*100</code></td><td><code>(status == &#34;cancelled&#34;).mean() * 100</code></td><td>7. доля в %</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Ловушка из SQL.</b> <code class="i">AVG(rating)</code> в SQL пропускает NULL, но не пропускает 0. В pandas так же: <code class="i">mean()</code> пропускает NaN, но 0 считает настоящей оценкой. Поэтому <code class="i">NULLIF(rating, 0)</code> → <code class="i">replace(0, np.nan)</code> — до среднего, а не после.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Проект 7 из 30 · Неделя 1 · Фундамент</div>
+      <h1>Мини-проект: <mark>грязная выгрузка</mark> → чистый датасет</h1>
+      <p class="lead">Сегодня нет новой функции. Сегодня ты собираешь всё, что было в уроках 1–6, в один порядок действий: посмотреть → убрать дубли → почистить текст → сделать числа → честно обработать пропуски → собрать чистую таблицу → посчитать 5 цифр для бизнеса. Так выглядит первые 2 часа любой реальной задачи аналитика.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Руководитель операций такси TezYol собирается показать инвесторам цифры из Excel: 2 050 поездок, 9.6% отмен, рейтинг водителей 3.08. Все три числа неверные. Почистить выгрузку, собрать таблицу trips и дать ему 5 правильных цифр с объяснением, почему Excel ошибся.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Пройти чек-лист чистки из 7 шагов на любой новой выгрузке</li><li>Найти и убрать дубли: <code class="i">duplicated().sum()</code>, <code class="i">drop_duplicates()</code>, <code class="i">is_unique</code></li><li>Сделать число из текста: <code class="i">str.replace</code> + <code class="i">pd.to_numeric(errors="coerce")</code></li><li>Понять, где 0 — это «нет данных», и заменить на NaN: <code class="i">replace(0, np.nan)</code>, <code class="i">where</code></li><li>Собрать чистую таблицу цепочкой: <code class="i">assign → drop → astype</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>«Рейтинг водителей 3.08 — инвесторы испугаются»</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Б</span>Бахтиёр <small>руководитель операций TezYol Taxi · 08:15</small></div>
+          <p>Привет! Выгрузил поездки за неделю 05–11.10 из диспетчерской. В Excel получилось: <b>2 050 поездок</b>, отмен всего <b>9.6%</b> (рынок ~15%, мы молодцы), но средний рейтинг водителей <b>3.08 из 5</b>. Это провал, хочу урезать бонусы водителям.</p>
+<div class="file">▤ tezyol_trips.csv · 2 050 строк</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Б</span>Бахтиёр <small>08:17</small></div>
+          <p>В среду встреча с инвестором. Нужны: сколько поездок, % отмен, типичный чек, рейтинг и доля Ташкента. И чистый файл, чтобы финансы больше не мучились. Цены у нас текстом, расстояние с запятой, города как попало. Успеешь до вторника?</p>
+        </div>
+      </div>
+      <p class="note">TezYol — учебное такси. Данные сгенерированы, но грязные как настоящие: экспорт задвоил часть строк, статус пишут <b>«completed»</b>, <b>«Completed»</b>, <b>«COMPLETED»</b> и с пробелом в конце, город — на кириллице и латинице, с «г.» и пробелами, расстояние <b>«9,4 км»</b>, цена <b>«17 000 сум»</b>, <b>«14.000»</b>, <b>«UZS 32000»</b>, а рейтинг <b>0</b> значит «пассажир не поставил оценку». Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/tezyol_trips.csv" download>Скачать tezyol_trips.csv</a><span class="note">2 050 строк · 150 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;tezyol_trips.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Чек-лист чистки: 7 шагов в одном порядке</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь, что мама принесла с рынка пакет овощей и просит сварить суп. Ты не кидаешь всё в кастрюлю сразу. Сначала <b>смотришь</b>, что в пакете. Убираешь <b>то, что попало дважды</b> (два одинаковых чека). <b>Моешь</b> (текст: пробелы, большие буквы). <b>Режешь</b> одинаково (числа из текста). Выкидываешь <b>гнилое</b> (невозможные значения). И только потом <b>варишь</b> — считаешь цифры. Перепутаешь порядок — суп испорчен.</p>
+<ul>
+<li><b>1. Посмотреть</b> — <code class="i">shape</code>, <code class="i">info()</code>, <code class="i">head()</code>, <code class="i">value_counts()</code> (урок 1). Что за колонки, какого типа, где грязь.</li>
+<li><b>2. Дубли</b> — <code class="i">duplicated().sum()</code> и <code class="i">drop_duplicates()</code> (урок 5). <b>Дубль</b> — строка, которая полностью повторяет другую. Убираем <b>первыми</b>: иначе все проценты считаются по завышенному числу строк.</li>
+<li><b>3. Текст</b> — <code class="i">str.strip().str.lower()</code>, <code class="i">replace(словарь)</code> (урок 6). Чтобы «ТАШКЕНТ» и «Tashkent» стали одним городом.</li>
+<li><b>4. Числа</b> — <code class="i">pd.to_numeric(..., errors="coerce")</code> (урок 4). Перед ним убираем из текста всё лишнее: пробелы, «сум», «км», меняем запятую на точку.</li>
+<li><b>5. Пропуски и «фальшивые нули»</b> — <code class="i">replace(0, np.nan)</code>, <code class="i">where</code> (урок 5). <b>Фальшивый ноль</b> — когда 0 значит «не знаем», а не «ноль». Его меняем на NaN, чтобы среднее не врало.</li>
+<li><b>6. Невозможные значения</b> — маска <code class="i">(x &lt;= 0) | (x &gt; 100)</code> (урок 2). Поездка на 1 250 км по городу — ошибка GPS, а не поездка.</li>
+<li><b>7. Собрать и проверить</b> — <code class="i">assign → drop → astype</code> (уроки 3–4), потом 5 цифр для бизнеса.</li>
+</ul>
+<p>Главная мысль дня: <b>каждая цифра в отчёте зависит от чистки до неё</b>. В Excel Бахтиёр пропустил шаги 2, 3 и 5 — поэтому все три его числа неверные.</p>
+</div>
+<p>Настоящие строки файла. Розовым — то, что ломает подсчёт.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">Index</th><th>trip_id<span class="dt">int64</span></th><th>city<span class="dt">str</span></th><th>tariff<span class="dt">str</span></th><th>status<span class="dt">str</span></th><th class="ser">distance_km<span class="dt">str — не число!</span></th><th class="ser">fare_raw<span class="dt">str — не число!</span></th><th>rating<span class="dt">int64</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">1</td><td>500002</td><td>Самарканд</td><td>Эконом</td><td>completed</td><td class="ser">4.5</td><td class="ser nan">14.000</td><td>5</td></tr>
+<tr><td class="idx">2</td><td class="nan">500003</td><td>Ташкент</td><td>Комфорт</td><td class="nan">Completed</td><td class="ser nan">3,2</td><td class="ser">17 000 сум</td><td>4</td></tr>
+<tr><td class="idx">3</td><td class="nan">500003</td><td>Ташкент</td><td>Комфорт</td><td class="nan">Completed</td><td class="ser nan">3,2</td><td class="ser">17 000 сум</td><td>4</td></tr>
+<tr><td class="idx">4</td><td>500004</td><td class="nan">ТАШКЕНТ</td><td class="nan">comfort</td><td>completed</td><td class="ser nan">3,2 км</td><td class="ser">17000</td><td>4</td></tr>
+<tr><td class="idx">5</td><td>500005</td><td class="nan">г. Ташкент</td><td class="nan">комфорт</td><td>completed</td><td class="ser nan">8,6</td><td class="ser">30500</td><td>5</td></tr>
+<tr><td class="idx">7</td><td>500007</td><td>Бухара</td><td>эконом</td><td>cancelled</td><td class="ser">9,1</td><td class="ser nan">NaN</td><td class="nan">0</td></tr>
+</tbody>
+</table>
+</div>
+<div class="legend">
+<div><b>Строки 2 и 3</b>Одна поездка 500003 записана дважды — экспорт задвоил. Дубль.</div>
+<div><b>«14.000» и «3,2 км»</b>Это 14 000 сум и 3.2 км. Компьютер видит текст, а «14.000» прочитал бы как 14.0.</div>
+<div><b>rating = 0</b>Оценки нет (поездку отменили или пассажир не оценил). Это не «ноль звёзд».</div>
+</div>
+<div class="simple"><span class="tag">История с маленькими числами</span>
+<p>Пять поездок. Пассажиры поставили 5, 5, 4, а ещё двое ничего не поставили — в файле у них <b>0</b>. Excel считает среднее так: (5 + 5 + 4 + 0 + 0) / 5 = <b>2.8</b>. Звучит ужасно. Честно: (5 + 5 + 4) / 3 = <b>4.67</b>. Нули — это «не знаем», их нельзя делить вместе с оценками. Если заменить 0 на NaN, <code class="i">mean()</code> сам пропустит пустые места.</p>
+<div aria-label="Пять оценок: 5, 5, 4 и два нуля" class="story">
+<span class="rich" style="height:100%"></span><span class="rich" style="height:100%"></span><span class="rich" style="height:80%"></span><span style="height:4%"></span><span style="height:4%"></span>
+<span style="height:0;background:none"></span>
+<span style="height:56%"></span><span style="height:0;background:none"></span><span class="rich" style="height:93%"></span><span style="height:0;background:none"></span>
+</div>
+<div class="story-lab"><span>оценки: 5 5 4 0 0</span><span>с нулями 2.8 · без нулей 4.67</span></div>
+<pre class="code solo" data-cm="">r = pd.Series([5, 5, 4, 0, 0])
+print(r.mean(), round(r.replace(0, np.nan).mean(), 2))   # 2.8 4.67</pre>
+<p>У Бахтиёра то же самое, только масштаб больше: <b>3.08</b> против настоящих <b>4.71</b>. Он чуть не урезал бонусы хорошим водителям из-за пустых ячеек.</p>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Шесть шагов на настоящем файле</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">df.duplicated()</code> — для каждой строки отвечает True, если <b>точно такая же</b> строка уже была выше. <code class="i">.sum()</code> считает True = сколько лишних копий.</li>
+<li><code class="i">clean["trip_id"].is_unique</code> — без скобок: это не метод, а <b>свойство</b> («вопрос с ответом»). True — каждый номер встречается один раз.</li>
+<li><code class="i">s.replace(0, np.nan)</code> — БЕЗ <b>.str</b>: меняет значение ячейки целиком. Первое в скобках — что ищем, второе — на что меняем. <b>np.nan</b> — «пусто» из библиотеки numpy (поэтому нужен <code class="i">import numpy as np</code>).</li>
+<li><code class="i">fare.where(status == "completed")</code> — «оставь значение, <b>где</b> условие True, а в остальных местах поставь NaN». Как <code class="i">CASE WHEN … THEN fare END</code>.</li>
+<li><code class="i">(clean.assign(status=status, fare=fare).drop(columns="fare_raw"))</code> — круглые скобки вокруг всей цепочки разрешают переносить строки. <b>assign</b> добавляет/заменяет колонки (имя слева от =, значения справа), <b>drop(columns=...)</b> убирает колонку.</li>
+<li><code class="i">.astype({"status": "category"})</code> — словарь «колонка: тип». <b>category</b> — тип для колонок с несколькими повторяющимися значениями: меньше памяти (урок 4).</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле TezYol. Твои цифры должны совпасть.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. Цифры «как в Excel» — без чистки.</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+df = pd.read_csv("tezyol_trips.csv")
+print(len(df))
+print(round((df["status"] == "cancelled").mean() * 100, 1))
+print(round(df["rating"].mean(), 2))</pre><div class="out">2050
+9.6
+3.08</div><p class="plain"><b>Простыми словами:</b> ровно те числа, что у Бахтиёра. Код правильный, а ответ — нет: данные грязные. <b>2 050</b> строк включает дубли, <b>9.6%</b> считает только «cancelled» маленькими буквами без пробелов, <b>3.08</b> делит нули вместе с оценками. Дальше чиним по одному.</p></div>
+<div class="card"><div class="q"><b>2. Дубли: одинаковые строки.</b></div>
+<pre class="code" data-cm="">print(df.duplicated().sum())
+clean = df.drop_duplicates()
+print(clean.shape, clean["trip_id"].is_unique)</pre><div class="out">50
+(2000, 9) True</div><p class="plain"><b>Простыми словами:</b> 50 поездок экспорт записал дважды. После <code class="i">drop_duplicates</code> осталось <b>2 000</b>, и каждый trip_id встречается один раз (<b>True</b>). Дальше работаем только с <code class="i">clean</code>.</p></div>
+<div class="card"><div class="q"><b>3. Статус — strip + lower.</b></div>
+<pre class="code" data-cm="">status = clean["status"].str.strip().str.lower()
+print(status.value_counts())
+print(round((status == "cancelled").mean() * 100, 1))</pre><div class="out">status
+completed    1724
+cancelled     276
+Name: count, dtype: int64
+13.8</div><p class="plain"><b>Простыми словами:</b> было 8 «разных» статусов («Cancelled», «CANCELLED», «cancelled » с пробелом…), стало 2. Отмен на самом деле <b>13.8%</b>, а не 9.6%. Не «лучше рынка», а почти как рынок. Доля — через <code class="i">.mean() * 100</code> от маски True/False.</p></div>
+<div class="card"><div class="q"><b>4. Цена: число из текста.</b></div>
+<pre class="code" data-cm="">direct = pd.to_numeric(clean["fare_raw"], errors="coerce")
+fare = pd.to_numeric(clean["fare_raw"].str.replace(r"\D", "", regex=True),
+                     errors="coerce")
+print(direct.notna().sum(), fare.notna().sum())
+print(clean["fare_raw"].head(4).tolist())</pre><div class="out">1141 1899
+['23000', '14.000', '17 000 сум', '17000']</div><p class="plain"><b>Простыми словами:</b> если сразу звать <code class="i">to_numeric</code>, он молча превратит в NaN всё с пробелами и «сум» — останется <b>1 141</b> цена, а «14.000» станет <b>14.0</b> сум. После «выкинуть всё, что не цифра» — <b>1 899</b> цен. Остальные 101 — пустые у отменённых поездок.</p></div>
+<div class="card"><div class="q"><b>5. Рейтинг: фальшивый ноль → NaN.</b></div>
+<pre class="code" data-cm="">import numpy as np
+rating = clean["rating"].replace(0, np.nan)
+print(round(clean["rating"].mean(), 2), round(rating.mean(), 2))
+print(rating.isna().sum())</pre><div class="out">3.08 4.71
+691</div><p class="plain"><b>Простыми словами:</b> в 691 поездке оценки нет. Пока они были нулями, среднее было <b>3.08</b>. Без них — <b>4.71</b>: водители работают хорошо. Резать бонусы по 3.08 — решение на основе пустых ячеек.</p></div>
+<div class="card"><div class="q"><b>6. Собрать чистую таблицу цепочкой.</b></div>
+<pre class="code" data-cm="">trips = (clean
+         .assign(status=status, fare=fare, rating=rating)
+         .drop(columns="fare_raw")
+         .astype({"status": "category"}))
+print(trips.shape)
+print(df.memory_usage(deep=True).sum(), trips.memory_usage(deep=True).sum())</pre><div class="out">(2000, 9)
+1009817 785641</div><p class="plain"><b>Простыми словами:</b> добавили чистые <code class="i">status</code>, <code class="i">fare</code>, <code class="i">rating</code>, убрали сырую <code class="i">fare_raw</code> — колонок снова 9. Статус стал category, и таблица уже на 22% легче. В задаче 7 ты почистишь и город, тариф, расстояние — станет ещё меньше.</p></div>
+</div>
+<div class="callout"><b>Правило аналитика.</b> Перед любой цифрой для руководителя задай три вопроса: «нет ли дублей?», «одинаково ли написан текст?», «что значит 0 и пусто в этой колонке?». Ответ «не проверял» = цифра не готова.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Сначала метрики, потом дубли</h3><div class="bad">share = (df[&#34;status&#34;] == &#34;cancelled&#34;).mean()   # по 2050 строкам с дублями</div><div class="good">clean = df.drop_duplicates()   # потом всё считаем по clean</div><p>Дубли убирают первыми. Иначе каждая доля и каждое среднее чуть-чуть врут.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Запятая в числе</h3><div class="bad">pd.to_numeric(&#34;3,2 км&#34;, errors=&#34;coerce&#34;)   # NaN — молча</div><div class="good">pd.to_numeric(s.str.replace(&#34;,&#34;, &#34;.&#34;, regex=False).str.replace(r&#34;[^\d.\-]&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)</div><p>pandas понимает только точку как десятичный знак. Запятую меняем на точку, буквы убираем.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Ноль вместо «нет данных»</h3><div class="bad">df[&#34;rating&#34;].mean()   # 3.08 — нули считаются оценками</div><div class="good">df[&#34;rating&#34;].replace(0, np.nan).mean()   # 4.71</div><p>Спроси: «0 — это правда ноль?» Рейтинг 0 из 5 невозможен — значит, это пусто.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Цена отменённой поездки</h3><div class="bad">fare.median()   # 175 нулей у отмен тянут медиану вниз</div><div class="good">fare.where(status == &#34;completed&#34;).median()   # 21500.0</div><p>Чек считаем только по выполненным поездкам. Отмена — это не поездка за 0 сум.</p></div>
+        <div class="trap"><span class="n">5</span><h3>assign без сохранения</h3><div class="bad">clean.assign(status=status)   # результат никуда не сохранён</div><div class="good">trips = clean.assign(status=status)</div><p>assign не меняет таблицу «на месте», а возвращает новую. Не сохранил в переменную — работы нет.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: чек-лист в 8 строках</h3>
+        <ol><li>df.shape; df.info(); df[&#34;col&#34;].value_counts() <span>— посмотреть</span></li><li>df.duplicated().sum(); clean = df.drop_duplicates() <span>— дубли</span></li><li>s.str.strip().str.lower().replace({&#34;tashkent&#34;: &#34;ташкент&#34;}) <span>— текст</span></li><li>pd.to_numeric(s.str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;) <span>— целое число из текста</span></li><li>s.str.replace(&#34;,&#34;, &#34;.&#34;, regex=False) <span>— запятая → точка перед to_numeric</span></li><li>s.replace(0, np.nan) <span>— фальшивый ноль → пусто (NULLIF)</span></li><li>x.where(~bad) / x.where(status == &#34;completed&#34;) <span>— оставить, где условие, иначе NaN</span></li><li>(clean.assign(...).drop(columns=...).astype({...})) <span>— собрать чистую таблицу</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="0">
+          <p>1. Почему дубли убирают <b>первым</b> шагом, до всех процентов?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Иначе каждая доля и среднее считаются по завышенному числу строк</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>drop_duplicates работает только на сырых данных</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>После чистки текста дубли исчезают сами</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Так быстрее работает компьютер</span></button></div>
+          <div class="why" hidden>Задвоенная поездка учитывается дважды в каждой цифре. Сначала DISTINCT, потом метрики.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="2">
+          <p>2. Что вернёт <code>pd.to_numeric(pd.Series(["3,2 км"]), errors="coerce")</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>3.2</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>32</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>NaN — без ошибки</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибку ValueError</span></button></div>
+          <div class="why" hidden>coerce не падает, а тихо ставит NaN. Запятую и «км» нужно убрать до to_numeric.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Рейтинги: 5, 4, 0, 0 (0 = нет оценки). Какое честное среднее?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>2.25</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>4.5</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>4.0</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>0</span></button></div>
+          <div class="why" hidden>replace(0, np.nan) → mean() пропускает NaN: (5 + 4) / 2 = 4.5. С нулями было бы 2.25.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Что делает <code>fare.where(status == "completed")</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удаляет строки отмен</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Оставляет fare там, где completed, а остальные ставит NaN</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Возвращает только True/False</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Заменяет fare на 0 у отмен</span></button></div>
+          <div class="why" hidden>where = CASE WHEN условие THEN fare END. Длина Series не меняется, отмены становятся NaN.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Ты написал <code>clean.assign(status=status)</code> и дальше считаешь по <code>clean</code>. Что не так?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничего, assign меняет clean</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>assign вернул новую таблицу, а clean остался старым</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>assign работает только с числами</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нужно inplace=True</span></button></div>
+          <div class="why" hidden>assign не меняет таблицу на месте. Сохраняй: trips = clean.assign(...).</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 190 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько поездок на самом деле</h3>
+            <ol class='steps-t'><li>Выведи <code class='i'>df.shape</code>.</li><li>Выведи, сколько полных дублей: <code class='i'>duplicated().sum()</code>.</li><li>Сохрани таблицу без дублей в <code class='i'>clean</code> и выведи её shape.</li><li>Выведи, уникален ли trip_id в clean (<code class='i'>is_unique</code>).</li></ol><p class='rule-t'>4 строки вывода. clean нужна во всех следующих задачах.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 07 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># 1. размер
+
+# 2. дубли
+
+# 3. clean
+clean =
+
+# 4. trip_id уникален?
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(2050, 9)
+50
+(2000, 9)
+True</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. размер
+
+# 2. дубли
+
+# 3. clean
+clean =
+
+# 4. trip_id уникален?
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Четыре коротких шага, каждый ты уже делал: размер таблицы, сколько полных копий, таблица без копий и проверка, что номер поездки больше не повторяется.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.duplicated().sum()</code> — сколько копий, <code class="i">df.drop_duplicates()</code> — без копий. <code class="i">колонка.is_unique</code> — True, если все значения разные (это свойство, без скобок).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df.___)
+print(df.___().sum())
+clean = df.___()
+print(clean.shape)
+print(clean[&#34;___&#34;].is_unique)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">is_unique()</code> со скобками даст ошибку: это свойство, как shape.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Четыре города вместо двадцати четырёх</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>city</code> колонку city из clean: strip → lower → убрать «г. » → латиницу заменить словарём.</li><li>В одну строку выведи nunique() до и после.</li><li>Выведи <code class='i'>city.value_counts()</code>.</li></ol><p class='rule-t'>Словарь latin: tashkent, samarkand, bukhara, fergana → кириллица.</p>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Сколько поездок на самом деле» —
+print(df.shape)
+print(df.duplicated().sum())
+clean = df.drop_duplicates()
+print(clean.shape)
+print(clean[&#34;trip_id&#34;].is_unique)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 07 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;,
+         &#34;bukhara&#34;: &#34;бухара&#34;, &#34;fergana&#34;: &#34;фергана&#34;}
+# 1. чистый город
+city =
+
+# 2. до и после
+
+# 3. сколько поездок по городам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">24 4
+city
+ташкент      1164
+самарканд     356
+фергана       245
+бухара        235
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;,
+         &#34;bukhara&#34;: &#34;бухара&#34;, &#34;fergana&#34;: &#34;фергана&#34;}
+# 1. чистый город
+city =
+
+# 2. до и после
+
+# 3. сколько поездок по городам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Это чистка города из урока 6, только данные другие: пробелы, регистр, приписка «г. » и латиница. Работай с колонкой из <code class="i">clean</code>, а не из сырого df.</p>
+<p><b>Чем это сделать.</b> Цепочка: <code class="i">.str.strip()</code> → <code class="i">.str.lower()</code> → <code class="i">.str.replace("г. ", "", regex=False)</code> → <code class="i">.replace(latin)</code> (замена целых значений по словарю).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>city = (clean[&#34;city&#34;].str.___().str.___()
+        .str.replace(&#34;___&#34;, &#34;&#34;, regex=False)
+        .replace(___))
+print(clean[&#34;city&#34;].nunique(), city.___())
+print(city.value_counts())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Порядок важен: сначала lower, потом словарь. Иначе «Tashkent» с большой буквы не найдётся в словаре.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько на самом деле отмен</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>status</code> чистый статус (strip + lower) из clean.</li><li>Выведи status.value_counts().</li><li>Сохрани маску <code class='i'>cancelled</code> и выведи долю отмен в % (1 знак).</li><li>Выведи долю «как в Excel»: по сырому clean['status'] == 'cancelled'.</li></ol><p class='rule-t'>Доля = маска.mean() * 100. Не через shape/len.</p>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Сколько поездок на самом деле» —
+print(df.shape)
+print(df.duplicated().sum())
+clean = df.drop_duplicates()
+print(clean.shape)
+print(clean[&#34;trip_id&#34;].is_unique)
+# — шаг «Четыре города вместо двадцати четырёх» —
+latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;,
+         &#34;bukhara&#34;: &#34;бухара&#34;, &#34;fergana&#34;: &#34;фергана&#34;}
+city = (clean[&#34;city&#34;].str.strip().str.lower()
+        .str.replace(&#34;г. &#34;, &#34;&#34;, regex=False)
+        .replace(latin))
+print(clean[&#34;city&#34;].nunique(), city.nunique())
+print(city.value_counts())</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 07 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3"># 1. чистый статус
+status =
+
+# 2. частоты
+
+# 3. доля отмен, %
+cancelled =
+
+# 4. как считал Excel
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">status
+completed    1724
+cancelled     276
+Name: count, dtype: int64
+13.8
+9.6</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. чистый статус
+status =
+
+# 2. частоты
+
+# 3. доля отмен, %
+cancelled =
+
+# 4. как считал Excel
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Excel считал отмены только там, где слово записано идеально. Почисти статус, сделай маску «отменена» и посчитай долю. Потом посчитай то же по сырому статусу и увидишь, сколько отмен потерял Excel.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.strip().str.lower()</code> — чистый статус. Маска — сравнение <code class="i">status == "cancelled"</code>. Доля в %: <code class="i">маска.mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>status = clean[&#34;status&#34;].str.___().str.___()
+print(status.value_counts())
+cancelled = status == &#34;___&#34;
+print(round(cancelled.___() * 100, 1))
+print(round((clean[&#34;status&#34;] == &#34;cancelled&#34;).mean() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не считай долю через <code class="i">len</code> или shape — задание просит долю через среднее маски.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Типичный чек поездки</h3>
+            <ol class='steps-t'><li>Сделай <code class='i'>fare</code>: из clean['fare_raw'] убрать всё, что не цифра, затем <code class='i'>pd.to_numeric(..., errors="coerce")</code>.</li><li>В одну строку выведи: сколько NaN и сколько нулей в fare.</li><li>Оставь чек только у выполненных поездок: <code class='i'>fare = fare.where(status == "completed")</code>.</li><li>Выведи медиану fare.</li></ol><p class='rule-t'>Нужен status из задачи 3. Медиана, а не среднее: чек — это «типичная» поездка.</p>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Сколько поездок на самом деле» —
+print(df.shape)
+print(df.duplicated().sum())
+clean = df.drop_duplicates()
+print(clean.shape)
+print(clean[&#34;trip_id&#34;].is_unique)
+# — шаг «Четыре города вместо двадцати четырёх» —
+latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;,
+         &#34;bukhara&#34;: &#34;бухара&#34;, &#34;fergana&#34;: &#34;фергана&#34;}
+city = (clean[&#34;city&#34;].str.strip().str.lower()
+        .str.replace(&#34;г. &#34;, &#34;&#34;, regex=False)
+        .replace(latin))
+print(clean[&#34;city&#34;].nunique(), city.nunique())
+print(city.value_counts())
+# — шаг «Сколько на самом деле отмен» —
+status = clean[&#34;status&#34;].str.strip().str.lower()
+print(status.value_counts())
+cancelled = status == &#34;cancelled&#34;
+print(round(cancelled.mean() * 100, 1))
+print(round((clean[&#34;status&#34;] == &#34;cancelled&#34;).mean() * 100, 1))</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 07 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4"># 1. число из текста
+fare =
+
+# 2. NaN и нули
+
+# 3. только выполненные
+
+# 4. медиана
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">101 175
+21500.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. число из текста
+fare =
+
+# 2. NaN и нули
+
+# 3. только выполненные
+
+# 4. медиана
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Цена записана текстом («21 500 сум»). Оставь только цифры и переведи в число. Потом сотри цену у поездок, которые не выполнены: у отменённой поездки чека нет. «Типичный» чек — это медиана.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.replace(r"\D", "", regex=True)</code> + <code class="i">pd.to_numeric(..., errors="coerce")</code>. <code class="i">fare.where(условие)</code> оставляет значения, где условие True, а остальные делает NaN.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>fare = pd.to_numeric(clean[&#34;fare_raw&#34;].str.replace(r&#34;___&#34;, &#34;&#34;, regex=True), errors=&#34;___&#34;)
+print(fare.isna().sum(), (fare == ___).sum())
+fare = fare.where(status == &#34;___&#34;)
+print(fare.___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">where</code> работает «наоборот» от ожиданий: он <b>оставляет</b> то, где условие True, а не удаляет.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="30">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">30 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Расстояние: запятые, «км» и ошибки GPS</h3>
+            <ol class='steps-t'><li>Сделай <code class='i'>dist</code>: запятую → точку, убрать всё, кроме цифр, точки и минуса (<code class='i'>r"[^\\d.\\-]"</code>), затем to_numeric(coerce).</li><li>Маска <code class='i'>bad</code>: расстояние ≤ 0 или > 100 км. Выведи bad.sum().</li><li>Замени невозможные на NaN: <code class='i'>dist = dist.where(~bad)</code>.</li><li>В одну строку выведи медиану (1 знак) и максимум dist.</li></ol><p class='rule-t'>Минус оставляем, чтобы поймать «-3,2» как ошибку, а не превратить в 3.2.</p>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Сколько поездок на самом деле» —
+print(df.shape)
+print(df.duplicated().sum())
+clean = df.drop_duplicates()
+print(clean.shape)
+print(clean[&#34;trip_id&#34;].is_unique)
+# — шаг «Четыре города вместо двадцати четырёх» —
+latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;,
+         &#34;bukhara&#34;: &#34;бухара&#34;, &#34;fergana&#34;: &#34;фергана&#34;}
+city = (clean[&#34;city&#34;].str.strip().str.lower()
+        .str.replace(&#34;г. &#34;, &#34;&#34;, regex=False)
+        .replace(latin))
+print(clean[&#34;city&#34;].nunique(), city.nunique())
+print(city.value_counts())
+# — шаг «Сколько на самом деле отмен» —
+status = clean[&#34;status&#34;].str.strip().str.lower()
+print(status.value_counts())
+cancelled = status == &#34;cancelled&#34;
+print(round(cancelled.mean() * 100, 1))
+print(round((clean[&#34;status&#34;] == &#34;cancelled&#34;).mean() * 100, 1))
+# — шаг «Типичный чек поездки» —
+fare = pd.to_numeric(clean[&#34;fare_raw&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True),
+                     errors=&#34;coerce&#34;)
+print(fare.isna().sum(), (fare == 0).sum())
+fare = fare.where(status == &#34;completed&#34;)
+print(fare.median())</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 07 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5"># 1. число из текста
+dist =
+
+# 2. невозможные значения
+bad =
+
+# 3. убрать их
+
+# 4. медиана и максимум
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">14
+6.8 40.3</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. число из текста
+dist =
+
+# 2. невозможные значения
+bad =
+
+# 3. убрать их
+
+# 4. медиана и максимум
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> В расстоянии бывают запятые вместо точек, «км» и минусы. Сначала замени запятую на точку, потом убери всё, кроме цифр, точки и минуса. Невозможные расстояния (≤ 0 или больше 100 км) — ошибки GPS, их делаем пустыми.</p>
+<p><b>Чем это сделать.</b> <code class="i">r"[^\d.\-]"</code> значит «любой знак, кроме цифры, точки и минуса». Условие «или» — знак <code class="i">|</code>. <code class="i">dist.where(~bad)</code> — оставить только хорошие значения (<code class="i">~</code> значит «не»).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>dist = pd.to_numeric(clean[&#34;distance_km&#34;]
+                     .str.replace(&#34;,&#34;, &#34;___&#34;, regex=False)
+                     .str.replace(r&#34;[^\d.\-]&#34;, &#34;&#34;, regex=True),
+                     errors=&#34;coerce&#34;)
+bad = (dist &lt;= ___) | (dist &gt; ___)
+print(bad.sum())
+dist = dist.where(___)
+print(round(dist.median(), 1), dist.max())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если убрать минус вместе с другими знаками, «-3,2» превратится в 3.2 и ошибка GPS станет «нормальной» поездкой.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="30">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl h">Сложно</span><span class="xp">30 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Рейтинг водителей: фальшивые нули</h3>
+            <ol class='steps-t'><li>Сделай <code class='i'>rating</code>: в clean['rating'] заменить 0 на <code class='i'>np.nan</code>.</li><li>В одну строку выведи среднее до и после (2 знака).</li><li>Выведи долю выполненных поездок, где есть оценка, в % (1 знак): <code class='i'>rating[done].notna()</code>.</li><li># Комментарий: можно ли урезать бонусы по 3.08? Одно предложение.</li></ol><p class='rule-t'>done = status == "completed". Комментарий оценивается по смыслу.</p>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Сколько поездок на самом деле» —
+print(df.shape)
+print(df.duplicated().sum())
+clean = df.drop_duplicates()
+print(clean.shape)
+print(clean[&#34;trip_id&#34;].is_unique)
+# — шаг «Четыре города вместо двадцати четырёх» —
+latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;,
+         &#34;bukhara&#34;: &#34;бухара&#34;, &#34;fergana&#34;: &#34;фергана&#34;}
+city = (clean[&#34;city&#34;].str.strip().str.lower()
+        .str.replace(&#34;г. &#34;, &#34;&#34;, regex=False)
+        .replace(latin))
+print(clean[&#34;city&#34;].nunique(), city.nunique())
+print(city.value_counts())
+# — шаг «Сколько на самом деле отмен» —
+status = clean[&#34;status&#34;].str.strip().str.lower()
+print(status.value_counts())
+cancelled = status == &#34;cancelled&#34;
+print(round(cancelled.mean() * 100, 1))
+print(round((clean[&#34;status&#34;] == &#34;cancelled&#34;).mean() * 100, 1))
+# — шаг «Типичный чек поездки» —
+fare = pd.to_numeric(clean[&#34;fare_raw&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True),
+                     errors=&#34;coerce&#34;)
+print(fare.isna().sum(), (fare == 0).sum())
+fare = fare.where(status == &#34;completed&#34;)
+print(fare.median())
+# — шаг «Расстояние: запятые, «км» и ошибки GPS» —
+dist = pd.to_numeric(clean[&#34;distance_km&#34;]
+                     .str.replace(&#34;,&#34;, &#34;.&#34;, regex=False)
+                     .str.replace(r&#34;[^\d.\-]&#34;, &#34;&#34;, regex=True),
+                     errors=&#34;coerce&#34;)
+bad = (dist &lt;= 0) | (dist &gt; 100)
+print(bad.sum())
+dist = dist.where(~bad)
+print(round(dist.median(), 1), dist.max())</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 07 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">import numpy as np
+# 1. 0 → NaN
+rating =
+
+# 2. до и после
+
+# 3. доля выполненных с оценкой, %
+done =
+
+# 4. # можно ли резать бонусы по 3.08?
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">3.08 4.71
+75.9</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>import numpy as np
+# 1. 0 → NaN
+rating =
+
+# 2. до и после
+
+# 3. доля выполненных с оценкой, %
+done =
+
+# 4. # можно ли резать бонусы по 3.08?
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> В рейтинге «0» значит «оценки нет», а не «очень плохо». Замени нули на пустоту и сравни средние до и после. Потом посмотри, какая доля выполненных поездок вообще получила оценку.</p>
+<p><b>Чем это сделать.</b> <code class="i">.replace(0, np.nan)</code> — нули в пустые клетки. <code class="i">rating[done]</code> — оценки только выполненных поездок, <code class="i">.notna().mean() * 100</code> — доля с оценкой.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>rating = clean[&#34;rating&#34;].replace(___, np.nan)
+print(round(clean[&#34;rating&#34;].mean(), 2), round(rating.___(), 2))
+done = status == &#34;___&#34;
+print(round(rating[done].___().mean() * 100, 1))
+# можно ли резать бонусы по 3.08? ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Среднее «до» считай по сырой колонке <code class="i">clean["rating"]</code>, а «после» — по новой <code class="i">rating</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="40">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">40 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Чистая таблица trips и 5 цифр для инвестора</h3>
+            <ol class='steps-t'><li>Почисть tariff (strip + lower + словарь econom/comfort/business).</li><li>Собери <code class='i'>trips</code> одной цепочкой: assign(city, tariff, status, fare, distance_km=dist, rating) → drop(columns="fare_raw") → astype: city, tariff, status = category.</li><li>Сделай <code class='i'>report = pd.Series({...})</code>: поездок, отмен_%, медиана_чека (только completed), рейтинг (2 знака), доля_ташкента_% (1 знак).</li><li>Выведи report.</li></ol><p class='rule-t'>Только переменные из задач 1–6, без новых чисел руками.</p>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Сколько поездок на самом деле» —
+print(df.shape)
+print(df.duplicated().sum())
+clean = df.drop_duplicates()
+print(clean.shape)
+print(clean[&#34;trip_id&#34;].is_unique)
+# — шаг «Четыре города вместо двадцати четырёх» —
+latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;,
+         &#34;bukhara&#34;: &#34;бухара&#34;, &#34;fergana&#34;: &#34;фергана&#34;}
+city = (clean[&#34;city&#34;].str.strip().str.lower()
+        .str.replace(&#34;г. &#34;, &#34;&#34;, regex=False)
+        .replace(latin))
+print(clean[&#34;city&#34;].nunique(), city.nunique())
+print(city.value_counts())
+# — шаг «Сколько на самом деле отмен» —
+status = clean[&#34;status&#34;].str.strip().str.lower()
+print(status.value_counts())
+cancelled = status == &#34;cancelled&#34;
+print(round(cancelled.mean() * 100, 1))
+print(round((clean[&#34;status&#34;] == &#34;cancelled&#34;).mean() * 100, 1))
+# — шаг «Типичный чек поездки» —
+fare = pd.to_numeric(clean[&#34;fare_raw&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True),
+                     errors=&#34;coerce&#34;)
+print(fare.isna().sum(), (fare == 0).sum())
+fare = fare.where(status == &#34;completed&#34;)
+print(fare.median())
+# — шаг «Расстояние: запятые, «км» и ошибки GPS» —
+dist = pd.to_numeric(clean[&#34;distance_km&#34;]
+                     .str.replace(&#34;,&#34;, &#34;.&#34;, regex=False)
+                     .str.replace(r&#34;[^\d.\-]&#34;, &#34;&#34;, regex=True),
+                     errors=&#34;coerce&#34;)
+bad = (dist &lt;= 0) | (dist &gt; 100)
+print(bad.sum())
+dist = dist.where(~bad)
+print(round(dist.median(), 1), dist.max())
+# — шаг «Рейтинг водителей: фальшивые нули» —
+rating = clean[&#34;rating&#34;].replace(0, np.nan)
+print(round(clean[&#34;rating&#34;].mean(), 2), round(rating.mean(), 2))
+done = status == &#34;completed&#34;
+print(round(rating[done].notna().mean() * 100, 1))</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 07 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">tariffs = {&#34;econom&#34;: &#34;эконом&#34;, &#34;comfort&#34;: &#34;комфорт&#34;, &#34;business&#34;: &#34;бизнес&#34;}
+tariff =
+
+trips = (clean
+         .assign()
+         .drop(columns=&#34;fare_raw&#34;)
+         .astype({}))
+
+done = trips[&#34;status&#34;] == &#34;completed&#34;
+report = pd.Series({
+    &#34;поездок&#34;: ,
+})
+print(report)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">поездок             2000.00
+отмен_%               13.80
+медиана_чека       21500.00
+рейтинг                4.71
+доля_ташкента_%       58.20
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>tariffs = {&#34;econom&#34;: &#34;эконом&#34;, &#34;comfort&#34;: &#34;комфорт&#34;, &#34;business&#34;: &#34;бизнес&#34;}
+tariff =
+
+trips = (clean
+         .assign()
+         .drop(columns=&#34;fare_raw&#34;)
+         .astype({}))
+
+done = trips[&#34;status&#34;] == &#34;completed&#34;
+report = pd.Series({
+    &#34;поездок&#34;: ,
+})
+print(report)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Почти всё уже посчитано в задачах 1–6: города, статусы, чек, расстояние, рейтинг. Осталось почистить тариф, собрать новые колонки в одну таблицу и посчитать по ней 5 цифр.</p>
+<p><b>Чем это сделать.</b> <code class="i">.assign(city=city, …)</code> — подставить готовые переменные как колонки. <code class="i">.drop(columns="…")</code> — убрать колонку. <code class="i">.astype({"колонка": "category"})</code>. Медиана чека выполненных: <code class="i">trips.loc[done, "fare"].median()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>tariff = clean[&#34;tariff&#34;].str.strip().str.lower().replace(___)
+trips = (clean
+         .assign(city=city, tariff=tariff, status=___, fare=___, distance_km=dist, rating=___)
+         .drop(columns=&#34;fare_raw&#34;)
+         .astype({&#34;city&#34;: &#34;category&#34;, &#34;tariff&#34;: &#34;___&#34;, &#34;status&#34;: &#34;___&#34;}))
+&#34;отмен_%&#34;: round((trips[&#34;status&#34;] == &#34;___&#34;).mean() * 100, 1),
+&#34;доля_ташкента_%&#34;: round((trips[&#34;city&#34;] == &#34;___&#34;).mean() * 100, 1),</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Доля Ташкента считается по очищенному городу — «ташкент» с маленькой буквы.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Бахтиёру до встречи с инвестором</h2>
+      <div class="case">
+        <p>Напиши ответ Бахтиёру в Telegram. Не больше 6 предложений. Структура: <b>5 правильных цифр (поездки, % отмен, медианный чек, рейтинг, доля Ташкента) → почему Excel ошибся в трёх цифрах (без терминов) → что это значит для идеи урезать бонусы водителям → 1 риск или оговорка → 1 предложение, как не получать такую грязь из диспетчерской</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Поездок</span><span class="fact-chip">Доля отмен</span><span class="fact-chip">Медианный чек</span><span class="fact-chip">Рейтинг</span><span class="fact-chip">Доля Ташкента</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Бахтиёр, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Почему, по твоему ответу, рейтинг в Excel вышел 3,08?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Поездки без оценки посчитали как ноль, и это утянуло среднее вниз</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Водители стали работать хуже</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Excel посчитал рейтинг правильно</span></button></div>
+            <div class="why" hidden>«Нет оценки» записано как 0. Если эти нули убрать, настоящий рейтинг — 4,71.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что твой ответ говорит про идею урезать бонусы водителям?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Причин урезать нет: настоящий рейтинг высокий</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Бонусы нужно урезать: рейтинг низкий</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Бонусы нужно урезать только в Ташкенте</span></button></div>
+            <div class="why" hidden>Низкий рейтинг — ошибка расчёта, а не плохая работа водителей.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Что ещё, кроме рейтинга, Excel посчитал неправильно?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Посчитал повторяющиеся строки и пропустил отмены, записанные по-другому</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Перепутал города местами</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Больше ничего, ошибка только в рейтинге</span></button></div>
+            <div class="why" hidden>Из-за 50 строк-копий поездок было больше, а отмены, записанные с пробелами или большими буквами, Excel не узнал.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Бахтиёр, привет! Правильные цифры за неделю: 2 000 поездок, отмен 13,8%, медианный чек 21 500 сум, рейтинг 4,71, Ташкент — 58,2% поездок. Excel ошибся в трёх местах: посчитал 50 повторяющихся строк, пропустил отмены, записанные по-другому, и считал «нет оценки» как ноль, поэтому рейтинг вышел 3,08. Водители работают хорошо: настоящий рейтинг 4,71, урезать им бонусы по этим данным нет причин. Оговорка: у 101 поездки не записана цена. Предлагаю, чтобы диспетчерская выбирала статус и город из списка, а не писала вручную.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Все 5 цифр: 2 000, 13,8%, 21 500, 4,71, 58,2%</li><li>Три ошибки Excel объяснены без терминов</li><li>Вывод про бонусы водителям</li><li>Есть оговорка</li><li>Есть предложение для диспетчерской</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть проект 7</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/06-tekst-str/"><small>← Урок 6</small><b>Текст: .str-методы и очистка</b></a><a class="nx" href="../../lessons/08-groupby/"><small>Урок 8 →</small><b>groupby: агрегации по сегментам</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041f\u043e\u0435\u0437\u0434\u043e\u043a", "value": 2000}, {"name": "\u0414\u043e\u043b\u044f \u043e\u0442\u043c\u0435\u043d", "pct": true, "value": 13.8}, {"name": "\u041c\u0435\u0434\u0438\u0430\u043d\u043d\u044b\u0439 \u0447\u0435\u043a", "value": 21500}, {"name": "\u0420\u0435\u0439\u0442\u0438\u043d\u0433", "value": 4.71}, {"name": "\u0414\u043e\u043b\u044f \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430", "pct": true, "value": 58.2}], "logic": [{"a": 0, "o": ["\u041f\u043e\u0435\u0437\u0434\u043a\u0438 \u0431\u0435\u0437 \u043e\u0446\u0435\u043d\u043a\u0438 \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043b\u0438 \u043a\u0430\u043a \u043d\u043e\u043b\u044c, \u0438 \u044d\u0442\u043e \u0443\u0442\u044f\u043d\u0443\u043b\u043e \u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u0432\u043d\u0438\u0437", "\u0412\u043e\u0434\u0438\u0442\u0435\u043b\u0438 \u0441\u0442\u0430\u043b\u0438 \u0440\u0430\u0431\u043e\u0442\u0430\u0442\u044c \u0445\u0443\u0436\u0435", "Excel \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043b \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u0432 Excel \u0432\u044b\u0448\u0435\u043b 3,08?", "why": "\u00ab\u041d\u0435\u0442 \u043e\u0446\u0435\u043d\u043a\u0438\u00bb \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u043e \u043a\u0430\u043a 0. \u0415\u0441\u043b\u0438 \u044d\u0442\u0438 \u043d\u0443\u043b\u0438 \u0443\u0431\u0440\u0430\u0442\u044c, \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0439 \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u2014 4,71."}, {"a": 0, "o": ["\u041f\u0440\u0438\u0447\u0438\u043d \u0443\u0440\u0435\u0437\u0430\u0442\u044c \u043d\u0435\u0442: \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0439 \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u0432\u044b\u0441\u043e\u043a\u0438\u0439", "\u0411\u043e\u043d\u0443\u0441\u044b \u043d\u0443\u0436\u043d\u043e \u0443\u0440\u0435\u0437\u0430\u0442\u044c: \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u043d\u0438\u0437\u043a\u0438\u0439", "\u0411\u043e\u043d\u0443\u0441\u044b \u043d\u0443\u0436\u043d\u043e \u0443\u0440\u0435\u0437\u0430\u0442\u044c \u0442\u043e\u043b\u044c\u043a\u043e \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043f\u0440\u043e \u0438\u0434\u0435\u044e \u0443\u0440\u0435\u0437\u0430\u0442\u044c \u0431\u043e\u043d\u0443\u0441\u044b \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f\u043c?", "why": "\u041d\u0438\u0437\u043a\u0438\u0439 \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u2014 \u043e\u0448\u0438\u0431\u043a\u0430 \u0440\u0430\u0441\u0447\u0451\u0442\u0430, \u0430 \u043d\u0435 \u043f\u043b\u043e\u0445\u0430\u044f \u0440\u0430\u0431\u043e\u0442\u0430 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u0435\u0439."}, {"a": 0, "o": ["\u041f\u043e\u0441\u0447\u0438\u0442\u0430\u043b \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u044e\u0449\u0438\u0435\u0441\u044f \u0441\u0442\u0440\u043e\u043a\u0438 \u0438 \u043f\u0440\u043e\u043f\u0443\u0441\u0442\u0438\u043b \u043e\u0442\u043c\u0435\u043d\u044b, \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u043d\u044b\u0435 \u043f\u043e-\u0434\u0440\u0443\u0433\u043e\u043c\u0443", "\u041f\u0435\u0440\u0435\u043f\u0443\u0442\u0430\u043b \u0433\u043e\u0440\u043e\u0434\u0430 \u043c\u0435\u0441\u0442\u0430\u043c\u0438", "\u0411\u043e\u043b\u044c\u0448\u0435 \u043d\u0438\u0447\u0435\u0433\u043e, \u043e\u0448\u0438\u0431\u043a\u0430 \u0442\u043e\u043b\u044c\u043a\u043e \u0432 \u0440\u0435\u0439\u0442\u0438\u043d\u0433\u0435"], "q": "\u0427\u0442\u043e \u0435\u0449\u0451, \u043a\u0440\u043e\u043c\u0435 \u0440\u0435\u0439\u0442\u0438\u043d\u0433\u0430, Excel \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043b \u043d\u0435\u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e?", "why": "\u0418\u0437-\u0437\u0430 50 \u0441\u0442\u0440\u043e\u043a-\u043a\u043e\u043f\u0438\u0439 \u043f\u043e\u0435\u0437\u0434\u043e\u043a \u0431\u044b\u043b\u043e \u0431\u043e\u043b\u044c\u0448\u0435, \u0430 \u043e\u0442\u043c\u0435\u043d\u044b, \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u043d\u044b\u0435 \u0441 \u043f\u0440\u043e\u0431\u0435\u043b\u0430\u043c\u0438 \u0438\u043b\u0438 \u0431\u043e\u043b\u044c\u0448\u0438\u043c\u0438 \u0431\u0443\u043a\u0432\u0430\u043c\u0438, Excel \u043d\u0435 \u0443\u0437\u043d\u0430\u043b."}]}, "case_model": "\u0411\u0430\u0445\u0442\u0438\u0451\u0440, \u043f\u0440\u0438\u0432\u0435\u0442! \u041f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u044b\u0435 \u0446\u0438\u0444\u0440\u044b \u0437\u0430 \u043d\u0435\u0434\u0435\u043b\u044e: 2 000 \u043f\u043e\u0435\u0437\u0434\u043e\u043a, \u043e\u0442\u043c\u0435\u043d 13,8%, \u043c\u0435\u0434\u0438\u0430\u043d\u043d\u044b\u0439 \u0447\u0435\u043a 21 500 \u0441\u0443\u043c, \u0440\u0435\u0439\u0442\u0438\u043d\u0433 4,71, \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 58,2% \u043f\u043e\u0435\u0437\u0434\u043e\u043a. Excel \u043e\u0448\u0438\u0431\u0441\u044f \u0432 \u0442\u0440\u0451\u0445 \u043c\u0435\u0441\u0442\u0430\u0445: \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043b 50 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u044e\u0449\u0438\u0445\u0441\u044f \u0441\u0442\u0440\u043e\u043a, \u043f\u0440\u043e\u043f\u0443\u0441\u0442\u0438\u043b \u043e\u0442\u043c\u0435\u043d\u044b, \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u043d\u044b\u0435 \u043f\u043e-\u0434\u0440\u0443\u0433\u043e\u043c\u0443, \u0438 \u0441\u0447\u0438\u0442\u0430\u043b \u00ab\u043d\u0435\u0442 \u043e\u0446\u0435\u043d\u043a\u0438\u00bb \u043a\u0430\u043a \u043d\u043e\u043b\u044c, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u0432\u044b\u0448\u0435\u043b 3,08. \u0412\u043e\u0434\u0438\u0442\u0435\u043b\u0438 \u0440\u0430\u0431\u043e\u0442\u0430\u044e\u0442 \u0445\u043e\u0440\u043e\u0448\u043e: \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0439 \u0440\u0435\u0439\u0442\u0438\u043d\u0433 4,71, \u0443\u0440\u0435\u0437\u0430\u0442\u044c \u0438\u043c \u0431\u043e\u043d\u0443\u0441\u044b \u043f\u043e \u044d\u0442\u0438\u043c \u0434\u0430\u043d\u043d\u044b\u043c \u043d\u0435\u0442 \u043f\u0440\u0438\u0447\u0438\u043d. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u0443 101 \u043f\u043e\u0435\u0437\u0434\u043a\u0438 \u043d\u0435 \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u0430 \u0446\u0435\u043d\u0430. \u041f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e, \u0447\u0442\u043e\u0431\u044b \u0434\u0438\u0441\u043f\u0435\u0442\u0447\u0435\u0440\u0441\u043a\u0430\u044f \u0432\u044b\u0431\u0438\u0440\u0430\u043b\u0430 \u0441\u0442\u0430\u0442\u0443\u0441 \u0438 \u0433\u043e\u0440\u043e\u0434 \u0438\u0437 \u0441\u043f\u0438\u0441\u043a\u0430, \u0430 \u043d\u0435 \u043f\u0438\u0441\u0430\u043b\u0430 \u0432\u0440\u0443\u0447\u043d\u0443\u044e.", "case_xp": 30, "cheat": [["df.shape; df.info(); df[\"col\"].value_counts()", "\u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c"], ["df.duplicated().sum(); clean = df.drop_duplicates()", "\u0434\u0443\u0431\u043b\u0438"], ["s.str.strip().str.lower().replace({\"tashkent\": \"\u0442\u0430\u0448\u043a\u0435\u043d\u0442\"})", "\u0442\u0435\u043a\u0441\u0442"], ["pd.to_numeric(s.str.replace(r\"\\D\", \"\", regex=True), errors=\"coerce\")", "\u0446\u0435\u043b\u043e\u0435 \u0447\u0438\u0441\u043b\u043e \u0438\u0437 \u0442\u0435\u043a\u0441\u0442\u0430"], ["s.str.replace(\",\", \".\", regex=False)", "\u0437\u0430\u043f\u044f\u0442\u0430\u044f \u2192 \u0442\u043e\u0447\u043a\u0430 \u043f\u0435\u0440\u0435\u0434 to_numeric"], ["s.replace(0, np.nan)", "\u0444\u0430\u043b\u044c\u0448\u0438\u0432\u044b\u0439 \u043d\u043e\u043b\u044c \u2192 \u043f\u0443\u0441\u0442\u043e (NULLIF)"], ["x.where(~bad) / x.where(status == \"completed\")", "\u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c, \u0433\u0434\u0435 \u0443\u0441\u043b\u043e\u0432\u0438\u0435, \u0438\u043d\u0430\u0447\u0435 NaN"], ["(clean.assign(...).drop(columns=...).astype({...}))", "\u0441\u043e\u0431\u0440\u0430\u0442\u044c \u0447\u0438\u0441\u0442\u0443\u044e \u0442\u0430\u0431\u043b\u0438\u0446\u0443"]], "data": "../../data/", "datasets": ["tezyol_trips.csv"], "day": 7, "hint_cost": 5, "quiz": [0, 2, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"tezyol_trips.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["(2050, 9)", "50", "(2000, 9)", "True"], "setup": "", "xp": 20}, {"figure": false, "id": "t2", "keys": ["24 4", "\u0442\u0430\u0448\u043a\u0435\u043d\u0442 1164", "\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 356", "\u0444\u0435\u0440\u0433\u0430\u043d\u0430 245", "\u0431\u0443\u0445\u0430\u0440\u0430 235"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0435\u0437\u0434\u043e\u043a \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435\u00bb \u2014\nprint(df.shape)\nprint(df.duplicated().sum())\nclean = df.drop_duplicates()\nprint(clean.shape)\nprint(clean[\"trip_id\"].is_unique)", "xp": 20}, {"figure": false, "id": "t3", "keys": ["completed 1724", "cancelled 276", "13.8", "9.6"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0435\u0437\u0434\u043e\u043a \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435\u00bb \u2014\nprint(df.shape)\nprint(df.duplicated().sum())\nclean = df.drop_duplicates()\nprint(clean.shape)\nprint(clean[\"trip_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0435\u0442\u044b\u0440\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u0432\u043c\u0435\u0441\u0442\u043e \u0434\u0432\u0430\u0434\u0446\u0430\u0442\u0438 \u0447\u0435\u0442\u044b\u0440\u0451\u0445\u00bb \u2014\nlatin = {\"tashkent\": \"\u0442\u0430\u0448\u043a\u0435\u043d\u0442\", \"samarkand\": \"\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\",\n         \"bukhara\": \"\u0431\u0443\u0445\u0430\u0440\u0430\", \"fergana\": \"\u0444\u0435\u0440\u0433\u0430\u043d\u0430\"}\ncity = (clean[\"city\"].str.strip().str.lower()\n        .str.replace(\"\u0433. \", \"\", regex=False)\n        .replace(latin))\nprint(clean[\"city\"].nunique(), city.nunique())\nprint(city.value_counts())", "xp": 25}, {"figure": false, "id": "t4", "keys": ["101 175", "21500"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0435\u0437\u0434\u043e\u043a \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435\u00bb \u2014\nprint(df.shape)\nprint(df.duplicated().sum())\nclean = df.drop_duplicates()\nprint(clean.shape)\nprint(clean[\"trip_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0435\u0442\u044b\u0440\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u0432\u043c\u0435\u0441\u0442\u043e \u0434\u0432\u0430\u0434\u0446\u0430\u0442\u0438 \u0447\u0435\u0442\u044b\u0440\u0451\u0445\u00bb \u2014\nlatin = {\"tashkent\": \"\u0442\u0430\u0448\u043a\u0435\u043d\u0442\", \"samarkand\": \"\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\",\n         \"bukhara\": \"\u0431\u0443\u0445\u0430\u0440\u0430\", \"fergana\": \"\u0444\u0435\u0440\u0433\u0430\u043d\u0430\"}\ncity = (clean[\"city\"].str.strip().str.lower()\n        .str.replace(\"\u0433. \", \"\", regex=False)\n        .replace(latin))\nprint(clean[\"city\"].nunique(), city.nunique())\nprint(city.value_counts())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435 \u043e\u0442\u043c\u0435\u043d\u00bb \u2014\nstatus = clean[\"status\"].str.strip().str.lower()\nprint(status.value_counts())\ncancelled = status == \"cancelled\"\nprint(round(cancelled.mean() * 100, 1))\nprint(round((clean[\"status\"] == \"cancelled\").mean() * 100, 1))", "xp": 25}, {"figure": false, "id": "t5", "keys": ["14", "6.8 40.3"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0435\u0437\u0434\u043e\u043a \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435\u00bb \u2014\nprint(df.shape)\nprint(df.duplicated().sum())\nclean = df.drop_duplicates()\nprint(clean.shape)\nprint(clean[\"trip_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0435\u0442\u044b\u0440\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u0432\u043c\u0435\u0441\u0442\u043e \u0434\u0432\u0430\u0434\u0446\u0430\u0442\u0438 \u0447\u0435\u0442\u044b\u0440\u0451\u0445\u00bb \u2014\nlatin = {\"tashkent\": \"\u0442\u0430\u0448\u043a\u0435\u043d\u0442\", \"samarkand\": \"\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\",\n         \"bukhara\": \"\u0431\u0443\u0445\u0430\u0440\u0430\", \"fergana\": \"\u0444\u0435\u0440\u0433\u0430\u043d\u0430\"}\ncity = (clean[\"city\"].str.strip().str.lower()\n        .str.replace(\"\u0433. \", \"\", regex=False)\n        .replace(latin))\nprint(clean[\"city\"].nunique(), city.nunique())\nprint(city.value_counts())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435 \u043e\u0442\u043c\u0435\u043d\u00bb \u2014\nstatus = clean[\"status\"].str.strip().str.lower()\nprint(status.value_counts())\ncancelled = status == \"cancelled\"\nprint(round(cancelled.mean() * 100, 1))\nprint(round((clean[\"status\"] == \"cancelled\").mean() * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0422\u0438\u043f\u0438\u0447\u043d\u044b\u0439 \u0447\u0435\u043a \u043f\u043e\u0435\u0437\u0434\u043a\u0438\u00bb \u2014\nfare = pd.to_numeric(clean[\"fare_raw\"].str.replace(r\"\\D\", \"\", regex=True),\n                     errors=\"coerce\")\nprint(fare.isna().sum(), (fare == 0).sum())\nfare = fare.where(status == \"completed\")\nprint(fare.median())", "xp": 30}, {"figure": false, "id": "t6", "keys": ["3.08 4.71", "75.9"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0435\u0437\u0434\u043e\u043a \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435\u00bb \u2014\nprint(df.shape)\nprint(df.duplicated().sum())\nclean = df.drop_duplicates()\nprint(clean.shape)\nprint(clean[\"trip_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0435\u0442\u044b\u0440\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u0432\u043c\u0435\u0441\u0442\u043e \u0434\u0432\u0430\u0434\u0446\u0430\u0442\u0438 \u0447\u0435\u0442\u044b\u0440\u0451\u0445\u00bb \u2014\nlatin = {\"tashkent\": \"\u0442\u0430\u0448\u043a\u0435\u043d\u0442\", \"samarkand\": \"\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\",\n         \"bukhara\": \"\u0431\u0443\u0445\u0430\u0440\u0430\", \"fergana\": \"\u0444\u0435\u0440\u0433\u0430\u043d\u0430\"}\ncity = (clean[\"city\"].str.strip().str.lower()\n        .str.replace(\"\u0433. \", \"\", regex=False)\n        .replace(latin))\nprint(clean[\"city\"].nunique(), city.nunique())\nprint(city.value_counts())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435 \u043e\u0442\u043c\u0435\u043d\u00bb \u2014\nstatus = clean[\"status\"].str.strip().str.lower()\nprint(status.value_counts())\ncancelled = status == \"cancelled\"\nprint(round(cancelled.mean() * 100, 1))\nprint(round((clean[\"status\"] == \"cancelled\").mean() * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0422\u0438\u043f\u0438\u0447\u043d\u044b\u0439 \u0447\u0435\u043a \u043f\u043e\u0435\u0437\u0434\u043a\u0438\u00bb \u2014\nfare = pd.to_numeric(clean[\"fare_raw\"].str.replace(r\"\\D\", \"\", regex=True),\n                     errors=\"coerce\")\nprint(fare.isna().sum(), (fare == 0).sum())\nfare = fare.where(status == \"completed\")\nprint(fare.median())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0420\u0430\u0441\u0441\u0442\u043e\u044f\u043d\u0438\u0435: \u0437\u0430\u043f\u044f\u0442\u044b\u0435, \u00ab\u043a\u043c\u00bb \u0438 \u043e\u0448\u0438\u0431\u043a\u0438 GPS\u00bb \u2014\ndist = pd.to_numeric(clean[\"distance_km\"]\n                     .str.replace(\",\", \".\", regex=False)\n                     .str.replace(r\"[^\\d.\\-]\", \"\", regex=True),\n                     errors=\"coerce\")\nbad = (dist \u003c= 0) | (dist \u003e 100)\nprint(bad.sum())\ndist = dist.where(~bad)\nprint(round(dist.median(), 1), dist.max())", "xp": 30}, {"figure": false, "id": "t7", "keys": ["2000", "13.8", "21500", "4.71", "58.2"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u0435\u0437\u0434\u043e\u043a \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435\u00bb \u2014\nprint(df.shape)\nprint(df.duplicated().sum())\nclean = df.drop_duplicates()\nprint(clean.shape)\nprint(clean[\"trip_id\"].is_unique)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0435\u0442\u044b\u0440\u0435 \u0433\u043e\u0440\u043e\u0434\u0430 \u0432\u043c\u0435\u0441\u0442\u043e \u0434\u0432\u0430\u0434\u0446\u0430\u0442\u0438 \u0447\u0435\u0442\u044b\u0440\u0451\u0445\u00bb \u2014\nlatin = {\"tashkent\": \"\u0442\u0430\u0448\u043a\u0435\u043d\u0442\", \"samarkand\": \"\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\",\n         \"bukhara\": \"\u0431\u0443\u0445\u0430\u0440\u0430\", \"fergana\": \"\u0444\u0435\u0440\u0433\u0430\u043d\u0430\"}\ncity = (clean[\"city\"].str.strip().str.lower()\n        .str.replace(\"\u0433. \", \"\", regex=False)\n        .replace(latin))\nprint(clean[\"city\"].nunique(), city.nunique())\nprint(city.value_counts())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u043a\u043e\u043b\u044c\u043a\u043e \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435 \u043e\u0442\u043c\u0435\u043d\u00bb \u2014\nstatus = clean[\"status\"].str.strip().str.lower()\nprint(status.value_counts())\ncancelled = status == \"cancelled\"\nprint(round(cancelled.mean() * 100, 1))\nprint(round((clean[\"status\"] == \"cancelled\").mean() * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0422\u0438\u043f\u0438\u0447\u043d\u044b\u0439 \u0447\u0435\u043a \u043f\u043e\u0435\u0437\u0434\u043a\u0438\u00bb \u2014\nfare = pd.to_numeric(clean[\"fare_raw\"].str.replace(r\"\\D\", \"\", regex=True),\n                     errors=\"coerce\")\nprint(fare.isna().sum(), (fare == 0).sum())\nfare = fare.where(status == \"completed\")\nprint(fare.median())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0420\u0430\u0441\u0441\u0442\u043e\u044f\u043d\u0438\u0435: \u0437\u0430\u043f\u044f\u0442\u044b\u0435, \u00ab\u043a\u043c\u00bb \u0438 \u043e\u0448\u0438\u0431\u043a\u0438 GPS\u00bb \u2014\ndist = pd.to_numeric(clean[\"distance_km\"]\n                     .str.replace(\",\", \".\", regex=False)\n                     .str.replace(r\"[^\\d.\\-]\", \"\", regex=True),\n                     errors=\"coerce\")\nbad = (dist \u003c= 0) | (dist \u003e 100)\nprint(bad.sum())\ndist = dist.where(~bad)\nprint(round(dist.median(), 1), dist.max())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u0432\u043e\u0434\u0438\u0442\u0435\u043b\u0435\u0439: \u0444\u0430\u043b\u044c\u0448\u0438\u0432\u044b\u0435 \u043d\u0443\u043b\u0438\u00bb \u2014\nrating = clean[\"rating\"].replace(0, np.nan)\nprint(round(clean[\"rating\"].mean(), 2), round(rating.mean(), 2))\ndone = status == \"completed\"\nprint(round(rating[done].notna().mean() * 100, 1))", "xp": 40}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 240}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

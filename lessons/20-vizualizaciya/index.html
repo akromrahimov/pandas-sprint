@@ -1,0 +1,689 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 20. Визуализация для отчёта — Pandas Sprint</title>
+<meta name="description" content="Урок 20 курса Pandas Sprint — Визуализация для отчёта. Построить графики, которые понятны руководителю с первого взгляда.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/20-vizualizaciya/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 20. Визуализация для отчёта — Pandas Sprint">
+<meta property="og:description" content="Урок 20 курса Pandas Sprint — Визуализация для отчёта. Построить графики, которые понятны руководителю с первого взгляда.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/20-vizualizaciya/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="20">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#choose"><span class="dot">✓</span>Какой график</a></li><li><a href="#clean"><span class="dot">✓</span>Аккуратный график</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Графики: BI-инструменты и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты строил графики в BI (Power BI, Metabase, Superset) по SQL-запросу, в pandas то же самое делается кодом.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT month, SUM(revenue) … → линия в BI</code></td><td><code>monthly.plot()</code></td><td>линия по времени</td></tr><tr><td><code>SELECT category, SUM(amount) … ORDER BY 2 → столбцы</code></td><td><code>cat.sort_values().plot(kind=&#34;barh&#34;)</code></td><td>сравнение категорий</td></tr><tr><td><code>гистограмма в BI</code></td><td><code>s.plot(kind=&#34;hist&#34;, bins=30)</code></td><td>распределение</td></tr><tr><td><code>дашборд из нескольких виджетов</code></td><td><code>fig, axes = plt.subplots(1, 2)</code></td><td>несколько графиков</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 20 из 30 · Неделя 3 · Время и метрики</div>
+      <h1><mark>Визуализация</mark> для отчёта</h1>
+      <p class="lead">Руководитель не будет читать таблицу из 270 строк. Ему нужен один график, на котором за пять секунд видно главное: «растём», «вот лучшая категория», «вот где проблема». Сегодня учимся строить такие графики прямо из pandas и делать их понятными: правильный тип графика, подписи и заголовок-вывод.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">matplotlib</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Собрать для владельцев молочной лавки Sutli и книжного магазина Kitobxon три–четыре графика, которые без слов объясняют, как идут продажи, и научиться выбирать тип графика под вопрос.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Строить линию, столбцы и гистограмму через <code class="i">.plot()</code></li><li>Подписывать оси и делать заголовок-вывод через <code class="i">matplotlib</code></li><li>Выбирать тип графика под вопрос: время, сравнение, распределение</li><li>Собирать несколько графиков в одну картинку через <code class="i">plt.subplots</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Нужны графики для презентации</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Г</span>Гульнора <small>владелица Sutli · 17:05</small></div>
+          <p>Спасибо за прошлый анализ! В пятницу встреча с банком по кредиту на второй магазин. Им нужны не таблицы, а понятные графики: как растут продажи и как ведут себя дни недели.</p>
+<div class="file">▤ sutli_sales.csv · продажи по дням</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Ш</span>Шахло <small>маркетолог Kitobxon · 17:20</small></div>
+          <p>А мне для отчёта нужны графики по категориям книг и по размеру чека. Сможешь?</p>
+<div class="file">▤ kitobxon_orders.csv · заказы</div>        </div>
+      </div>
+      <p class="note">Обе компании учебные, данные знакомы по урокам 16 и 17. На этой странице графики рисуются прямо в «Твой вывод»: при первом запуске загрузится библиотека matplotlib (это один раз, около 10 секунд).</p>
+      <div class="dlrow"><a class="btn main" href="../../data/sutli_sales.csv" download>Скачать sutli_sales.csv</a><a class="btn main" href="../../data/kitobxon_orders.csv" download>Скачать kitobxon_orders.csv</a><span class="note">2 файла · 110 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+sales = pd.read_csv(&#34;sutli_sales.csv&#34;, parse_dates=[&#34;date&#34;])
+orders = pd.read_csv(&#34;kitobxon_orders.csv&#34;, parse_dates=[&#34;order_date&#34;])</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="choose">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Сначала вопрос, потом график</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>График — это ответ на один вопрос. Если не знаешь вопроса, получится красивая, но бесполезная картинка.</p>
+  <ul>
+    <li><b>Как менялось во времени?</b> → <b>линия</b> (line). Время всегда слева направо.</li>
+    <li><b>Кто больше, кто меньше?</b> → <b>столбцы</b> (bar), отсортированные. Длинные подписи — горизонтальные столбцы (barh).</li>
+    <li><b>Какие значения встречаются чаще?</b> → <b>гистограмма</b> (hist): столбики «сколько чеков попало в каждый интервал».</li>
+    <li><b>Круговые диаграммы</b> почти всегда хуже столбцов: глаз плохо сравнивает углы.</li>
+  </ul>
+  <p>Как читать код: <code class="i">series.plot(kind="bar")</code> — «нарисуй эту колонку столбиками». <code class="i">ax</code> — сама картинка-график, через неё добавляют подписи: <code class="i">ax.set_title(…)</code>, <code class="i">ax.set_ylabel(…)</code>.</p>
+</div>
+<div class="simple"><span class="tag">Из чего состоит график</span>
+  <ul>
+    <li><b>fig</b> (figure) — весь лист бумаги. На нём может быть один график или несколько.</li>
+    <li><b>ax</b> (axes) — один график на листе: оси, линии, столбики. <code class="i">.plot()</code> возвращает именно его, поэтому пишут <code class="i">ax = series.plot(...)</code>.</li>
+    <li><b>title</b> — заголовок над графиком, <b>xlabel / ylabel</b> — подписи осей снизу и слева.</li>
+    <li><b>Откуда pandas берёт оси?</b> По горизонтали — подписи строк (index): месяцы, дни, категории. По вертикали — сами значения. Поэтому перед графиком данные сначала группируют и сортируют, а рисуют уже готовую Series.</li>
+  </ul>
+  <p>pandas рисует графики с помощью библиотеки <b>matplotlib</b>: ты пишешь <code class="i">.plot()</code> у pandas, а картинку собирает matplotlib. Отдельно matplotlib (<code class="i">plt</code>) нужен только для сложных случаев — например, нескольких графиков на одном листе.</p>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Линия: выручка по месяцам.</b></div><pre class="code" data-cm>monthly = sales.set_index(&quot;date&quot;).resample(&quot;MS&quot;)[&quot;revenue&quot;].sum() / 1e6
+ax = monthly.plot(marker=&quot;o&quot;, figsize=(7, 3.5))
+ax.set_title(&quot;Выручка Sutli выросла на ⟦fmt(growth)⟧% с января по сентябрь&quot;)
+ax.set_ylabel(&quot;млн сум&quot;)
+ax.set_xlabel(&quot;&quot;)</pre><div class="figure-out"><img src="../../static/img/lessons/day20-ex1.png" alt="График из примера" loading="lazy"></div><p class="plain"><b>Простыми словами:</b> заголовок — это сразу вывод, а не «График выручки». Подпись оси говорит, в чём измеряем.</p></div>
+<div class="card"><div class="q"><b>2. Горизонтальные столбцы: категории книг.</b></div><pre class="code" data-cm>cat = orders.groupby(&quot;category&quot;)[&quot;amount&quot;].sum().sort_values() / 1e6
+ax = cat.plot(kind=&quot;barh&quot;, figsize=(7, 3), color=&quot;#6C5CE7&quot;)
+ax.set_title(&quot;Больше всего денег приносят художественные книги&quot;)
+ax.set_xlabel(&quot;выручка, млн сум&quot;)
+ax.set_ylabel(&quot;&quot;)</pre><div class="figure-out"><img src="../../static/img/lessons/day20-ex2.png" alt="График из примера" loading="lazy"></div><p class="plain"><b>Простыми словами:</b> сортировка делает вывод очевидным: самый длинный столбец сверху. Горизонтальные столбцы удобны, когда подписи длинные.</p></div>
+<div class="card"><div class="q"><b>3. Гистограмма: какие чеки обычные.</b></div><pre class="code" data-cm>ax = orders[&quot;amount&quot;].plot(kind=&quot;hist&quot;, bins=30, figsize=(7, 3), color=&quot;#E70488&quot;)
+ax.axvline(orders[&quot;amount&quot;].median(), color=&quot;black&quot;, linestyle=&quot;--&quot;)
+ax.set_title(&quot;Типичный чек — около ⟦fmt(med)⟧ сум (пунктир — медиана)&quot;)
+ax.set_xlabel(&quot;сумма заказа, сум&quot;)</pre><div class="figure-out"><img src="../../static/img/lessons/day20-ex3.png" alt="График из примера" loading="lazy"></div><p class="plain"><b>Простыми словами:</b> видно, что большинство чеков небольшие, а дорогие встречаются редко: хвост справа. Пунктирная линия показывает медиану. <code class="i">bins=30</code> — на сколько «корзинок» по сумме разложить заказы: мало корзинок — грубо, слишком много — шумно.</p></div>
+<div class="card"><div class="q"><b>4. Плохой и хороший график из одних и тех же данных.</b></div><pre class="code" data-cm>fig, axes = plt.subplots(1, 2, figsize=(10, 3))
+raw = orders.groupby(&quot;category&quot;)[&quot;amount&quot;].sum()
+raw.plot(kind=&quot;bar&quot;, ax=axes[0])
+(raw.sort_values() / 1e6).plot(kind=&quot;barh&quot;, ax=axes[1], color=&quot;#6C5CE7&quot;)
+axes[1].set_title(&quot;Художественные книги приносят больше всего денег&quot;)
+axes[1].set_xlabel(&quot;млн сум&quot;)
+axes[1].set_ylabel(&quot;&quot;)
+fig.tight_layout()</pre><div class="figure-out"><img src="../../static/img/lessons/day20-ex4.png" alt="График из примера" loading="lazy"></div><p class="plain"><b>Простыми словами:</b> слева — как получается «по умолчанию»: категории по алфавиту, подписи наклонены, длинные числа на оси, нет заголовка. Справа те же данные: отсортированы, переведены в миллионы, есть заголовок-вывод и подпись оси. Вывод виден за секунду.</p></div></div>
+    </section>
+    <section id="clean">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Несколько графиков и подписи</h2>
+      <div class="simple"><span class="tag">Как сделать график понятным</span>
+  <ul>
+    <li><b>Заголовок-вывод</b>: «Выходные дают на 30% больше заказов», а не «Заказы по дням».</li>
+    <li><b>Подписи осей с единицами</b>: «млн сум», «заказов в день».</li>
+    <li><b>Без лишнего</b>: одна-две краски, без 3D и теней.</li>
+    <li><code class="i">fig, axes = plt.subplots(1, 2)</code> — «сделай полотно с двумя графиками рядом». В каждый рисуют через <code class="i">ax=axes[0]</code>.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>5. Две линии на одном графике.</b> Приём для задачи 5: второй ряд рисуют на тот же ax.</div><pre class="code" data-cm>daily = sales.set_index(&quot;date&quot;)[&quot;orders&quot;]
+ax = daily.plot(color=&quot;lightgray&quot;, linewidth=1, figsize=(8, 3), label=&quot;по дням&quot;)
+daily.rolling(7).mean().plot(ax=ax, color=&quot;#E70488&quot;, linewidth=2.5, label=&quot;среднее за 7 дней&quot;)
+ax.legend()
+ax.set_xlabel(&quot;&quot;)</pre><div class="figure-out"><img src="../../static/img/lessons/day20-ex5.png" alt="График из примера" loading="lazy"></div><p class="plain"><b>Простыми словами:</b> первый <code class="i">.plot()</code> создаёт график и возвращает ax. Второй получает <code class="i">ax=ax</code> — «рисуй туда же». Шумный дневной ряд светло-серый и тонкий, тренд — яркий и толстый: глаз сразу видит главное. <code class="i">label</code> и <code class="i">ax.legend()</code> добавляют подписи линий.</p></div>
+<div class="card"><div class="q"><b>6. Заголовок из данных.</b> Цифра в заголовке считается кодом, а не пишется руками.</div><pre class="code" data-cm>weekend = sales[&quot;date&quot;].dt.dayofweek &gt;= 5
+avg = sales.groupby(weekend)[&quot;orders&quot;].mean()
+diff = round((avg[True] / avg[False] - 1) * 100)
+print(avg.round(1))
+f&quot;В выходные заказов на {diff}% больше, чем в будни&quot;</pre><div class="out">date
+False    143.8
+True     187.3
+Name: orders, dtype: float64
+&#x27;В выходные заказов на 30% больше, чем в будни&#x27;</div><p class="plain"><b>Простыми словами:</b> группировка по маске даёт две строки: False — будни, True — выходные. Сравниваем их и вставляем результат в f-строку. Если данные обновятся, заголовок пересчитается сам и не соврёт.</p></div>
+<div class="card"><div class="q"><b>7. Два графика рядом.</b></div><pre class="code" data-cm>fig, axes = plt.subplots(1, 2, figsize=(10, 3.2))
+wd = sales.groupby(sales[&quot;date&quot;].dt.dayofweek)[&quot;orders&quot;].mean()
+wd.index = [&quot;Пн&quot;, &quot;Вт&quot;, &quot;Ср&quot;, &quot;Чт&quot;, &quot;Пт&quot;, &quot;Сб&quot;, &quot;Вс&quot;]
+wd.plot(kind=&quot;bar&quot;, ax=axes[0], color=&quot;#6C5CE7&quot;, title=&quot;Заказов в день по дням недели&quot;)
+sales.set_index(&quot;date&quot;)[&quot;orders&quot;].rolling(7).mean().plot(ax=axes[1], color=&quot;#E70488&quot;,
+                                                          title=&quot;Заказы: среднее за 7 дней&quot;)
+axes[0].tick_params(axis=&quot;x&quot;, rotation=0)
+axes[1].set_xlabel(&quot;&quot;)
+fig.tight_layout()</pre><div class="figure-out"><img src="../../static/img/lessons/day20-ex6.png" alt="График из примера" loading="lazy"></div><p class="plain"><b>Простыми словами:</b> слева — суббота и воскресенье заметно выше будней. Справа — сглаженный тренд: рост и всплеск июньской акции.</p></div></div>
+<div class="callout"><b>Правило аналитика.</b> Перед тем как отправить график, закрой текст и спроси себя: «Что человек поймёт за 5 секунд?». Если ответ не совпадает с заголовком — переделай.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок в графиках</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Несортированные столбцы</h3><p>Столбцы в алфавитном порядке заставляют глазами искать максимум. Сортируй: <code class="i">.sort_values()</code> перед <code class="i">.plot(kind="barh")</code>.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Линия для категорий</h3><p>Линия соединяет точки и намекает на «движение» между ними. Для городов или категорий нужна не линия, а столбцы.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Ось не с нуля у столбцов</h3><p>Если ось столбцов начинается не с нуля, разница 5% выглядит как разница в два раза. Для столбцов ось всегда с нуля (pandas так и делает по умолчанию).</p></div>
+        <div class="trap"><span class="n">4</span><h3>Нет единиц измерения</h3><p>«245» — это заказы, тысячи сум или миллионы? Подпиши ось: <code class="i">ax.set_ylabel("млн сум")</code>.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Заголовок-описание вместо вывода</h3><div class="bad">ax.set_title(&#34;Выручка по месяцам&#34;)</div><div class="good">ax.set_title(&#34;Выручка выросла на 25% за 9 месяцев&#34;)</div><p>Заголовок-вывод экономит время читателя и показывает, что аналитик понял данные.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: графики</h3>
+        <ol><li>s.plot() <span>— линия (по умолчанию)</span></li><li>s.plot(kind=&#34;bar&#34;) / kind=&#34;barh&#34; <span>— столбцы</span></li><li>s.plot(kind=&#34;hist&#34;, bins=30) <span>— гистограмма</span></li><li>ax = s.plot(...); ax.set_title(&#34;вывод&#34;) <span>— заголовок</span></li><li>ax.set_xlabel(...) / ax.set_ylabel(...) <span>— подписи осей</span></li><li>fig, axes = plt.subplots(1, 2, figsize=(10, 3)) <span>— два графика рядом</span></li><li>s.plot(ax=axes[0]) <span>— нарисовать в нужное место</span></li><li>ax.axvline(x, linestyle=&#34;--&#34;) <span>— линия-отметка, например медиана</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Какой график для вопроса «как менялась выручка по месяцам»?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Круговая диаграмма</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Линия</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Гистограмма</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Таблица</span></button></div>
+          <div class="why" hidden>Изменение во времени — линия, время слева направо.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Какой график покажет, какие суммы чеков встречаются чаще?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Линия</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Гистограмма</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Круговая</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Точечный</span></button></div>
+          <div class="why" hidden>Гистограмма раскладывает значения по интервалам и показывает, сколько попало в каждый.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="2">
+          <p>3. Какой заголовок лучше?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>«График 1»</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>«Выручка по категориям»</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>«Художественные книги дают 40% выручки»</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Без заголовка</span></button></div>
+          <div class="why" hidden>Заголовок-вывод сразу говорит, что увидеть на графике.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Что делает <code>plt.subplots(1, 2)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Рисует один график дважды</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Создаёт полотно с двумя местами для графиков в одну строку</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Делит данные на 2 части</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ничего не рисует</span></button></div>
+          <div class="why" hidden>1 строка, 2 столбца — два графика рядом, обращаться к ним через axes[0] и axes[1].</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Почему столбцы сортируют перед графиком?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Так красивее</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Чтобы сразу было видно лидера и порядок</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Иначе pandas выдаст ошибку</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Не нужно сортировать</span></button></div>
+          <div class="why" hidden>Отсортированные столбцы читаются мгновенно, глазу не нужно искать максимум.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Линия выручки</h3>
+            <ol class='steps-t'><li>Посчитай выручку Sutli по месяцам в млн сум (1 знак) → <code class='i'>monthly</code>, напечатай её.</li> <li>Нарисуй линию с точками (<code class='i'>marker="o"</code>), подпиши ось Y «млн сум».</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 20 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">monthly =
+print(monthly)
+
+# график
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">date
+2026-01-01    196.9
+2026-02-01    171.8
+2026-03-01    202.4
+2026-04-01    212.5
+2026-05-01    228.3
+2026-06-01    271.4
+2026-07-01    230.5
+2026-08-01    242.2
+2026-09-01    246.4
+Freq: MS, Name: revenue, dtype: float64</pre><div class="figs"><img src="../../static/img/lessons/day20-t1.png" alt="Пример графика" loading="lazy"></div></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>monthly =
+print(monthly)
+
+# график
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала цифры, потом картинка. Выручку по месяцам ты считал в уроке 16. У любой Series есть метод plot — он рисует её сам: по оси X подписи, по оси Y значения.</p>
+<p><b>Чем это сделать.</b> <code class="i">ax = monthly.plot(marker="o")</code> — линия с точками; <code class="i">ax</code> — «холст» графика. <code class="i">ax.set_ylabel("…")</code> — подпись оси Y.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>monthly = (sales.set_index(&#34;___&#34;).resample(&#34;___&#34;)[&#34;revenue&#34;].sum() / 1e6).round(1)
+print(monthly)
+ax = monthly.plot(marker=&#34;___&#34;, figsize=(7, 3.5))
+ax.set_ylabel(&#34;___&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Проверка ищет и числа, и картинку. Если график не появился, проверь, что вызван <code class="i">.plot(...)</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Категории книг столбцами</h3>
+            <ol class='steps-t'><li>Выручка Kitobxon по категориям в млн сум (2 знака), отсортированная по возрастанию → <code class='i'>cat</code>, напечатай.</li> <li>Нарисуй горизонтальные столбцы (<code class='i'>kind="barh"</code>) с подписью оси X «млн сум».</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 20 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">cat =
+print(cat)
+
+# график
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category
+Бизнес             41.97
+Учебная            57.81
+Детская            73.83
+Художественная    106.24
+Name: amount, dtype: float64</pre><div class="figs"><img src="../../static/img/lessons/day20-t2.png" alt="Пример графика" loading="lazy"></div></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>cat =
+print(cat)
+
+# график
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай выручку по категориям и отсортируй по возрастанию — тогда в горизонтальных столбцах самая большая категория окажется сверху, и график читается сразу.</p>
+<p><b>Чем это сделать.</b> <code class="i">.plot(kind="barh")</code> — горизонтальные столбцы. <code class="i">ax.set_xlabel("…")</code> — подпись оси X.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>cat = (orders.groupby(&#34;___&#34;)[&#34;amount&#34;].sum() / 1e6).round(2).sort_values()
+print(cat)
+ax = cat.plot(kind=&#34;___&#34;, figsize=(7, 3))
+ax.set_xlabel(&#34;___&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Для barh числа идут по оси <b>X</b>, поэтому подпись — set_xlabel, а не set_ylabel.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Гистограмма чеков</h3>
+            <ol class='steps-t'><li>Напечатай медиану и 90-й перцентиль суммы заказа Kitobxon в одну строку.</li> <li>Нарисуй гистограмму сумм с 30 столбиками и пунктирной вертикальной линией на медиане.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 20 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">med =
+p90 =
+print(med, p90)
+
+# гистограмма и линия медианы
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">121000.0 237000.0</pre><div class="figs"><img src="../../static/img/lessons/day20-t3.png" alt="Пример графика" loading="lazy"></div></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>med =
+p90 =
+print(med, p90)
+
+# гистограмма и линия медианы
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Гистограмма показывает, сколько заказов попало в каждый «коридор» сумм. Медиана и 90-й перцентиль — две отметки на этой шкале; медиану нарисуй вертикальной пунктирной линией.</p>
+<p><b>Чем это сделать.</b> <code class="i">.quantile(0.9)</code> — 90-й перцентиль. <code class="i">.plot(kind="hist", bins=30)</code> — гистограмма. <code class="i">ax.axvline(x, linestyle="--")</code> — вертикальная линия.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>med = orders[&#34;amount&#34;].___()
+p90 = orders[&#34;amount&#34;].quantile(___)
+print(med, p90)
+ax = orders[&#34;amount&#34;].plot(kind=&#34;___&#34;, bins=___, figsize=(7, 3))
+ax.axvline(___, color=&#34;black&#34;, linestyle=&#34;--&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> axvline рисует вертикальную линию, axhline — горизонтальную. Для медианы на оси сумм нужна вертикальная.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Дни недели</h3>
+            <ol class='steps-t'><li>Посчитай среднее число заказов Sutli по дням недели (0 = понедельник), 1 знак, напечатай.</li> <li>Нарисуй столбцы. Заголовок: «Заказов в день по дням недели».</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 20 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">wd =
+print(wd)
+
+# график
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">date
+0    146.9
+1    145.1
+2    143.9
+3    141.0
+4    142.1
+5    184.5
+6    190.2
+Name: orders, dtype: float64</pre><div class="figs"><img src="../../static/img/lessons/day20-t4.png" alt="Пример графика" loading="lazy"></div></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>wd =
+print(wd)
+
+# график
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сгруппируй дни по номеру дня недели и возьми среднее число заказов. Потом нарисуй столбцы и дай заголовок.</p>
+<p><b>Чем это сделать.</b> <code class="i">sales["date"].dt.dayofweek</code> — номер дня недели. Группировать можно прямо по этой Series. <code class="i">ax.set_title("…")</code> — заголовок.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>wd = sales.groupby(sales[&#34;date&#34;].dt.___)[&#34;orders&#34;].mean().round(1)
+print(wd)
+ax = wd.plot(kind=&#34;___&#34;, figsize=(7, 3))
+ax.set_title(&#34;___&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если взять sum вместо mean, дни с бо́льшим числом недель в выгрузке будут казаться сильнее.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Тренд без шума</h3>
+            <ol class='steps-t'><li>Сделай дату индексом. Посчитай скользящее среднее заказов за 7 дней → <code class='i'>trend</code>.</li> <li>Напечатай последнее значение trend (1 знак).</li> <li>Нарисуй на одном графике дневные заказы (тонкой серой линией) и trend (толще, другим цветом).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 20 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">s = sales.set_index(&#34;date&#34;)[&#34;orders&#34;]
+trend =
+print(round(trend.iloc[-1], 1))
+
+# оба ряда на одном графике
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">186.4</pre><div class="figs"><img src="../../static/img/lessons/day20-t5.png" alt="Пример графика" loading="lazy"></div></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>s = sales.set_index(&#34;date&#34;)[&#34;orders&#34;]
+trend =
+print(round(trend.iloc[-1], 1))
+
+# оба ряда на одном графике
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Два ряда на одном графике: сначала рисуешь первый и получаешь холст, потом второй рисуешь <b>на тот же холст</b>. Шумный дневной ряд — тонкий и серый, тренд — толстый и яркий.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.rolling(7).mean()</code> — тренд. <code class="i">trend.plot(ax=ax)</code> — нарисовать на существующем холсте. <code class="i">color=</code>, <code class="i">linewidth=</code> — цвет и толщина.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>trend = s.rolling(___).mean()
+print(round(trend.iloc[-1], 1))
+ax = s.plot(color=&#34;lightgray&#34;, linewidth=___, figsize=(8, 3.5))
+trend.plot(ax=___, linewidth=2.5, color=&#34;#E70488&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">ax=ax</code> второй ряд нарисуется отдельной картинкой.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Заголовок-вывод из данных</h3>
+            <ol class='steps-t'><li>Посчитай, на сколько процентов среднее число заказов в выходные (сб, вс) больше, чем в будни, целым числом → <code class='i'>diff</code>.</li> <li>Собери заголовок <code class='i'>title = f"В выходные заказов на {diff}% больше, чем в будни"</code> и напечатай его.</li> <li>Нарисуй столбцы «будни / выходные» с этим заголовком.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 20 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">weekend = sales[&#34;date&#34;].dt.dayofweek &gt;= 5
+avg = sales.groupby(weekend)[&#34;orders&#34;].mean()
+diff =
+title =
+print(title)
+
+# график
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">В выходные заказов на 30% больше, чем в будни</pre><div class="figs"><img src="../../static/img/lessons/day20-t6.png" alt="Пример графика" loading="lazy"></div></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>weekend = sales[&#34;date&#34;].dt.dayofweek &gt;= 5
+avg = sales.groupby(weekend)[&#34;orders&#34;].mean()
+diff =
+title =
+print(title)
+
+# график
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Хороший заголовок — это вывод с цифрой. Посчитай, на сколько процентов выходные больше будней, вставь число в текст и используй этот текст как заголовок графика.</p>
+<p><b>Чем это сделать.</b> После группировки по маске <code class="i">avg[True]</code> — выходные, <code class="i">avg[False]</code> — будни. На сколько % больше: <code class="i">(a / b - 1) * 100</code>. f-строка вставит число в текст.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>diff = round((avg[___] / avg[___] - 1) * 100)
+title = f&#34;В выходные заказов на {___}% больше, чем в будни&#34;
+print(title)
+avg.index = [&#34;будни&#34;, &#34;выходные&#34;]
+ax = avg.plot(kind=&#34;bar&#34;, figsize=(5, 3), title=___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Переименовывай подписи (<code class="i">avg.index = …</code>) после расчёта diff: потом avg[True] уже не найдётся.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Мини-дашборд для банка</h3>
+            <p>Одна картинка из двух графиков рядом (<code class='i'>plt.subplots(1, 2)</code>):</p> <ol class='steps-t'><li>Слева: выручка Sutli по месяцам (линия), в млн сум.</li> <li>Справа: средний чек по месяцам (выручка / заказы), столбцами.</li> <li>Напечатай средний чек первого и последнего месяца (целые) в одну строку.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 20 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">m = sales.set_index(&#34;date&#34;).resample(&#34;MS&#34;)[[&#34;revenue&#34;, &#34;orders&#34;]].sum()
+check =
+print(round(check.iloc[0]), round(check.iloc[-1]))
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 3.2))
+# твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">48230 48170</pre><div class="figs"><img src="../../static/img/lessons/day20-t7.png" alt="Пример графика" loading="lazy"></div></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>m = sales.set_index(&#34;date&#34;).resample(&#34;MS&#34;)[[&#34;revenue&#34;, &#34;orders&#34;]].sum()
+check =
+print(round(check.iloc[0]), round(check.iloc[-1]))
+
+fig, axes = plt.subplots(1, 2, figsize=(10, 3.2))
+# твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> plt.subplots(1, 2) создаёт картинку с двумя холстами рядом: axes[0] — левый, axes[1] — правый. Каждый график рисуй на свой холст. Средний чек = выручка / заказы.</p>
+<p><b>Чем это сделать.</b> <code class="i">.plot(ax=axes[0])</code> — нарисовать на левом холсте. <code class="i">fig.tight_layout()</code> — аккуратные отступы.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>check = m[&#34;___&#34;] / m[&#34;___&#34;]
+print(round(check.iloc[0]), round(check.iloc[-1]))
+fig, axes = plt.subplots(1, 2, figsize=(10, 3.2))
+(m[&#34;revenue&#34;] / 1e6).plot(ax=axes[___], marker=&#34;o&#34;, title=&#34;Выручка, млн сум&#34;)
+check.plot(kind=&#34;bar&#34;, ax=axes[___], title=&#34;Средний чек, сум&#34;)
+fig.tight_layout()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если оба графика нарисовать без ax, они окажутся на разных картинках, а не рядом.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Подготовь подписи к графикам для Гульноры</h2>
+      <div class="case">
+        <p>Гульнора покажет банку два графика: выручку по месяцам и заказы по дням недели. Напиши для каждого <b>заголовок-вывод</b> и <b>одно предложение-пояснение</b> с цифрами, а в конце — <b>1 оговорку</b>, о которой банк может спросить.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Выручка в январе</span><span class="fact-chip">Выручка в сентябре</span><span class="fact-chip">Заказов в выходной день</span><span class="fact-chip">Заказов в будний день</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="График 1. Заголовок: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Какие у тебя заголовки графиков?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Заголовки-выводы: что видно на графике, с цифрой</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Названия данных: «Выручка по месяцам»</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Без заголовков</span></button></div>
+            <div class="why" hidden>Банк должен понять главное за 3 секунды. Заголовок «Выручка выросла на 25%» говорит больше, чем «Выручка по месяцам».</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что твой ответ говорит про выходные?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Выходные — самые сильные дни: заказов больше, чем в будни</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В выходные заказов меньше</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Разницы нет</span></button></div>
+            <div class="why" hidden>187 заказов в день в выходные против 144 в будни.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Какую оговорку ты называешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Несколько дней касса не выгрузилась, и/или июньский всплеск объясняется акцией</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Оговорок нет</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Данные выдуманы</span></button></div>
+            <div class="why" hidden>Банк может спросить про провалы и всплеск — лучше ответить заранее.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>График 1 — «Выручка выросла на 25% за 9 месяцев»: с 196,9 млн сум в январе до 246,4 млн в сентябре, всплеск в июне — недельная акция. График 2 — «Выходные — самые сильные дни»: в субботу и воскресенье в среднем 187 заказов в день против 144 в будни. Оговорка: 4 дня касса не выгрузилась, поэтому суммы за эти месяцы немного занижены, а июньский рост частично объясняется акцией с рекламой.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Оба заголовка — выводы с цифрами, а не названия графиков</li><li>Рост выручки с цифрами января и сентября</li><li>Сравнение выходных и будней с цифрами</li><li>Оговорка про пропущенные дни или акцию</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 20</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/19-kogorty-retention/"><small>← Урок 19</small><b>Когортный анализ и retention</b></a><a class="nx" href="../../lessons/21-mini-proekt-3/"><small>Проект 21 →</small><b>Мини-проект 3: дашборд-ноутбук когорт и метрик</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u044f\u043d\u0432\u0430\u0440\u0435", "value": 196900000}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435", "value": 246400000}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u043e\u0439 \u0434\u0435\u043d\u044c", "value": 187}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0431\u0443\u0434\u043d\u0438\u0439 \u0434\u0435\u043d\u044c", "value": 144}], "logic": [{"a": 0, "o": ["\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u0438-\u0432\u044b\u0432\u043e\u0434\u044b: \u0447\u0442\u043e \u0432\u0438\u0434\u043d\u043e \u043d\u0430 \u0433\u0440\u0430\u0444\u0438\u043a\u0435, \u0441 \u0446\u0438\u0444\u0440\u043e\u0439", "\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0434\u0430\u043d\u043d\u044b\u0445: \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb", "\u0411\u0435\u0437 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u043e\u0432"], "q": "\u041a\u0430\u043a\u0438\u0435 \u0443 \u0442\u0435\u0431\u044f \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u0438 \u0433\u0440\u0430\u0444\u0438\u043a\u043e\u0432?", "why": "\u0411\u0430\u043d\u043a \u0434\u043e\u043b\u0436\u0435\u043d \u043f\u043e\u043d\u044f\u0442\u044c \u0433\u043b\u0430\u0432\u043d\u043e\u0435 \u0437\u0430 3 \u0441\u0435\u043a\u0443\u043d\u0434\u044b. \u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432\u044b\u0440\u043e\u0441\u043b\u0430 \u043d\u0430 25%\u00bb \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb."}, {"a": 0, "o": ["\u0412\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u2014 \u0441\u0430\u043c\u044b\u0435 \u0441\u0438\u043b\u044c\u043d\u044b\u0435 \u0434\u043d\u0438: \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u0432 \u0431\u0443\u0434\u043d\u0438", "\u0412 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043c\u0435\u043d\u044c\u0448\u0435", "\u0420\u0430\u0437\u043d\u0438\u0446\u044b \u043d\u0435\u0442"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043f\u0440\u043e \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435?", "why": "187 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0434\u0435\u043d\u044c \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u043f\u0440\u043e\u0442\u0438\u0432 144 \u0432 \u0431\u0443\u0434\u043d\u0438."}, {"a": 0, "o": ["\u041d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0434\u043d\u0435\u0439 \u043a\u0430\u0441\u0441\u0430 \u043d\u0435 \u0432\u044b\u0433\u0440\u0443\u0437\u0438\u043b\u0430\u0441\u044c, \u0438/\u0438\u043b\u0438 \u0438\u044e\u043d\u044c\u0441\u043a\u0438\u0439 \u0432\u0441\u043f\u043b\u0435\u0441\u043a \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0435\u0442\u0441\u044f \u0430\u043a\u0446\u0438\u0435\u0439", "\u041e\u0433\u043e\u0432\u043e\u0440\u043e\u043a \u043d\u0435\u0442", "\u0414\u0430\u043d\u043d\u044b\u0435 \u0432\u044b\u0434\u0443\u043c\u0430\u043d\u044b"], "q": "\u041a\u0430\u043a\u0443\u044e \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0443 \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "\u0411\u0430\u043d\u043a \u043c\u043e\u0436\u0435\u0442 \u0441\u043f\u0440\u043e\u0441\u0438\u0442\u044c \u043f\u0440\u043e \u043f\u0440\u043e\u0432\u0430\u043b\u044b \u0438 \u0432\u0441\u043f\u043b\u0435\u0441\u043a \u2014 \u043b\u0443\u0447\u0448\u0435 \u043e\u0442\u0432\u0435\u0442\u0438\u0442\u044c \u0437\u0430\u0440\u0430\u043d\u0435\u0435."}]}, "case_model": "\u0413\u0440\u0430\u0444\u0438\u043a 1 \u2014 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432\u044b\u0440\u043e\u0441\u043b\u0430 \u043d\u0430 25% \u0437\u0430 9 \u043c\u0435\u0441\u044f\u0446\u0435\u0432\u00bb: \u0441 196,9 \u043c\u043b\u043d \u0441\u0443\u043c \u0432 \u044f\u043d\u0432\u0430\u0440\u0435 \u0434\u043e 246,4 \u043c\u043b\u043d \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435, \u0432\u0441\u043f\u043b\u0435\u0441\u043a \u0432 \u0438\u044e\u043d\u0435 \u2014 \u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0430\u044f \u0430\u043a\u0446\u0438\u044f. \u0413\u0440\u0430\u0444\u0438\u043a 2 \u2014 \u00ab\u0412\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u2014 \u0441\u0430\u043c\u044b\u0435 \u0441\u0438\u043b\u044c\u043d\u044b\u0435 \u0434\u043d\u0438\u00bb: \u0432 \u0441\u0443\u0431\u0431\u043e\u0442\u0443 \u0438 \u0432\u043e\u0441\u043a\u0440\u0435\u0441\u0435\u043d\u044c\u0435 \u0432 \u0441\u0440\u0435\u0434\u043d\u0435\u043c 187 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0434\u0435\u043d\u044c \u043f\u0440\u043e\u0442\u0438\u0432 144 \u0432 \u0431\u0443\u0434\u043d\u0438. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: 4 \u0434\u043d\u044f \u043a\u0430\u0441\u0441\u0430 \u043d\u0435 \u0432\u044b\u0433\u0440\u0443\u0437\u0438\u043b\u0430\u0441\u044c, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0441\u0443\u043c\u043c\u044b \u0437\u0430 \u044d\u0442\u0438 \u043c\u0435\u0441\u044f\u0446\u044b \u043d\u0435\u043c\u043d\u043e\u0433\u043e \u0437\u0430\u043d\u0438\u0436\u0435\u043d\u044b, \u0430 \u0438\u044e\u043d\u044c\u0441\u043a\u0438\u0439 \u0440\u043e\u0441\u0442 \u0447\u0430\u0441\u0442\u0438\u0447\u043d\u043e \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0435\u0442\u0441\u044f \u0430\u043a\u0446\u0438\u0435\u0439 \u0441 \u0440\u0435\u043a\u043b\u0430\u043c\u043e\u0439.", "case_xp": 30, "cheat": [["s.plot()", "\u043b\u0438\u043d\u0438\u044f (\u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e)"], ["s.plot(kind=\"bar\") / kind=\"barh\"", "\u0441\u0442\u043e\u043b\u0431\u0446\u044b"], ["s.plot(kind=\"hist\", bins=30)", "\u0433\u0438\u0441\u0442\u043e\u0433\u0440\u0430\u043c\u043c\u0430"], ["ax = s.plot(...); ax.set_title(\"\u0432\u044b\u0432\u043e\u0434\")", "\u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a"], ["ax.set_xlabel(...) / ax.set_ylabel(...)", "\u043f\u043e\u0434\u043f\u0438\u0441\u0438 \u043e\u0441\u0435\u0439"], ["fig, axes = plt.subplots(1, 2, figsize=(10, 3))", "\u0434\u0432\u0430 \u0433\u0440\u0430\u0444\u0438\u043a\u0430 \u0440\u044f\u0434\u043e\u043c"], ["s.plot(ax=axes[0])", "\u043d\u0430\u0440\u0438\u0441\u043e\u0432\u0430\u0442\u044c \u0432 \u043d\u0443\u0436\u043d\u043e\u0435 \u043c\u0435\u0441\u0442\u043e"], ["ax.axvline(x, linestyle=\"--\")", "\u043b\u0438\u043d\u0438\u044f-\u043e\u0442\u043c\u0435\u0442\u043a\u0430, \u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440 \u043c\u0435\u0434\u0438\u0430\u043d\u0430"]], "data": "../../data/", "datasets": ["sutli_sales.csv", "kitobxon_orders.csv"], "day": 20, "hint_cost": 5, "quiz": [1, 1, 2, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\nsales = pd.read_csv(\"sutli_sales.csv\", parse_dates=[\"date\"])\norders = pd.read_csv(\"kitobxon_orders.csv\", parse_dates=[\"order_date\"])", "tasks": [{"figure": true, "id": "t1", "keys": ["date", "2026-01-01 196.9", "2026-02-01 171.8", "2026-03-01 202.4", "2026-06-01 271.4", "2026-07-01 230.5", "2026-08-01 242.2", "2026-09-01 246.4"], "setup": "", "xp": 10}, {"figure": true, "id": "t2", "keys": ["category", "\u0411\u0438\u0437\u043d\u0435\u0441 41.97", "\u0423\u0447\u0435\u0431\u043d\u0430\u044f 57.81", "\u0414\u0435\u0442\u0441\u043a\u0430\u044f 73.83", "\u0425\u0443\u0434\u043e\u0436\u0435\u0441\u0442\u0432\u0435\u043d\u043d\u0430\u044f 106.24"], "setup": "", "xp": 10}, {"figure": true, "id": "t3", "keys": ["121000.0 237000.0"], "setup": "", "xp": 15}, {"figure": true, "id": "t4", "keys": ["date", "0 146.9", "1 145.1", "2 143.9", "3 141.0", "4 142.1", "5 184.5", "6 190.2"], "setup": "", "xp": 15}, {"figure": true, "id": "t5", "keys": ["186.4"], "setup": "", "xp": 20}, {"figure": true, "id": "t6", "keys": ["\u0412 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0430 30% \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u0432 \u0431\u0443\u0434\u043d\u0438"], "setup": "", "xp": 15}, {"figure": true, "id": "t7", "keys": ["48230 48170"], "setup": "", "xp": 25}], "theory": ["brief", "choose", "clean", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

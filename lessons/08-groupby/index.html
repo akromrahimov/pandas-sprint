@@ -1,0 +1,814 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 8. groupby: агрегации по сегментам — Pandas Sprint</title>
+<meta name="description" content="Урок 8 курса Pandas Sprint — groupby: агрегации по сегментам. Посчитать суммы, средние и количества по городам, категориям и любым группам.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/08-groupby/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 8. groupby: агрегации по сегментам — Pandas Sprint">
+<meta property="og:description" content="Урок 8 курса Pandas Sprint — groupby: агрегации по сегментам. Посчитать суммы, средние и количества по городам, категориям и любым группам.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/08-groupby/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="8">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>groupby</a></li><li><a href="#tools"><span class="dot">✓</span>8 приёмов</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">GROUP BY, COUNT, SUM, AVG</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Всё, что ты пишешь в SQL с GROUP BY, есть в pandas. Отличие в порядке слов: в SQL сначала SELECT с функциями, потом GROUP BY. В pandas наоборот: сначала groupby (по чему делим), потом колонка, потом функция.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT city, COUNT(*) … GROUP BY city</code></td><td><code>df.groupby(&#34;city&#34;).size()</code></td><td>строки, включая NaN</td></tr><tr><td><code>SELECT city, COUNT(amount) …</code></td><td><code>df.groupby(&#34;city&#34;)[&#34;amount&#34;].count()</code></td><td>только заполненные</td></tr><tr><td><code>SELECT city, SUM(amount), AVG(amount) …</code></td><td><code>df.groupby(&#34;city&#34;)[&#34;amount&#34;].agg([&#34;sum&#34;, &#34;mean&#34;])</code></td><td>несколько функций</td></tr><tr><td><code>SELECT city, COUNT(*) AS orders, AVG(amount) AS avg_check …</code></td><td><code>df.groupby(&#34;city&#34;).agg(orders=(&#34;order_id&#34;, &#34;size&#34;), avg_check=(&#34;amount&#34;, &#34;mean&#34;))</code></td><td>named aggregation = AS</td></tr><tr><td><code>AVG(CASE WHEN status=&#39;cancelled&#39; THEN 1 ELSE 0 END)</code></td><td><code>(df[&#34;status&#34;] == &#34;cancelled&#34;).groupby(df[&#34;city&#34;]).mean()</code></td><td>доля в группе</td></tr><tr><td><code>COUNT(DISTINCT customer_id)</code></td><td><code>df.groupby(&#34;city&#34;)[&#34;customer_id&#34;].nunique()</code></td><td>уникальные</td></tr><tr><td><code>GROUP BY city, channel</code></td><td><code>df.groupby([&#34;city&#34;, &#34;channel&#34;], as_index=False)</code></td><td>два ключа, обычная таблица</td></tr><tr><td><code>… ORDER BY orders DESC</code></td><td><code>.sort_values(&#34;orders&#34;, ascending=False)</code></td><td>сортировка результата</td></tr><tr><td><code>WHERE status=&#39;delivered&#39; GROUP BY city</code></td><td><code>df[df[&#34;status&#34;] == &#34;delivered&#34;].groupby(&#34;city&#34;)</code></td><td>сначала фильтр, потом группы</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Ловушка из SQL.</b> В SQL <code class="i">GROUP BY city</code> тоже разделит «Ташкент» и « Ташкент», но ты привык, что в базе справочник городов чистый. В выгрузках чистоты нет: по сырому city здесь <b>7 групп вместо 4</b>, и Ташкент теряет 182 заказа. Именно эту ошибку сделал Excel Ойбека.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 8 из 30 · Неделя 2 · Агрегации</div>
+      <h1>groupby: <mark>одна строка</mark> на каждый город</h1>
+      <p class="lead">Почти любой отчёт аналитика звучит как «посчитай X по каждому Y»: выручку по городам, заказы по курьерам, средний чек по каналам. Для этого в pandas есть groupby. Сегодня учимся группировать данные и считать по группам сразу несколько показателей.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Служба доставки еды Yetkaz хочет забрать 3 курьеров из Ташкента и отдать Самарканду. Посчитать по каждому городу заказы, выручку, средний чек, время доставки, долю отмен и нагрузку на курьера — и сказать руководителю операций, правильное ли это решение.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Считать строки в группах: <code class="i">groupby("city").size()</code> и понимать, чем это отличается от <code class="i">count()</code></li><li>Считать несколько метрик сразу: <code class="i">.agg(orders=("order_id", "size"), ...)</code></li><li>Долю в каждой группе: <code class="i">mask.groupby(df["city"]).mean() * 100</code></li><li>Группировать по двум колонкам и получать обычную таблицу: <code class="i">as_index=False</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>«В Ташкенте всё нормально, заберём 3 курьеров»</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">О</span>Ойбек <small>руководитель операций Yetkaz · 10:05</small></div>
+          <p>Привет! Сделал в Excel сводную по колонке city за 05–18.10: <b>Ташкент 700 заказов, Самарканд 298</b>. Отмен в среднем 10.6% — терпимо. Курьеров везде по 12. Хочу с понедельника <b>перевести 3 курьеров из Ташкента в Самарканд</b> — Самарканд растёт.</p>
+<div class="file">▤ yetkaz_orders.csv · 1 600 заказов</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">О</span>Ойбек <small>10:07</small></div>
+          <p>Ещё маркетинг уверяет, что промокоды на отмены не влияют. Дай мне по каждому городу: заказы, выручку, средний чек, время доставки и отмены. До завтра успеешь?</p>
+        </div>
+      </div>
+      <p class="note">Yetkaz — учебная служба доставки. Данные сгенерированы, но грязные как настоящие: город записан по-разному (<b>«Ташкент»</b>, <b>« Ташкент»</b>, <b>«ташкент»</b>, <b>«самарканд»</b>), у 79 заказов касса не записала сумму (<b>amount = NaN</b>), оценку ставит только часть клиентов (<b>rating = NaN</b>). Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/yetkaz_orders.csv" download>Скачать yetkaz_orders.csv</a><span class="note">1 600 строк · 12 колонок · 120 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;yetkaz_orders.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>groupby = разложить по коробкам и посчитать каждую</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь, что на столе куча конфет разного цвета. Мама просит: «Скажи, сколько красных, сколько зелёных, сколько жёлтых». Ты делаешь три шага: <b>1) раскладываешь</b> конфеты по коробкам — каждый цвет в свою; <b>2) считаешь</b> каждую коробку отдельно; <b>3) пишешь</b> ответ на одном листочке: «красных 5, зелёных 3, жёлтых 7».</p>
+<ul>
+<li><b>groupby("city")</b> — шаг 1: «разложи строки по коробкам, на каждой коробке написан город». Сам по себе он ничего не считает — только раскладывает.</li>
+<li><b>Ключ группировки</b> — то, что написано на коробке (здесь город). Одинаковая надпись = одна коробка. «Ташкент» и « Ташкент» — <b>две разные коробки</b>, поэтому сначала чистка (урок 6).</li>
+<li><b>size()</b> — «сколько строк в коробке» (COUNT(*)). <b>count()</b> — «сколько <b>заполненных</b> ячеек в колонке» (COUNT(amount)): пустые NaN не считает.</li>
+<li><b>sum(), mean(), median()</b> — шаг 2 для каждой коробки: сумма, среднее, середина.</li>
+<li><b>agg(...)</b> — «посчитай сразу несколько вещей».</li>
+<li>Результат — шаг 3: <b>одна строка на каждую коробку</b>. Названия коробок становятся <b>Index</b> (бирками строк) результата.</li>
+</ul>
+<p>Учёные называют это <b>split → apply → combine</b>: разделить → применить расчёт → собрать обратно. Главная мысль дня: <b>сначала чистые ключи, потом groupby, потом проверка: сумма по группам = итог по всей таблице</b>.</p>
+</div>
+<p>Шесть настоящих строк файла. Цвет строки — коробка, в которую она попадёт. Розовым — то, что ломает группировку.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">Index</th><th class="ser">city<span class="dt">ключ группы</span></th><th>category<span class="dt">str</span></th><th>amount<span class="dt">float64</span></th><th>delivery_min<span class="dt">int64</span></th><th>status<span class="dt">str</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">0</td><td class="ser">Ташкент</td><td>Шашлык</td><td>96000.0</td><td>42</td><td>delivered</td></tr>
+<tr><td class="idx">1</td><td class="ser">Наманган</td><td>Бургеры</td><td class="nan">NaN</td><td>32</td><td>delivered</td></tr>
+<tr><td class="idx">2</td><td class="ser">Ташкент</td><td>Плов</td><td>81000.0</td><td>59</td><td>delivered</td></tr>
+<tr><td class="idx">3</td><td class="ser">Самарканд</td><td>Суши</td><td class="nan">NaN</td><td>37</td><td>delivered</td></tr>
+<tr><td class="idx">7</td><td class="ser nan">ташкент</td><td>Плов</td><td>120000.0</td><td>57</td><td>delivered</td></tr>
+<tr><td class="idx">…</td><td class="ser nan"> Ташкент</td><td>…</td><td>…</td><td>…</td><td>cancelled</td></tr>
+</tbody>
+</table>
+</div>
+<div class="legend">
+<div><b>split · groupby("city")</b>Разложить строки по коробкам с одинаковым городом.</div>
+<div><b>apply · size / sum / mean / agg</b>Посчитать что-то в каждой коробке отдельно.</div>
+<div><b>combine · результат</b>Одна строка на город. Город — бирка строки (Index).</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Восемь приёмов: посчитать по группам правильно</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">df.groupby("city")</code> — «разложи строки df по коробкам с одинаковым city». Это ещё не ответ: если напечатать, увидишь непонятное <code class="i">&lt;DataFrameGroupBy object&gt;</code>. Нужен шаг «посчитай».</li>
+<li><code class="i">df.groupby("city")["amount"]</code> — квадратные скобки после groupby = «в каждой коробке смотрим только на колонку amount».</li>
+<li><code class="i">.agg(["sum", "mean"])</code> — список в квадратных скобках = «посчитай сумму И среднее». Получится таблица: столбец на каждую функцию.</li>
+<li><code class="i">.agg(orders=("order_id", "size"))</code> — <b>named aggregation</b>: слева от <b>=</b> — имя новой колонки (как <code class="i">AS orders</code>), справа в круглых скобках пара: <b>(какая колонка, какая функция)</b>.</li>
+<li><code class="i">mask.groupby(df["city"]).mean()</code> — маска True/False, разложенная по городам. mean() от True/False = доля True в каждой коробке.</li>
+<li><code class="i">groupby(["city", "channel"], as_index=False)</code> — список = два ключа (коробка «ташкент + app», «ташкент + web»…). <b>as_index=False</b> — ключи остаются обычными колонками, а не бирками строк.</li>
+<li>Скобки вокруг длинной цепочки <code class="i">( … )</code> позволяют переносить строки: каждый шаг на своей строке.</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле Yetkaz. Карточки идут подряд: в карточке 2 мы почистили city, дальше работаем с чистым.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. Сырой groupby — коробок больше, чем городов.</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+df = pd.read_csv("yetkaz_orders.csv")
+df.groupby("city").size()</pre><div class="out">city
+ Ташкент      75
+Бухара       211
+Наманган     180
+Самарканд    298
+Ташкент      700
+самарканд     29
+ташкент      107
+dtype: int64</div><p class="plain"><b>Простыми словами:</b> городов 4, а коробок <b>7</b>. « Ташкент» (75), «Ташкент» (700) и «ташкент» (107) — для pandas три разных города. Excel Ойбека сделал то же самое: показал Ташкенту <b>700</b> заказов вместо настоящих 882.</p></div>
+<div class="card"><div class="q"><b>2. Сначала чистка ключа, потом size().</b></div>
+<pre class="code" data-cm="">df["city"] = df["city"].str.strip().str.lower()
+df.groupby("city").size().sort_values(ascending=False)</pre><div class="out">city
+ташкент      882
+самарканд    327
+бухара       211
+наманган     180
+dtype: int64</div><p class="plain"><b>Простыми словами:</b> после strip + lower осталось <b>4 коробки</b>. В Ташкенте <b>882</b> заказа — в 2.7 раза больше, чем в Самарканде (327). Проверка: 882 + 327 + 211 + 180 = <b>1 600</b> — все строки на месте.</p></div>
+<div class="card"><div class="q"><b>3. count() не считает пустые ячейки.</b></div>
+<pre class="code" data-cm="">print(df.groupby("city")["amount"].count())
+print(df["amount"].isna().sum())</pre><div class="out">city
+бухара       204
+наманган     167
+самарканд    315
+ташкент      835
+Name: amount, dtype: int64
+79</div><p class="plain"><b>Простыми словами:</b> count по amount в Ташкенте — <b>835</b>, а заказов 882: у 47 заказов касса не записала сумму. Всего пустых сумм <b>79</b>. Если «число заказов» считать через count(amount), ты потеряешь эти заказы. Число строк — это <b>size()</b>.</p></div>
+<div class="card"><div class="q"><b>4. Несколько функций сразу — agg со списком.</b></div>
+<pre class="code" data-cm="">df.groupby("city")["amount"].agg(["sum", "mean", "median"]).round(0)</pre><div class="out">                  sum     mean   median
+city
+бухара     15307000.0  75034.0  66000.0
+наманган   12476000.0  74707.0  64000.0
+самарканд  24167000.0  76721.0  69000.0
+ташкент    75357000.0  90248.0  80000.0</div><p class="plain"><b>Простыми словами:</b> для каждого города — сумма, среднее и медиана суммы заказа. Средний чек в Ташкенте <b>90 248</b> сум, в Самарканде <b>76 721</b>. Медиана везде ниже среднего: несколько дорогих заказов (суши за 399 000) тянут среднее вверх.</p></div>
+<div class="card"><div class="q"><b>5. Named aggregation: свои названия колонок.</b></div>
+<pre class="code" data-cm="">(df.groupby("city")
+   .agg(orders=("order_id", "size"),
+        avg_check=("amount", "mean"),
+        avg_min=("delivery_min", "mean"))
+   .round(1)
+   .sort_values("orders", ascending=False))</pre><div class="out">           orders  avg_check  avg_min
+city
+ташкент       882    90247.9     52.2
+самарканд     327    76720.6     41.0
+бухара        211    75034.3     39.0
+наманган      180    74706.6     37.3</div><p class="plain"><b>Простыми словами:</b> мы сами дали колонкам понятные имена: orders, avg_check, avg_min. В Ташкенте доставка в среднем <b>52.2 минуты</b>, в остальных городах 37–41. Заметь: <code class="i">("order_id", "size")</code> — число строк, неважно, какую колонку взять.</p></div>
+<div class="card"><div class="q"><b>6. Доля в каждой группе — mean от маски.</b></div>
+<pre class="code" data-cm="">cancel = df["status"] == "cancelled"
+cancel.groupby(df["city"]).mean().mul(100).round(1)</pre><div class="out">city
+бухара        5.7
+наманган      6.7
+самарканд     7.3
+ташкент      13.8
+Name: status, dtype: float64</div><p class="plain"><b>Простыми словами:</b> маска говорит про каждый заказ «отменён? да/нет». Разложили по городам и взяли mean — это доля «да» в каждой коробке. В Ташкенте отменяют <b>13.8%</b> заказов, в Бухаре — <b>5.7%</b>. «В среднем 10.6%» у Ойбека прятало эту разницу.</p></div>
+<div class="card"><div class="q"><b>7. Два ключа и as_index=False.</b></div>
+<pre class="code" data-cm="">(df.groupby(["city", "channel"], as_index=False)["amount"]
+   .mean().round(0).head(6))</pre><div class="out">       city   channel   amount
+0    бухара       app  74162.0
+1    бухара  telegram  69349.0
+2    бухара       web  86581.0
+3  наманган       app  78564.0
+4  наманган  telegram  69037.0
+5  наманган       web  65667.0</div><p class="plain"><b>Простыми словами:</b> коробки теперь двойные: «бухара + app», «бухара + telegram»… Благодаря <b>as_index=False</b> город и канал — обычные колонки, а слева простой номер строки. Такую таблицу легко фильтровать, сортировать и отдавать в Excel.</p></div>
+<div class="card"><div class="q"><b>8. Уникальные в группе — COUNT(DISTINCT).</b></div>
+<pre class="code" data-cm="">df.groupby("city")[["customer_id", "courier_id"]].nunique()</pre><div class="out">           customer_id  courier_id
+city
+бухара             177          12
+наманган           162          12
+самарканд          248          12
+ташкент            459          12</div><p class="plain"><b>Простыми словами:</b> клиентов в Ташкенте <b>459</b>, а курьеров — <b>12</b>, как и везде. 882 заказа на 12 курьеров — это <b>73.5</b> заказа на курьера, в Самарканде — 27.2. Вот почему в Ташкенте доставка дольше.</p></div>
+</div>
+<div class="simple"><span class="tag">История про карманные деньги: почему «среднее средних» врёт</span>
+<p>В классе 5 детей. В группе А двое: у Али <b>10</b>, у Вали <b>20</b>. В группе Б трое: Сара <b>30</b>, Лола <b>40</b>, Тимур <b>50</b>. Сумма в группе А = 30, в группе Б = 120. Среднее А = 15, среднее Б = 40.</p>
+<div aria-label="Карманные деньги пяти детей: двое в группе А, трое в группе Б" class="story">
+<span style="height:20%"></span><span style="height:40%"></span>
+<span style="height:0;background:none"></span>
+<span class="rich" style="height:60%"></span><span class="rich" style="height:80%"></span><span class="rich" style="height:100%"></span>
+<span style="height:0;background:none"></span><span style="height:0;background:none"></span><span style="height:0;background:none"></span><span style="height:0;background:none"></span>
+</div>
+<div class="story-lab"><span>группа А: 10, 20 → среднее 15</span><span>группа Б: 30, 40, 50 → среднее 40</span></div>
+<pre class="code" data-cm="">kids = pd.DataFrame({"group": ["А", "А", "Б", "Б", "Б"],
+                     "money": [10, 20, 30, 40, 50]})
+kids.groupby("group")["money"].agg(["sum", "mean"])</pre><div class="out">       sum  mean
+group
+А       30  15.0
+Б      120  40.0</div>
+<p>«Среднее средних» = (15 + 40) / 2 = <b>27.5</b>. А настоящее среднее по классу = 150 / 5 = <b>30</b>. Разница — потому что в группе Б детей больше. Правило: <b>общее среднее считай по всей таблице, а не по готовым средним групп</b>.</p>
+</div>
+<div class="card"><div class="q"><b>Бонус. Та же ловушка на заказах Yetkaz.</b></div>
+<pre class="code" data-cm="">by_city = df.groupby("city")["amount"].mean()
+print(round(by_city.mean()), round(df["amount"].mean()))</pre><div class="out">79177 83700</div><p class="plain"><b>Простыми словами:</b> среднее из четырёх средних чеков городов — <b>79 177</b>, а настоящий средний чек всех заказов — <b>83 700</b>. Маленькие города получили такой же «голос», как Ташкент с 835 суммами. Ошибка в 4 500 сум на чек — и ты бы её не заметил.</p></div>
+<div class="callout"><b>Правило аналитика.</b> После groupby сверь итог: сумма size() по группам = len(df), сумма revenue по группам = общая выручка. Не сходится — где-то потерялись строки (грязный ключ или NaN в ключе).</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Грязный ключ дробит группы</h3><div class="bad">df.groupby(&#34;city&#34;).size()   # 7 групп: «Ташкент», « Ташкент», «ташкент»…</div><div class="good">df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()   # 4 группы</div><p>Перед groupby посмотри value_counts() ключа. Почти одинаковые значения — сначала чистка.</p></div>
+        <div class="trap"><span class="n">2</span><h3>count() вместо size()</h3><div class="bad">df.groupby(&#34;city&#34;)[&#34;amount&#34;].count()   # ташкент 835 — потеряны 47 заказов</div><div class="good">df.groupby(&#34;city&#34;).size()   # ташкент 882</div><p>count считает заполненные ячейки, size — строки. «Сколько заказов» = size.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Доля от всех вместо доли в группе</h3><div class="bad">df[df[&#34;status&#34;] == &#34;cancelled&#34;].groupby(&#34;city&#34;).size() / len(df) * 100   # ташкент 7.6</div><div class="good">(df[&#34;status&#34;] == &#34;cancelled&#34;).groupby(df[&#34;city&#34;]).mean() * 100   # ташкент 13.8</div><p>Первый вариант делит на ВСЕ 1 600 заказов. Вопрос «какая доля отмен в Ташкенте» — делить на заказы Ташкента. mean() от маски делает это сам.</p></div>
+        <div class="trap"><span class="n">4</span><h3>mean() по всей таблице с текстом</h3><div class="bad">df.groupby(&#34;city&#34;).mean()   # TypeError: dtype &#39;str&#39; does not support operation &#39;mean&#39;</div><div class="good">df.groupby(&#34;city&#34;)[&#34;amount&#34;].mean()</div><p>В pandas 3.0 текстовые колонки не усредняются. Выбирай колонку в квадратных скобках.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Среднее средних</h3><div class="bad">df.groupby(&#34;city&#34;)[&#34;amount&#34;].mean().mean()   # 79 177</div><div class="good">df[&#34;amount&#34;].mean()   # 83 700</div><p>Группы разного размера. Общее среднее — только по исходным строкам.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower() <span>— сначала чистый ключ</span></li><li>df.groupby(&#34;city&#34;).size() <span>— COUNT(*)</span></li><li>df.groupby(&#34;city&#34;)[&#34;amount&#34;].count() <span>— COUNT(amount), без NaN</span></li><li>df.groupby(&#34;city&#34;)[&#34;amount&#34;].agg([&#34;sum&#34;, &#34;mean&#34;, &#34;median&#34;]) <span>— несколько функций</span></li><li>df.groupby(&#34;city&#34;).agg(orders=(&#34;order_id&#34;, &#34;size&#34;), avg_check=(&#34;amount&#34;, &#34;mean&#34;)) <span>— AS</span></li><li>(df[&#34;status&#34;] == &#34;cancelled&#34;).groupby(df[&#34;city&#34;]).mean() * 100 <span>— доля в группе, %</span></li><li>df.groupby([&#34;city&#34;, &#34;channel&#34;], as_index=False)[&#34;amount&#34;].mean() <span>— два ключа</span></li><li>df.groupby(&#34;city&#34;)[&#34;customer_id&#34;].nunique() <span>— COUNT(DISTINCT)</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. <code>df.groupby("city")</code> без функции после него — что получится?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Таблица с числом заказов по городам</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Объект «разложено по коробкам», но ещё ничего не посчитано</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Ошибка</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Отсортированный df</span></button></div>
+          <div class="why" hidden>groupby только раскладывает. Ответ появляется после size(), sum(), mean() или agg().</div>
+        </div>
+        <div class="qz" data-q="1" data-a="0">
+          <p>2. В Ташкенте 882 заказа, а <code>groupby("city")["amount"].count()</code> показывает 835. Почему?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>count() считает только заполненные ячейки amount, 47 сумм — NaN</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>count() удаляет дубли</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Это ошибка pandas</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>count() считает уникальные</span></button></div>
+          <div class="why" hidden>size() = строки (COUNT(*)), count() = заполненные (COUNT(amount)).</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Как получить долю отменённых заказов <b>внутри</b> каждого города?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>df[df["status"]=="cancelled"].groupby("city").size() / len(df)</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>(df["status"]=="cancelled").groupby(df["city"]).mean()</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df.groupby("city")["status"].count()</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df.groupby("city")["status"].nunique()</code></span></button></div>
+          <div class="why" hidden>mean от True/False в каждой коробке = доля True в этой коробке. Первый вариант делит на все 1 600 заказов (ташкент 7.6 вместо 13.8).</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Средние чеки городов: 90 248, 76 721, 75 034, 74 707. Их среднее 79 177. Общий средний чек?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>79 177</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Нельзя посчитать из средних: города разного размера; по всей таблице — 83 700</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>90 248</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Сумма средних</span></button></div>
+          <div class="why" hidden>Среднее средних даёт маленьким городам такой же вес, как Ташкенту. Общее среднее — df["amount"].mean().</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Что делает <code>as_index=False</code> в <code>groupby(["city", "channel"], as_index=False)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удаляет индекс у df</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Оставляет city и channel обычными колонками, а не бирками строк</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сортирует результат</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Убирает NaN</span></button></div>
+          <div class="why" hidden>Получается плоская таблица, как результат SQL-запроса. То же даёт .reset_index() после расчёта.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько заказов в каждом городе</h3>
+            <ol class='steps-t'><li>Выведи, сколько групп получается у <code class='i'>df.groupby("city").size()</code> по сырому city (функция <code class='i'>len</code>).</li><li>Почисти city в df: strip + lower (урок 6).</li><li>Выведи число заказов в каждом городе от большего к меньшему.</li></ol><p class='rule-t'>Число строк — size(). Сортировка — sort_values(ascending=False).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 08 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># 1. сколько групп по сырому city
+
+# 2. чистый city
+df[&#34;city&#34;] =
+
+# 3. заказы по городам, по убыванию
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">7
+city
+ташкент      882
+самарканд    327
+бухара       211
+наманган     180
+dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. сколько групп по сырому city
+
+# 2. чистый city
+df[&#34;city&#34;] =
+
+# 3. заказы по городам, по убыванию
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> groupby делит заказы на кучки по городу, а size считает, сколько заказов в каждой кучке. Сначала посчитай кучки по сырому городу (их будет подозрительно много), потом почисти город и посчитай снова.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby("city").size()</code> — заказов в каждом городе. <code class="i">len(...)</code> — сколько получилось групп. <code class="i">.sort_values(ascending=False)</code> — от большего к меньшему.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(len(df.groupby(&#34;___&#34;).size()))
+df[&#34;city&#34;] = df[&#34;city&#34;].str.___().str.___()
+df.groupby(&#34;city&#34;).___().sort_values(ascending=___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если почистить город после группировки, «ташкент» и « Ташкент» так и останутся разными группами.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>size против count</h3>
+            <ol class='steps-t'><li>Почисти city.</li><li>Сохрани в <code class='i'>lost</code> разницу: size() по городам минус count() колонки amount по городам. Выведи lost.</li><li>В одну строку: сумма lost и доля пустых amount в % от всех заказов (1 знак).</li></ol><p class='rule-t'>Доля = df["amount"].isna().mean() * 100. Не дели на 1600 руками.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 08 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()
+
+# 2. потерянные суммы по городам
+lost =
+
+# 3. всего потеряно и доля, %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">city
+бухара        7
+наманган     13
+самарканд    12
+ташкент      47
+dtype: int64
+79 4.9</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()
+
+# 2. потерянные суммы по городам
+lost =
+
+# 3. всего потеряно и доля, %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> size считает все строки группы, а count — только заполненные клетки выбранной колонки. Их разница по городу — это заказы, у которых нет суммы.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby("city").size()</code> и <code class="i">df.groupby("city")["amount"].count()</code> — две Series с одинаковыми подписями, их можно вычитать. Доля пустых: <code class="i">df["amount"].isna().mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>lost = df.groupby(&#34;city&#34;).___() - df.groupby(&#34;city&#34;)[&#34;amount&#34;].___()
+print(lost)
+print(lost.___(), round(df[&#34;amount&#34;].isna().___() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">count()</code> без выбора колонки посчитает заполненность всех колонок сразу — получится таблица, а не одно число на город.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сводка по городам</h3>
+            <ol class='steps-t'><li>Почисти city.</li><li>Через <code class='i'>agg</code> с именами посчитай по городам: <code class='i'>orders</code> (size), <code class='i'>revenue</code> (сумма amount), <code class='i'>avg_check</code> (среднее), <code class='i'>median_check</code> (медиана), <code class='i'>avg_min</code> (среднее delivery_min).</li><li>Округли до 1 знака и отсортируй по revenue по убыванию.</li></ol><p class='rule-t'>Одна цепочка в круглых скобках, каждый шаг на своей строке.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 08 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()
+
+(df.groupby(&#34;city&#34;)
+   .agg(orders=(&#34;order_id&#34;, &#34;size&#34;),
+        # продолжи
+        )
+   )
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           orders     revenue  avg_check  median_check  avg_min
+city
+ташкент       882  75357000.0    90247.9       80000.0     52.2
+самарканд     327  24167000.0    76720.6       69000.0     41.0
+бухара        211  15307000.0    75034.3       66000.0     39.0
+наманган      180  12476000.0    74706.6       64000.0     37.3</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()
+
+(df.groupby(&#34;city&#34;)
+   .agg(orders=(&#34;order_id&#34;, &#34;size&#34;),
+        # продолжи
+        )
+   )
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> agg позволяет посчитать по каждому городу сразу несколько чисел и дать им имена. Каждое число записывается как «имя = (колонка, что посчитать)».</p>
+<p><b>Чем это сделать.</b> <code class="i">.agg(revenue=("amount", "sum"))</code> — колонка revenue = сумма amount в группе. Бывают "size", "sum", "mean", "median". Потом <code class="i">.round(1)</code> и <code class="i">.sort_values("revenue", ascending=False)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>(df.groupby(&#34;city&#34;)
+   .agg(orders=(&#34;order_id&#34;, &#34;size&#34;),
+        revenue=(&#34;amount&#34;, &#34;___&#34;),
+        avg_check=(&#34;amount&#34;, &#34;___&#34;),
+        median_check=(&#34;amount&#34;, &#34;___&#34;),
+        avg_min=(&#34;___&#34;, &#34;mean&#34;))
+   .round(___)
+   .sort_values(&#34;___&#34;, ascending=False))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Каждое правило — пара в круглых скобках: <code class="i">("amount", "sum")</code>. Без скобок будет ошибка.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Где отменяют чаще</h3>
+            <ol class='steps-t'><li>Почисти city. Сохрани маску <code class='i'>cancel</code>: статус «cancelled».</li><li>Выведи долю отмен в % по городам (1 знак), от большей к меньшей.</li><li>Выведи долю отмен в % по колонке promo и общую долю отмен (1 знак).</li></ol><p class='rule-t'>Доля = маска.groupby(...).mean() * 100. Не делить size() на len(df) — это ловушка 3.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 08 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()
+cancel =
+
+# 2. по городам
+
+# 3. по promo и всего
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">city
+ташкент      13.8
+самарканд     7.3
+наманган      6.7
+бухара        5.7
+Name: status, dtype: float64
+promo
+0     8.6
+1    15.0
+Name: status, dtype: float64
+10.6</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()
+cancel =
+
+# 2. по городам
+
+# 3. по promo и всего
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Доля отмен в городе — это среднее маски «отменён» внутри города. Маску тоже можно группировать: передай ей колонку, по которой делить.</p>
+<p><b>Чем это сделать.</b> <code class="i">cancel.groupby(df["city"]).mean()</code> — доля отмен по городам. <code class="i">.mul(100).round(1)</code> — в проценты. Так же по колонке promo. Общая доля — <code class="i">cancel.mean()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>cancel = df[&#34;status&#34;] == &#34;___&#34;
+print(cancel.groupby(df[&#34;___&#34;]).mean().mul(100).round(1).sort_values(ascending=False))
+print(cancel.groupby(df[&#34;___&#34;]).mean().mul(100).round(1))
+print(round(cancel.___() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не дели число отмен города на все 1 600 заказов — получишь долю от всей компании, а не от заказов этого города.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Город × канал (повторение: фильтр и сортировка)</h3>
+            <ol class='steps-t'><li>Почисти city. Оставь в <code class='i'>delivered</code> только доставленные заказы (маска, урок 2).</li><li>Сгруппируй по двум ключам city и channel с <code class='i'>as_index=False</code>: <code class='i'>orders</code> (size) и <code class='i'>avg_check</code> (среднее amount), округли до целых.</li><li>Выведи 3 пары с самым высоким avg_check (sort_values, урок 3).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 08 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()
+delivered =
+
+(delivered.groupby(...)
+   )
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">       city channel  orders  avg_check
+11  ташкент     web     137    96111.0
+9   ташкент     app     470    93256.0
+2    бухара     web      30    88667.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;city&#34;] = df[&#34;city&#34;].str.strip().str.lower()
+delivered =
+
+(delivered.groupby(...)
+   )
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала оставь только доставленные заказы. Потом группируй сразу по двум колонкам — получится пара «город + канал» в каждой строке. Посчитай число заказов и средний чек, отсортируй и возьми топ-3.</p>
+<p><b>Чем это сделать.</b> <code class="i">groupby(["city", "channel"], as_index=False)</code> — две колонки ключа, и они останутся обычными колонками. Дальше <code class="i">.agg(...)</code>, <code class="i">.round(0)</code>, <code class="i">.sort_values(...)</code>, <code class="i">.head(3)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>delivered = df[df[&#34;status&#34;] == &#34;___&#34;]
+(delivered.groupby([___, ___], as_index=False)
+   .agg(orders=(&#34;order_id&#34;, &#34;size&#34;), avg_check=(&#34;amount&#34;, &#34;___&#34;))
+   .round(0)
+   .sort_values(&#34;___&#34;, ascending=False)
+   .head(___))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Ключи группировки передаются списком: <code class="i">groupby(["city", "channel"])</code>, а не <code class="i">groupby("city", "channel")</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Оценки по категориям (повторение: NaN)</h3>
+            <ol class='steps-t'><li>По category посчитай: <code class='i'>mean_rating</code> (среднее rating), <code class='i'>ratings</code> (count rating), <code class='i'>orders</code> (size). Округли до 2 знаков, отсортируй по mean_rating.</li><li>Маска <code class='i'>late</code>: delivery_min &gt; 55. Выведи средний rating по late (2 знака).</li><li>Комментарием <code class='i'>#</code>: почему ratings меньше orders и что mean() делает с NaN.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 08 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6"># 1. оценки по категориям
+
+# 2. опоздание и оценка
+late =
+
+# 3. почему ratings &lt; orders:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">          mean_rating  ratings  orders
+category
+Бургеры          3.90      229     387
+Плов             3.90      206     351
+Шашлык           4.03      163     257
+Суши             4.06      110     208
+Десерты          4.10       81     142
+Пицца            4.15      145     255
+delivery_min
+False    4.20
+True     2.81
+Name: rating, dtype: float64
+
++ комментарий: почему ratings меньше orders</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. оценки по категориям
+
+# 2. опоздание и оценка
+late =
+
+# 3. почему ratings &lt; orders:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>оценок меньше, чем заказов: отменённые не оценивают, многие просто не ставят оценку; mean() пропускает NaN</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сводка по категориям — как в задаче 3, только другие числа: средняя оценка, сколько оценок и сколько заказов. Потом группируй оценку по маске «опоздал» — получится две строки: False и True.</p>
+<p><b>Чем это сделать.</b> "count" считает только заполненные клетки, "size" — все строки. Группировать можно и по маске: <code class="i">df.groupby(late)["rating"].mean()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df.groupby(&#34;category&#34;)
+        .agg(mean_rating=(&#34;rating&#34;, &#34;___&#34;), ratings=(&#34;rating&#34;, &#34;___&#34;), orders=(&#34;order_id&#34;, &#34;___&#34;))
+        .round(2)
+        .sort_values(&#34;___&#34;))
+late = df[&#34;delivery_min&#34;] &gt; ___
+print(df.groupby(___)[&#34;rating&#34;].mean().round(2))
+# ratings меньше orders, потому что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если взять "size" для ratings, оценок станет столько же, сколько заказов, и разница пропадёт.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт для Ойбека</h3>
+            <ol class='steps-t'><li>Собери <code class='i'>clean</code> через <code class='i'>df.assign(...)</code>: чистый city, маска cancel, маска late (&gt; 55 мин), revenue = amount только у доставленных (<code class='i'>where</code>).</li><li><code class='i'>report</code> по городам через agg: orders, cancel_pct, late_pct (mean маски), avg_min, revenue_mln (сумма), couriers (nunique courier_id); сортировка по orders.</li><li>Переведи доли в % (1 знак), выручку в млн (1 знак), avg_min 1 знак; добавь <code class='i'>orders_per_courier</code> (1 знак).</li></ol><p class='rule-t'>Ни одного числа руками. Доли — mean маски × 100.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 08 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">clean = df.assign(
+    city=,
+    cancel=,
+    late=,
+    revenue=df[&#34;amount&#34;].where(df[&#34;status&#34;] == &#34;delivered&#34;),
+)
+report = (clean.groupby(&#34;city&#34;)
+          .agg(orders=(&#34;order_id&#34;, &#34;size&#34;),
+               # продолжи
+               )
+          .sort_values(&#34;orders&#34;, ascending=False))
+# 3. проценты, млн, нагрузка
+
+report
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           orders  cancel_pct  late_pct  avg_min  revenue_mln  couriers  orders_per_courier
+city
+ташкент       882        13.8      24.9     52.2         64.7        12                73.5
+самарканд     327         7.3       4.6     41.0         22.5        12                27.2
+бухара        211         5.7       2.8     39.0         14.3        12                17.6
+наманган      180         6.7       3.3     37.3         11.7        12                15.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>clean = df.assign(
+    city=,
+    cancel=,
+    late=,
+    revenue=df[&#34;amount&#34;].where(df[&#34;status&#34;] == &#34;delivered&#34;),
+)
+report = (clean.groupby(&#34;city&#34;)
+          .agg(orders=(&#34;order_id&#34;, &#34;size&#34;),
+               # продолжи
+               )
+          .sort_values(&#34;orders&#34;, ascending=False))
+# 3. проценты, млн, нагрузка
+
+report
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала добавь колонки, которые понадобятся для agg: чистый город, маски «отмена» и «опоздание», выручку только доставленных. Потом одна группировка по городу, а после неё — перевод долей в проценты и выручки в миллионы.</p>
+<p><b>Чем это сделать.</b> Доля маски в группе — <code class="i">("cancel", "mean")</code>. Разных курьеров — <code class="i">("courier_id", "nunique")</code>. После agg колонки таблицы report можно менять как обычные: <code class="i">report["x"] = (report["x"] * 100).round(1)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>clean = df.assign(city=___, cancel=df[&#34;status&#34;] == &#34;___&#34;, late=df[&#34;delivery_min&#34;] &gt; ___, revenue=___)
+report = (clean.groupby(&#34;city&#34;)
+          .agg(orders=(&#34;order_id&#34;, &#34;size&#34;), cancel_pct=(&#34;cancel&#34;, &#34;___&#34;), late_pct=(___),
+               avg_min=(___), revenue_mln=(&#34;revenue&#34;, &#34;___&#34;), couriers=(&#34;courier_id&#34;, &#34;___&#34;))
+          .sort_values(&#34;orders&#34;, ascending=False))
+report[&#34;revenue_mln&#34;] = (report[&#34;revenue_mln&#34;] / ___).round(1)
+report[&#34;orders_per_courier&#34;] = (report[&#34;___&#34;] / report[&#34;___&#34;]).round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> orders_per_courier считай после agg — из колонок orders и couriers самой таблицы report.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Ойбеку</h2>
+      <div class="case">
+        <p>Напиши ответ Ойбеку в Telegram. Не больше 6 предложений. Структура: <b>сколько на самом деле заказов в Ташкенте и Самарканде и почему Excel ошибся (без терминов) → нагрузка: заказов на курьера, время доставки, доля опозданий и отмен по Ташкенту против Самарканда → твоя рекомендация про 3 курьеров → промокоды и отмены: правда ли «не влияют» → 1 риск или оговорка → 1 следующий шаг</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Заказов в Ташкенте</span><span class="fact-chip">Заказов на курьера в Ташкенте</span><span class="fact-chip">Отмены с промокодом</span><span class="fact-chip">Отмены без промокода</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Ойбек, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Почему, по твоему ответу, Excel ошибся в числе заказов?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Один и тот же город был записан по-разному (пробел, регистр), и Excel считал их разными городами</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Excel потерял часть заказов при выгрузке</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Заказов в Ташкенте действительно 700</span></button></div>
+            <div class="why" hidden>«ташкент» и « Ташкент» — для Excel разные значения. После чистки в Ташкенте 882 заказа.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что ты рекомендуешь про 3 курьеров из Ташкента?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Не забирать: Ташкент перегружен, курьеров там скорее не хватает</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Забрать: в Ташкенте курьеров слишком много</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Это не важно, нагрузка одинаковая</span></button></div>
+            <div class="why" hidden>73,5 заказа на курьера против 27,2 в Самарканде, и опаздывает каждый четвёртый заказ.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Правда ли, что промокоды «не влияют» на отмены?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Нет: с промокодом отменяют почти в 2 раза чаще</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Да, доля отмен одинаковая</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>С промокодом отменяют реже</span></button></div>
+            <div class="why" hidden>С промо отменяют 15,0% заказов, без — 8,6%.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Ойбек, привет! В Ташкенте 882 заказа, а не 700, в Самарканде 327, а не 298: Excel считал «ташкент» и « Ташкент» с пробелом разными городами. Ташкент перегружен: 73,5 заказа на курьера против 27,2 в Самарканде, доставка в среднем 52 минуты, опаздывает каждый четвёртый заказ (24,9%), отмен 13,8% против 7,3%. Забирать 3 курьеров из Ташкента нельзя — скорее туда нужно добавить. Промокоды влияют: с промо отменяют 15,0% заказов, без — 8,6%. Оговорка: у 79 заказов касса не записала сумму. Следующий шаг — посмотреть опоздания по часам, чтобы понять, когда не хватает курьеров.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>882 и 327 заказов и почему Excel ошибся</li><li>Нагрузка: 73,5 против 27,2 заказа на курьера, опоздания, отмены</li><li>Рекомендация про 3 курьеров</li><li>Промо: 15,0% против 8,6%</li><li>Есть оговорка и следующий шаг</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 8</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/07-mini-proekt-1/"><small>← Проект 7</small><b>Мини-проект 1: грязная выгрузка → чистый датасет</b></a><a class="nx" href="../../lessons/09-groupby-transform-filter/"><small>Урок 9 →</small><b>groupby продвинутый: transform, filter, доли</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435", "value": 882}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0430 \u043a\u0443\u0440\u044c\u0435\u0440\u0430 \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435", "value": 73.5}, {"name": "\u041e\u0442\u043c\u0435\u043d\u044b \u0441 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u043e\u043c", "pct": true, "value": 15.0}, {"name": "\u041e\u0442\u043c\u0435\u043d\u044b \u0431\u0435\u0437 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u0430", "pct": true, "value": 8.6}], "logic": [{"a": 0, "o": ["\u041e\u0434\u0438\u043d \u0438 \u0442\u043e\u0442 \u0436\u0435 \u0433\u043e\u0440\u043e\u0434 \u0431\u044b\u043b \u0437\u0430\u043f\u0438\u0441\u0430\u043d \u043f\u043e-\u0440\u0430\u0437\u043d\u043e\u043c\u0443 (\u043f\u0440\u043e\u0431\u0435\u043b, \u0440\u0435\u0433\u0438\u0441\u0442\u0440), \u0438 Excel \u0441\u0447\u0438\u0442\u0430\u043b \u0438\u0445 \u0440\u0430\u0437\u043d\u044b\u043c\u0438 \u0433\u043e\u0440\u043e\u0434\u0430\u043c\u0438", "Excel \u043f\u043e\u0442\u0435\u0440\u044f\u043b \u0447\u0430\u0441\u0442\u044c \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043f\u0440\u0438 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435", "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435 \u0434\u0435\u0439\u0441\u0442\u0432\u0438\u0442\u0435\u043b\u044c\u043d\u043e 700"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, Excel \u043e\u0448\u0438\u0431\u0441\u044f \u0432 \u0447\u0438\u0441\u043b\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432?", "why": "\u00ab\u0442\u0430\u0448\u043a\u0435\u043d\u0442\u00bb \u0438 \u00ab \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u00bb \u2014 \u0434\u043b\u044f Excel \u0440\u0430\u0437\u043d\u044b\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f. \u041f\u043e\u0441\u043b\u0435 \u0447\u0438\u0441\u0442\u043a\u0438 \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435 882 \u0437\u0430\u043a\u0430\u0437\u0430."}, {"a": 0, "o": ["\u041d\u0435 \u0437\u0430\u0431\u0438\u0440\u0430\u0442\u044c: \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u043f\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0435\u043d, \u043a\u0443\u0440\u044c\u0435\u0440\u043e\u0432 \u0442\u0430\u043c \u0441\u043a\u043e\u0440\u0435\u0435 \u043d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442", "\u0417\u0430\u0431\u0440\u0430\u0442\u044c: \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435 \u043a\u0443\u0440\u044c\u0435\u0440\u043e\u0432 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e", "\u042d\u0442\u043e \u043d\u0435 \u0432\u0430\u0436\u043d\u043e, \u043d\u0430\u0433\u0440\u0443\u0437\u043a\u0430 \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u0430\u044f"], "q": "\u0427\u0442\u043e \u0442\u044b \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u0435\u0448\u044c \u043f\u0440\u043e 3 \u043a\u0443\u0440\u044c\u0435\u0440\u043e\u0432 \u0438\u0437 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430?", "why": "73,5 \u0437\u0430\u043a\u0430\u0437\u0430 \u043d\u0430 \u043a\u0443\u0440\u044c\u0435\u0440\u0430 \u043f\u0440\u043e\u0442\u0438\u0432 27,2 \u0432 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0435, \u0438 \u043e\u043f\u0430\u0437\u0434\u044b\u0432\u0430\u0435\u0442 \u043a\u0430\u0436\u0434\u044b\u0439 \u0447\u0435\u0442\u0432\u0451\u0440\u0442\u044b\u0439 \u0437\u0430\u043a\u0430\u0437."}, {"a": 0, "o": ["\u041d\u0435\u0442: \u0441 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u043e\u043c \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 \u043f\u043e\u0447\u0442\u0438 \u0432 2 \u0440\u0430\u0437\u0430 \u0447\u0430\u0449\u0435", "\u0414\u0430, \u0434\u043e\u043b\u044f \u043e\u0442\u043c\u0435\u043d \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u0430\u044f", "\u0421 \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u043e\u043c \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 \u0440\u0435\u0436\u0435"], "q": "\u041f\u0440\u0430\u0432\u0434\u0430 \u043b\u0438, \u0447\u0442\u043e \u043f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u044b \u00ab\u043d\u0435 \u0432\u043b\u0438\u044f\u044e\u0442\u00bb \u043d\u0430 \u043e\u0442\u043c\u0435\u043d\u044b?", "why": "\u0421 \u043f\u0440\u043e\u043c\u043e \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 15,0% \u0437\u0430\u043a\u0430\u0437\u043e\u0432, \u0431\u0435\u0437 \u2014 8,6%."}]}, "case_model": "\u041e\u0439\u0431\u0435\u043a, \u043f\u0440\u0438\u0432\u0435\u0442! \u0412 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435 882 \u0437\u0430\u043a\u0430\u0437\u0430, \u0430 \u043d\u0435 700, \u0432 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0435 327, \u0430 \u043d\u0435 298: Excel \u0441\u0447\u0438\u0442\u0430\u043b \u00ab\u0442\u0430\u0448\u043a\u0435\u043d\u0442\u00bb \u0438 \u00ab \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u00bb \u0441 \u043f\u0440\u043e\u0431\u0435\u043b\u043e\u043c \u0440\u0430\u0437\u043d\u044b\u043c\u0438 \u0433\u043e\u0440\u043e\u0434\u0430\u043c\u0438. \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u043f\u0435\u0440\u0435\u0433\u0440\u0443\u0436\u0435\u043d: 73,5 \u0437\u0430\u043a\u0430\u0437\u0430 \u043d\u0430 \u043a\u0443\u0440\u044c\u0435\u0440\u0430 \u043f\u0440\u043e\u0442\u0438\u0432 27,2 \u0432 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0435, \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430 \u0432 \u0441\u0440\u0435\u0434\u043d\u0435\u043c 52 \u043c\u0438\u043d\u0443\u0442\u044b, \u043e\u043f\u0430\u0437\u0434\u044b\u0432\u0430\u0435\u0442 \u043a\u0430\u0436\u0434\u044b\u0439 \u0447\u0435\u0442\u0432\u0451\u0440\u0442\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 (24,9%), \u043e\u0442\u043c\u0435\u043d 13,8% \u043f\u0440\u043e\u0442\u0438\u0432 7,3%. \u0417\u0430\u0431\u0438\u0440\u0430\u0442\u044c 3 \u043a\u0443\u0440\u044c\u0435\u0440\u043e\u0432 \u0438\u0437 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430 \u043d\u0435\u043b\u044c\u0437\u044f \u2014 \u0441\u043a\u043e\u0440\u0435\u0435 \u0442\u0443\u0434\u0430 \u043d\u0443\u0436\u043d\u043e \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c. \u041f\u0440\u043e\u043c\u043e\u043a\u043e\u0434\u044b \u0432\u043b\u0438\u044f\u044e\u0442: \u0441 \u043f\u0440\u043e\u043c\u043e \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 15,0% \u0437\u0430\u043a\u0430\u0437\u043e\u0432, \u0431\u0435\u0437 \u2014 8,6%. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u0443 79 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043a\u0430\u0441\u0441\u0430 \u043d\u0435 \u0437\u0430\u043f\u0438\u0441\u0430\u043b\u0430 \u0441\u0443\u043c\u043c\u0443. \u0421\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0448\u0430\u0433 \u2014 \u043f\u043e\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043e\u043f\u043e\u0437\u0434\u0430\u043d\u0438\u044f \u043f\u043e \u0447\u0430\u0441\u0430\u043c, \u0447\u0442\u043e\u0431\u044b \u043f\u043e\u043d\u044f\u0442\u044c, \u043a\u043e\u0433\u0434\u0430 \u043d\u0435 \u0445\u0432\u0430\u0442\u0430\u0435\u0442 \u043a\u0443\u0440\u044c\u0435\u0440\u043e\u0432.", "case_xp": 30, "cheat": [["df[\"city\"] = df[\"city\"].str.strip().str.lower()", "\u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0447\u0438\u0441\u0442\u044b\u0439 \u043a\u043b\u044e\u0447"], ["df.groupby(\"city\").size()", "COUNT(*)"], ["df.groupby(\"city\")[\"amount\"].count()", "COUNT(amount), \u0431\u0435\u0437 NaN"], ["df.groupby(\"city\")[\"amount\"].agg([\"sum\", \"mean\", \"median\"])", "\u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0444\u0443\u043d\u043a\u0446\u0438\u0439"], ["df.groupby(\"city\").agg(orders=(\"order_id\", \"size\"), avg_check=(\"amount\", \"mean\"))", "AS"], ["(df[\"status\"] == \"cancelled\").groupby(df[\"city\"]).mean() * 100", "\u0434\u043e\u043b\u044f \u0432 \u0433\u0440\u0443\u043f\u043f\u0435, %"], ["df.groupby([\"city\", \"channel\"], as_index=False)[\"amount\"].mean()", "\u0434\u0432\u0430 \u043a\u043b\u044e\u0447\u0430"], ["df.groupby(\"city\")[\"customer_id\"].nunique()", "COUNT(DISTINCT)"]], "data": "../../data/", "datasets": ["yetkaz_orders.csv"], "day": 8, "hint_cost": 5, "quiz": [1, 0, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"yetkaz_orders.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["7", "\u0442\u0430\u0448\u043a\u0435\u043d\u0442 882", "\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 327", "\u0431\u0443\u0445\u0430\u0440\u0430 211", "\u043d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 180"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["\u0431\u0443\u0445\u0430\u0440\u0430 7", "\u043d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 13", "\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 12", "\u0442\u0430\u0448\u043a\u0435\u043d\u0442 47", "79", "4.9"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["882", "75357000", "90247.9", "52.2", "24167000", "76720.6", "74706.6", "37.3"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["\u0442\u0430\u0448\u043a\u0435\u043d\u0442 13.8", "\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 7.3", "\u043d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 6.7", "\u0431\u0443\u0445\u0430\u0440\u0430 5.7", "8.6", "15.0", "10.6"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["96111", "93256", "88667", "137", "470"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["3.90", "229", "387", "4.15", "145", "4.20", "2.81"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["882", "13.8", "24.9", "52.2", "64.7", "73.5", "27.2", "22.5", "15.0"], "setup": "", "xp": 25}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

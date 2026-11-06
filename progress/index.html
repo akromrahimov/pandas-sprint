@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="ru" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Мой прогресс — Pandas Sprint</title>
+<meta name="description" content="Твои ранги, медали за уроки, рост очков по дням, календарь занятий и путь по курсу Pandas Sprint.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/progress/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Мой прогресс — Pandas Sprint">
+<meta property="og:description" content="Твои ранги, медали за уроки, рост очков по дням, календарь занятий и путь по курсу Pandas Sprint.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/progress/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="../static/css/progress.css?v=202611061848"><link rel="stylesheet" href="../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../program/">Программа</a>
+      <a href="../start/">Как начать</a>
+      <a href="../progress/" aria-current="page"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<main class="page prog loading">
+  <div class="sync-banner" data-auth-banner>
+    <span class="ic" aria-hidden="true">☁</span>
+    <p><b>Прогресс сохранён только в этом браузере.</b> Войди через Google, чтобы не потерять его и продолжать с телефона или другого компьютера.</p>
+    <button type="button" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+  </div>
+  <section>
+    <div class="eyebrow">Достижения</div>
+    <h1>Ранги</h1>
+    <p class="lead">Ранг урока зависит от того, сколько очков ты в нём набрал: чем меньше подсказок и ошибок, тем выше ранг. Число на карточке — сколько уроков ты закрыл на этом ранге. Пороги указаны для урока на 160 XP, у проектов и экзамена — те же доли от их максимума.</p>
+    <div class="ranks" id="ranks"></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Медали</div>
+    <h2>Зал рангов</h2>
+    <p class="lead">Медаль за каждый пройденный урок, её цвет — твой ранг. Нажми на медаль: увидишь очки урока и сколько не хватило до следующего ранга.</p>
+    <div class="panel hall"><div class="medals" id="medals"></div><div class="pinfo" id="infoC">Нажми на медаль урока, чтобы увидеть очки и что нужно для следующего ранга.</div></div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Статистика</div>
+    <h2>Мой прогресс</h2>
+    <p class="lead">Сколько очков ты набрал, как растёшь день за днём, что стоит сделать дальше и в какие дни занимался.</p>
+    <div class="kpis" id="kpis"></div>
+    <div class="dash">
+      <div class="panel growth">
+        <div class="chart-h"><h3>Мой рост</h3><div class="seg"><button type="button" aria-pressed="true" data-m="cum">Весь путь</button><button type="button" aria-pressed="false" data-m="day">По дням</button><button type="button" aria-pressed="false" data-m="less">По урокам</button></div></div>
+        <div class="growth-box"><canvas id="main" role="img" aria-label="Рост XP"></canvas><div class="growth-empty" id="growthEmpty" hidden></div></div>
+        <div class="legend-row" id="legB"></div>
+      </div>
+      <div class="pgrid">
+        <div class="panel pgoal" id="goal"></div>
+        <div class="panel cal">
+          <div class="cal-h">
+            <button type="button" class="cal-nav" data-step="-1" aria-label="Предыдущий месяц">‹</button>
+            <b id="calTitle"></b>
+            <button type="button" class="cal-nav" data-step="1" aria-label="Следующий месяц">›</button>
+          </div>
+          <div class="cal-stats" id="calStats"></div>
+          <div class="cal-grid" id="calGrid"></div>
+          <div class="cal-leg">
+            <span><i style="background:linear-gradient(90deg,#43D19B,#38BDF8,#A78BFA,#FF5CB0,#FFCA00)"></i>урок закрыт (цвет ранга)</span>
+            <span><i style="background:rgba(214,220,240,.16);border:1.5px dashed rgba(214,220,240,.6)"></i>урок в процессе</span>
+            <span><i style="background:#2A0B1C;border:1.5px solid #FF4D6D"></i>пропуск</span>
+            <span><i style="border:2px solid #FFCA00"></i>сегодня</span>
+          </div>
+          <div class="cal-f"><button type="button" class="cal-today" id="calToday">Сегодня</button><span id="calTip">Нажми на день, чтобы увидеть, чем ты занимался.</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="eyebrow">Путь</div>
+    <h2>Мой путь по курсу</h2>
+    <p class="lead">Все 30 уроков по порядку, от первого до экзамена. Пройденные окрашены цветом ранга, «Ты здесь» — урок, который ждёт тебя следующим.</p>
+    <div class="panel"><div class="path-wrap"><svg id="path" viewBox="0 0 1040 270" width="100%" role="img" aria-label="Путь из 30 уроков"></svg><div class="ptip" id="ptip"></div></div></div>
+  </section>
+</main>
+<script type="application/json" id="course-data">{"days": [{"case_xp": 30, "day": 1, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [0, 1, 2, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "Series \u0438 DataFrame: \u043f\u0435\u0440\u0432\u044b\u0439 \u0432\u0437\u0433\u043b\u044f\u0434 \u043d\u0430 \u0434\u0430\u043d\u043d\u044b\u0435", "type": "lesson", "url": "lessons/01-series-i-dataframe/"}, {"case_xp": 30, "day": 2, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 2, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u0412\u044b\u0431\u043e\u0440 \u0434\u0430\u043d\u043d\u044b\u0445: \u043a\u043e\u043b\u043e\u043d\u043a\u0438, loc / iloc, \u0444\u0438\u043b\u044c\u0442\u0440\u044b", "type": "lesson", "url": "lessons/02-vybor-dannyh-loc-iloc/"}, {"case_xp": 30, "day": 3, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u041d\u043e\u0432\u044b\u0435 \u043a\u043e\u043b\u043e\u043d\u043a\u0438, \u0441\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430 \u0438 \u0447\u0430\u0441\u0442\u043e\u0442\u044b", "type": "lesson", "url": "lessons/03-novye-kolonki-sortirovka/"}, {"case_xp": 30, "day": 4, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [2, 1, 1, 1, 2], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u0422\u0438\u043f\u044b \u0434\u0430\u043d\u043d\u044b\u0445: \u0447\u0438\u0441\u043b\u0430, \u0441\u0442\u0440\u043e\u043a\u0438, \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438, \u043f\u0430\u043c\u044f\u0442\u044c", "type": "lesson", "url": "lessons/04-tipy-dannyh/"}, {"case_xp": 30, "day": 5, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 2, 1, 2], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u041f\u0440\u043e\u043f\u0443\u0441\u043a\u0438 \u0438 \u0434\u0443\u0431\u043b\u0438\u043a\u0430\u0442\u044b", "type": "lesson", "url": "lessons/05-propuski-i-dublikaty/"}, {"case_xp": 30, "day": 6, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [0, 1, 1, 1, 2], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 15}, {"id": "t3", "xp": 10}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u0422\u0435\u043a\u0441\u0442: .str-\u043c\u0435\u0442\u043e\u0434\u044b \u0438 \u043e\u0447\u0438\u0441\u0442\u043a\u0430", "type": "lesson", "url": "lessons/06-tekst-str/"}, {"case_xp": 30, "day": 7, "label": "\u041f\u0440\u043e\u0435\u043a\u0442", "max": 240, "quiz": [0, 2, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 20}, {"id": "t2", "xp": 20}, {"id": "t3", "xp": 25}, {"id": "t4", "xp": 25}, {"id": "t5", "xp": 30}, {"id": "t6", "xp": 30}, {"id": "t7", "xp": 40}], "title": "\u041c\u0438\u043d\u0438-\u043f\u0440\u043e\u0435\u043a\u0442 1: \u0433\u0440\u044f\u0437\u043d\u0430\u044f \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0430 \u2192 \u0447\u0438\u0441\u0442\u044b\u0439 \u0434\u0430\u0442\u0430\u0441\u0435\u0442", "type": "proj", "url": "lessons/07-mini-proekt-1/"}, {"case_xp": 30, "day": 8, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 0, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "groupby: \u0430\u0433\u0440\u0435\u0433\u0430\u0446\u0438\u0438 \u043f\u043e \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u0430\u043c", "type": "lesson", "url": "lessons/08-groupby/"}, {"case_xp": 30, "day": 9, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 2, 1, 1, 2], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "groupby \u043f\u0440\u043e\u0434\u0432\u0438\u043d\u0443\u0442\u044b\u0439: transform, filter, \u0434\u043e\u043b\u0438", "type": "lesson", "url": "lessons/09-groupby-transform-filter/"}, {"case_xp": 30, "day": 10, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 20}, {"id": "t7", "xp": 20}], "title": "pivot_table \u0438 crosstab", "type": "lesson", "url": "lessons/10-pivot-table-crosstab/"}, {"case_xp": 30, "day": 11, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 20}, {"id": "t7", "xp": 20}], "title": "merge: \u0434\u0436\u043e\u0439\u043d\u044b \u0431\u0435\u0437 \u0434\u0443\u0431\u043b\u0435\u0439 \u0438 \u043f\u043e\u0442\u0435\u0440\u044c", "type": "lesson", "url": "lessons/11-merge/"}, {"case_xp": 30, "day": 12, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 2, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 20}, {"id": "t7", "xp": 20}], "title": "concat, melt, pivot, stack: \u0434\u043b\u0438\u043d\u043d\u044b\u0439 \u0438 \u0448\u0438\u0440\u043e\u043a\u0438\u0439 \u0444\u043e\u0440\u043c\u0430\u0442", "type": "lesson", "url": "lessons/12-concat-melt-pivot/"}, {"case_xp": 30, "day": 13, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 0], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "Method chaining \u0438 pipe: \u0447\u0438\u0442\u0430\u0435\u043c\u044b\u0439 \u043a\u043e\u0434 \u043a\u0430\u043a \u0443 \u0441\u0435\u043d\u044c\u043e\u0440\u0430", "type": "lesson", "url": "lessons/13-method-chaining/"}, {"case_xp": 30, "day": 14, "label": "\u041f\u0440\u043e\u0435\u043a\u0442", "max": 240, "quiz": [1, 1, 2, 1, 0], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 20}, {"id": "t2", "xp": 20}, {"id": "t3", "xp": 20}, {"id": "t4", "xp": 25}, {"id": "t5", "xp": 25}, {"id": "t6", "xp": 25}, {"id": "t7", "xp": 25}, {"id": "t8", "xp": 30}], "title": "\u041c\u0438\u043d\u0438-\u043f\u0440\u043e\u0435\u043a\u0442 2: \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u044b\u0439 \u043e\u0442\u0447\u0451\u0442 \u043f\u043e \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u0430\u043c", "type": "proj", "url": "lessons/14-mini-proekt-2/"}, {"case_xp": 30, "day": 15, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 0], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u0414\u0430\u0442\u044b: to_datetime \u0438 .dt", "type": "lesson", "url": "lessons/15-daty-to-datetime/"}, {"case_xp": 30, "day": 16, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 0, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "resample, rolling, shift, pct_change", "type": "lesson", "url": "lessons/16-resample-rolling-shift/"}, {"case_xp": 30, "day": 17, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 0, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u041e\u043a\u043e\u043d\u043d\u044b\u0435 \u0444\u0443\u043d\u043a\u0446\u0438\u0438 \u0432 pandas", "type": "lesson", "url": "lessons/17-okonnye-funkcii/"}, {"case_xp": 30, "day": 18, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u043e\u0432\u044b\u0435 \u043c\u0435\u0442\u0440\u0438\u043a\u0438: DAU/MAU, ARPU, \u0432\u043e\u0440\u043e\u043d\u043a\u0430", "type": "lesson", "url": "lessons/18-produktovye-metriki/"}, {"case_xp": 30, "day": 19, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 2, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u041a\u043e\u0433\u043e\u0440\u0442\u043d\u044b\u0439 \u0430\u043d\u0430\u043b\u0438\u0437 \u0438 retention", "type": "lesson", "url": "lessons/19-kogorty-retention/"}, {"case_xp": 30, "day": 20, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 2, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u0412\u0438\u0437\u0443\u0430\u043b\u0438\u0437\u0430\u0446\u0438\u044f \u0434\u043b\u044f \u043e\u0442\u0447\u0451\u0442\u0430", "type": "lesson", "url": "lessons/20-vizualizaciya/"}, {"case_xp": 30, "day": 21, "label": "\u041f\u0440\u043e\u0435\u043a\u0442", "max": 240, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 20}, {"id": "t2", "xp": 20}, {"id": "t3", "xp": 25}, {"id": "t4", "xp": 25}, {"id": "t5", "xp": 25}, {"id": "t6", "xp": 25}, {"id": "t7", "xp": 25}, {"id": "t8", "xp": 25}], "title": "\u041c\u0438\u043d\u0438-\u043f\u0440\u043e\u0435\u043a\u0442 3: \u0434\u0430\u0448\u0431\u043e\u0440\u0434-\u043d\u043e\u0443\u0442\u0431\u0443\u043a \u043a\u043e\u0433\u043e\u0440\u0442 \u0438 \u043c\u0435\u0442\u0440\u0438\u043a", "type": "proj", "url": "lessons/21-mini-proekt-3/"}, {"case_xp": 30, "day": 22, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "A/B-\u0442\u0435\u0441\u0442 \u0432 pandas: \u043e\u0442 \u0441\u044b\u0440\u044b\u0445 \u0434\u0430\u043d\u043d\u044b\u0445 \u0434\u043e \u0440\u0435\u0448\u0435\u043d\u0438\u044f", "type": "lesson", "url": "lessons/22-ab-test/"}, {"case_xp": 30, "day": 23, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "RFM-\u0441\u0435\u0433\u043c\u0435\u043d\u0442\u0430\u0446\u0438\u044f \u0438 ABC-\u0430\u043d\u0430\u043b\u0438\u0437", "type": "lesson", "url": "lessons/23-rfm-abc/"}, {"case_xp": 30, "day": 24, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 2, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u0421\u043a\u043e\u0440\u043e\u0441\u0442\u044c: \u0432\u0435\u043a\u0442\u043e\u0440\u0438\u0437\u0430\u0446\u0438\u044f \u0432\u043c\u0435\u0441\u0442\u043e \u0446\u0438\u043a\u043b\u043e\u0432 \u0438 apply", "type": "lesson", "url": "lessons/24-vektorizaciya/"}, {"case_xp": 30, "day": 25, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u0412\u0432\u043e\u0434-\u0432\u044b\u0432\u043e\u0434 \u0438 \u0430\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0437\u0430\u0446\u0438\u044f \u043e\u0442\u0447\u0451\u0442\u0430", "type": "lesson", "url": "lessons/25-vvod-vyvod-avtomatizaciya/"}, {"case_xp": 30, "day": 26, "label": "\u0423\u0440\u043e\u043a", "max": 160, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 10}, {"id": "t2", "xp": 10}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 15}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 15}, {"id": "t7", "xp": 25}], "title": "\u041e\u0442\u043b\u0430\u0434\u043a\u0430 \u0438 \u043b\u043e\u0432\u0443\u0448\u043a\u0438: CoW, NaN-\u043b\u043e\u0433\u0438\u043a\u0430, \u0432\u0437\u0440\u044b\u0432 \u0434\u0436\u043e\u0439\u043d\u0430", "type": "lesson", "url": "lessons/26-otladka-lovushki/"}, {"case_xp": 30, "day": 27, "label": "\u041f\u0440\u043e\u0435\u043a\u0442", "max": 240, "quiz": [1, 1, 1, 0, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 15}, {"id": "t2", "xp": 15}, {"id": "t3", "xp": 15}, {"id": "t4", "xp": 20}, {"id": "t5", "xp": 20}, {"id": "t6", "xp": 20}, {"id": "t7", "xp": 20}, {"id": "t8", "xp": 20}, {"id": "t9", "xp": 20}, {"id": "t10", "xp": 25}], "title": "Interview day: 10 \u0437\u0430\u0434\u0430\u0447 \u043d\u0430 \u0432\u0440\u0435\u043c\u044f", "type": "proj", "url": "lessons/27-interview-day/"}, {"case_xp": 30, "day": 28, "label": "\u041f\u0440\u043e\u0435\u043a\u0442", "max": 240, "quiz": [1, 1, 2, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 20}, {"id": "t2", "xp": 20}, {"id": "t3", "xp": 25}, {"id": "t4", "xp": 25}, {"id": "t5", "xp": 25}, {"id": "t6", "xp": 25}, {"id": "t7", "xp": 25}, {"id": "t8", "xp": 25}], "title": "\u0424\u0438\u043d\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0440\u043e\u0435\u043a\u0442, \u0447\u0430\u0441\u0442\u044c 1: EDA \u0438 \u043e\u0447\u0438\u0441\u0442\u043a\u0430", "type": "proj", "url": "lessons/28-finalnyj-proekt-1/"}, {"case_xp": 30, "day": 29, "label": "\u041f\u0440\u043e\u0435\u043a\u0442", "max": 240, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "tasks": [{"id": "t1", "xp": 20}, {"id": "t2", "xp": 20}, {"id": "t3", "xp": 25}, {"id": "t4", "xp": 25}, {"id": "t5", "xp": 25}, {"id": "t6", "xp": 25}, {"id": "t7", "xp": 25}, {"id": "t8", "xp": 25}], "title": "\u0424\u0438\u043d\u0430\u043b\u044c\u043d\u044b\u0439 \u043f\u0440\u043e\u0435\u043a\u0442, \u0447\u0430\u0441\u0442\u044c 2: \u043c\u0435\u0442\u0440\u0438\u043a\u0438, \u0432\u044b\u0432\u043e\u0434\u044b, \u0433\u0440\u0430\u0444\u0438\u043a\u0438", "type": "proj", "url": "lessons/29-finalnyj-proekt-2/"}, {"case_xp": 50, "day": 30, "label": "\u042d\u043a\u0437\u0430\u043c\u0435\u043d", "max": 400, "quiz": [1, 1, 1, 1, 1, 1, 1, 1], "quiz_xp": 40, "tasks": [{"id": "t1", "xp": 25}, {"id": "t2", "xp": 25}, {"id": "t3", "xp": 30}, {"id": "t4", "xp": 30}, {"id": "t5", "xp": 30}, {"id": "t6", "xp": 30}, {"id": "t7", "xp": 35}, {"id": "t8", "xp": 35}, {"id": "t9", "xp": 35}, {"id": "t10", "xp": 35}], "title": "\u042d\u043a\u0437\u0430\u043c\u0435\u043d \u0438 \u0437\u0430\u0449\u0438\u0442\u0430 \u043f\u0440\u043e\u0435\u043a\u0442\u0430", "type": "exam", "url": "lessons/30-ekzamen/"}], "hint_cost": 5, "root": "../"}</script>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../program/">Программа</a> · <a href="../start/">Как начать</a> · <a href="../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../static/js/auth.js?v=202611061848"></script>
+<script async id="chartjs" src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="../static/js/progress.js?v=202611061848"></script>
+<script>document.querySelector(".prog").classList.remove("loading")</script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

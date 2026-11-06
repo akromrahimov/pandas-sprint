@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://akromrahimov.github.io/pandas-sprint/sitemap.xml

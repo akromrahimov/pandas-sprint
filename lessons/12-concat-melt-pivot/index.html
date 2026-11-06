@@ -1,0 +1,703 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 12. concat, melt, pivot, stack: длинный и широкий формат — Pandas Sprint</title>
+<meta name="description" content="Урок 12 курса Pandas Sprint — concat, melt, pivot, stack: длинный и широкий формат. Склеить несколько файлов в один и перевернуть таблицу из широкой в длинную и обратно.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/12-concat-melt-pivot/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 12. concat, melt, pivot, stack: длинный и широкий формат — Pandas Sprint">
+<meta property="og:description" content="Урок 12 курса Pandas Sprint — concat, melt, pivot, stack: длинный и широкий формат. Склеить несколько файлов в один и перевернуть таблицу из широкой в длинную и обратно.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/12-concat-melt-pivot/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="12">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>concat · melt</a></li><li><a href="#tools"><span class="dot">✓</span>6 приёмов</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">UNION ALL и UNPIVOT, которые ты знаешь → concat и melt</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В SQL UNION ALL склеивает колонки по порядку , а pandas concat — по имени . Поэтому в SQL разные имена пройдут незаметно, а в pandas появятся лишние колонки с NaN. Это хорошая новость: ошибку видно сразу, если посмотреть на columns .</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT * FROM a UNION ALL SELECT * FROM b</code></td><td><code>pd.concat([a, b], ignore_index=True)</code></td><td>склейка по имени колонок</td></tr><tr><td><code>SELECT *, &#39;Ташкент&#39; AS branch FROM a</code></td><td><code>a.assign(branch=&#34;Ташкент&#34;)</code></td><td>подпись источника</td></tr><tr><td><code>UNION (без ALL)</code></td><td><code>pd.concat([a, b]).drop_duplicates()</code></td><td>убрать полные повторы</td></tr><tr><td><code>SELECT a.col AS &#34;comfort&#34;</code></td><td><code>b.rename(columns=str.lower)</code></td><td>привести имена к одному виду</td></tr><tr><td><code>UNPIVOT (trips FOR tariff IN (econom, comfort, business))</code></td><td><code>df.melt(id_vars=[&#34;date&#34;, &#34;branch&#34;], var_name=&#34;tariff&#34;, value_name=&#34;trips&#34;)</code></td><td>широкая → длинная</td></tr><tr><td><code>SUM(CASE WHEN tariff=&#39;comfort&#39; THEN trips END) AS comfort …</code></td><td><code>long.pivot_table(index=&#34;branch&#34;, columns=&#34;tariff&#34;, values=&#34;trips&#34;, aggfunc=&#34;sum&#34;)</code></td><td>длинная → широкая</td></tr><tr><td><code>GROUP BY branch, tariff + ручной PIVOT</code></td><td><code>long.groupby([&#34;branch&#34;, &#34;tariff&#34;])[&#34;trips&#34;].sum().unstack()</code></td><td>то же через unstack</td></tr><tr><td><code>(нет аналога)</code></td><td><code>pd.concat({&#34;naive&#34;: s1, &#34;correct&#34;: s2}, axis=1)</code></td><td>склейка Series бок о бок</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>axis.</b> <code class="i">pd.concat([...])</code> по умолчанию кладёт таблицы <b>друг под другом</b> (axis=0, «по строкам»). <code class="i">axis=1</code> ставит их <b>рядом</b> и выравнивает по индексу (метке строки) — как JOIN по индексу. Сегодня в задаче 6 ты так сравнишь две Series.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 12 из 30 · Неделя 2 · Агрегации</div>
+      <h1>concat, melt, pivot: <mark>склеить и перевернуть таблицу</mark></h1>
+      <p class="lead">Филиалы присылают отчёты отдельными файлами, а месяцы часто лежат в колонках, а не в строках. Сегодня учимся склеивать файлы (concat) и переворачивать таблицы из широкого вида в длинный и обратно (melt, pivot, stack/unstack) так, чтобы ничего не задвоилось и не потерялось.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Такси-сервис Ketdik хочет перевести машины comfort из Бухары в Самарканд: «в сентябре Самарканд обогнал Ташкент, а в Бухаре comfort не ездит вообще». Склеить три выгрузки филиалов правильно и показать, что оба вывода — ошибки склейки.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Склеивать файлы друг под другом: <code class="i">pd.concat([a, b, c], ignore_index=True)</code></li><li>Проверять склейку: одинаковые имена колонок, <code class="i">duplicated()</code>, число строк до и после</li><li>Разворачивать широкую таблицу в длинную: <code class="i">melt(id_vars=…, var_name=…, value_name=…)</code></li><li>Собирать обратно: <code class="i">pivot</code>, <code class="i">pivot_table</code>, <code class="i">unstack</code> / <code class="i">stack</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>«Самарканд обогнал Ташкент — переводим туда машины»</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Д</span>Дилноза <small>операционный директор Ketdik · 09:12</small></div>
+          <p>Привет! Склеила дневные выгрузки трёх филиалов за июль–сентябрь. В сентябре <b>Самарканд сделал 34.7 тыс. поездок comfort</b> — больше, чем Ташкент (28.2 тыс.)! А в <b>Бухаре comfort — ноль</b>, машины простаивают.</p>
+<div class="file">▤ ketdik_tashkent.csv · 92 дня</div><div class="file">▤ ketdik_samarkand.csv · 122 строки</div><div class="file">▤ ketdik_bukhara.csv · 92 дня</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Д</span>Дилноза <small>09:14</small></div>
+          <p>Хочу с 1 ноября перевести 40 машин comfort из Бухары в Самарканд. Проверь цифры до понедельника, пожалуйста.</p>
+        </div>
+      </div>
+      <p class="note">Ketdik — учебный такси-сервис. Данные сгенерированы, но грязные как настоящие. Каждый файл — <b>широкая</b> таблица: одна строка = один день, колонки <code class="i">econom</code>, <code class="i">comfort</code>, <code class="i">business</code> = число поездок по тарифу. Колонки филиала в файлах <b>нет</b>. Подвохи: в Самарканде 122 строки на 92 дня (сентябрь выгрузили <b>дважды</b>); в Бухаре колонки названы с большой буквы (<code class="i">Econom</code>, <code class="i">Comfort</code>…); в Ташкенте за 3 дня comfort пустой (NaN). Положи все три файла в папку <code class="i">pandas-sprint</code>. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/ketdik_tashkent.csv" download>Скачать ketdik_tashkent.csv</a><a class="btn main" href="../../data/ketdik_samarkand.csv" download>Скачать ketdik_samarkand.csv</a><a class="btn main" href="../../data/ketdik_bukhara.csv" download>Скачать ketdik_bukhara.csv</a><span class="note">92 + 122 + 92 строки · 9 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+tash = pd.read_csv(&#34;ketdik_tashkent.csv&#34;)
+sam = pd.read_csv(&#34;ketdik_samarkand.csv&#34;)
+buh = pd.read_csv(&#34;ketdik_bukhara.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>concat кладёт таблицы стопкой, melt и pivot переворачивают их</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь три листка из классного журнала: 5-А, 5-Б и 5-В. На каждом — оценки учеников. Завуч хочет один общий список. Ты кладёшь листки <b>стопкой</b> друг под другом. Это <b>concat</b> (от слова concatenate — «сцепить в цепочку»).</p>
+<ul>
+<li><b>Беда 1 — разные заголовки.</b> На листке 5-В учитель написал «Математика» с большой буквы, а на других — «математика». Для pandas это <b>две разные колонки</b>. В общей таблице появятся обе, и в каждой половина клеток пустая (NaN). Сумма по «математике» потеряет весь 5-В — и ошибки не будет.</li>
+<li><b>Беда 2 — один листок положили дважды.</b> concat не проверяет повторы. Все оценки этого класса посчитаются два раза. Поэтому после склейки всегда смотри <code class="i">duplicated()</code> и число строк.</li>
+<li><b>Беда 3 — не видно, откуда строка.</b> На листках не написано «5-А». После склейки не понять, чья это оценка. Перед склейкой добавь колонку-подпись: <code class="i">assign(branch="Ташкент")</code>.</li>
+</ul>
+<p>Теперь <b>переворот</b>. У тебя таблица, где предметы — колонки: «Али · математика 5 · физика 4». Это <b>широкий</b> формат: удобно читать глазами. Но чтобы посчитать «средний балл по каждому предмету», удобнее <b>длинный</b> формат: «Али · математика · 5», «Али · физика · 4» — одна оценка = одна строка.</p>
+<ul>
+<li><b>melt</b> («расплавить») — широкая → длинная. Колонки-предметы превращаются в одну колонку «предмет» и одну колонку «оценка».</li>
+<li><b>pivot</b> («развернуть») — длинная → широкая. Обратная операция. Если на одну клетку приходится несколько значений, нужен <b>pivot_table</b> с <code class="i">aggfunc</code> (урок 10).</li>
+<li><b>unstack</b> — уровень индекса (метка строк) уходит в колонки. <b>stack</b> — колонки уходят обратно в индекс. Это тот же переворот, только для таблиц после <code class="i">groupby</code>.</li>
+</ul>
+<p>Главная мысль дня: <b>после concat проверь три вещи</b> — список колонок (нет ли двойников с другой буквой), повторы и число строк по каждому источнику.</p>
+</div>
+<h3>История с маленькими числами</h3>
+<p>Три филиала прислали поездки comfort за 2 дня. Ташкент: 10 и 12. Самарканд: 6 и 7 — но файл отправили <b>дважды</b>. Бухара: 4 и 5 — колонка названа <b>Comfort</b>.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">филиал</th><th>правда</th><th class="ser">после наивного concat<span class="dt">дубль + чужое имя</span></th><th class="ser">после чистки<span class="dt">правильно</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">Ташкент</td><td>10 + 12 = 22</td><td class="ser">22</td><td class="ser">22</td></tr>
+<tr><td class="idx">Самарканд</td><td>6 + 7 = 13</td><td class="ser">26 <span class="note">(13 × 2)</span></td><td class="ser">13</td></tr>
+<tr><td class="idx">Бухара</td><td>4 + 5 = 9</td><td class="ser nan">0 <span class="note">(всё в «Comfort»)</span></td><td class="ser">9</td></tr>
+<tr><td class="idx">Итого</td><td>44</td><td class="ser">48</td><td class="ser">44</td></tr>
+</tbody>
+</table>
+</div>
+<p>Самарканд «вырос» вдвое и обогнал Ташкент (26 против 22). Бухара «умерла» (0). А итог 48 почти равен 44 — снова ошибки частично гасят друг друга, как в уроке 11 с merge. Именно это случилось у Дилнозы.</p>
+<div class="legend">
+<div><b>concat · стопка</b>Строки друг под другом. Колонки совпадают по <b>имени</b>, буква в букву.</div>
+<div><b>melt · широкая → длинная</b>Колонки-тарифы → колонка tariff + колонка trips.</div>
+<div><b>pivot / unstack · длинная → широкая</b>Значения колонки становятся заголовками.</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Шесть приёмов: склеить, починить, развернуть, собрать</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">pd.concat([tash, sam, buh], ignore_index=True)</code> — функция модуля <b>pd</b>, а не метод таблицы. Первый аргумент — <b>список</b> таблиц в квадратных скобках. <code class="i">ignore_index=True</code> — «перенумеруй строки заново 0, 1, 2…», иначе номера повторятся (0–91 три раза).</li>
+<li><code class="i">tash.assign(branch="Ташкент")</code> — вернуть <b>копию</b> таблицы с новой колонкой branch, в каждой строке «Ташкент». Исходная tash не меняется.</li>
+<li><code class="i">buh.rename(columns=str.lower)</code> — переименовать колонки. Вместо словаря можно дать <b>функцию</b>: <code class="i">str.lower</code> без скобок = «примени lower к каждому имени». «Econom» → «econom».</li>
+<li><code class="i">df.melt(id_vars=["date", "branch"], var_name="tariff", value_name="trips")</code> — <b>id_vars</b>: колонки, которые остаются как есть (кто и когда). Все остальные колонки «плавятся»: их <b>имена</b> идут в колонку <b>var_name</b>, их <b>значения</b> — в колонку <b>value_name</b>.</li>
+<li><code class="i">long.pivot(index="date", columns="branch", values="trips")</code> — index: что станет строками, columns: значения какой колонки станут заголовками, values: что положить в клетки.</li>
+<li><code class="i">s.unstack()</code> — у Series после groupby два уровня индекса (branch, tariff). unstack берёт <b>последний</b> уровень (tariff) и делает из него колонки.</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файлах Ketdik. Карточки идут подряд: в карточке 2 появляется <code class="i">df</code>, в карточке 4 — <code class="i">long</code>.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. Наивная склейка: сколько колонок получилось?</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+tash = pd.read_csv("ketdik_tashkent.csv")
+sam = pd.read_csv("ketdik_samarkand.csv")
+buh = pd.read_csv("ketdik_bukhara.csv")
+raw = pd.concat([tash, sam, buh], ignore_index=True)
+print(raw.shape)
+list(raw.columns)</pre><div class="out">(306, 7)
+['date', 'econom', 'comfort', 'business', 'Econom', 'Comfort', 'Business']</div><p class="plain"><b>Простыми словами:</b> Ждали 4 колонки, а получили 7. Бухара принесла свои <code class="i">Econom</code>, <code class="i">Comfort</code>, <code class="i">Business</code> — для pandas это другие слова. У строк Ташкента и Самарканда в них NaN, у строк Бухары NaN в маленьких <code class="i">comfort</code>. Отсюда «ноль comfort в Бухаре».</p></div>
+<div class="card"><div class="q"><b>2. Починить имена и подписать филиал.</b></div>
+<pre class="code" data-cm="">buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch="Ташкент"),
+                sam.assign(branch="Самарканд"),
+                buh.assign(branch="Бухара")], ignore_index=True)
+print(df.shape)
+df["branch"].value_counts()</pre><div class="out">(306, 5)
+branch
+Самарканд    122
+Ташкент       92
+Бухара        92
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> Теперь колонок 5: date, три тарифа и branch. Но посмотри на счёт строк: в июле–сентябре <b>92 дня</b>, а у Самарканда <b>122 строки</b>. Лишние 30 — это сентябрь, который выгрузили второй раз.</p></div>
+<div class="card"><div class="q"><b>3. Найти и убрать повтор.</b></div>
+<pre class="code" data-cm="">print(df.duplicated().sum(), df.duplicated(["date", "branch"]).sum())
+df = df.drop_duplicates(["date", "branch"])
+df.shape</pre><div class="out">30 30
+(276, 5)</div><p class="plain"><b>Простыми словами:</b> <code class="i">duplicated()</code> ищет строки, где совпадает <b>всё</b>. <code class="i">duplicated(["date", "branch"])</code> — где совпадает <b>ключ</b>: один филиал, один день. Здесь оба дают 30. Ключ надёжнее: если бы повтор отличался одной цифрой, полная проверка его бы не нашла. 276 = 3 филиала × 92 дня.</p></div>
+<div class="card"><div class="q"><b>4. melt: широкая таблица → длинная.</b></div>
+<pre class="code" data-cm="">long = df.melt(id_vars=["date", "branch"],
+               var_name="tariff", value_name="trips")
+print(long.shape)
+long.head(3)</pre><div class="out">(828, 4)
+         date   branch  tariff   trips
+0  2026-07-01  Ташкент  econom  2324.0
+1  2026-07-02  Ташкент  econom  2420.0
+2  2026-07-03  Ташкент  econom  2377.0</div><p class="plain"><b>Простыми словами:</b> Было 276 строк × 3 тарифа-колонки. Стало 828 строк = 276 × 3: каждая клетка «день-филиал-тариф» стала отдельной строкой. Теперь «сумма по тарифу» — обычный groupby по колонке <code class="i">tariff</code>. trips стали float (2324.0), потому что в comfort Ташкента есть NaN.</p></div>
+<div class="card"><div class="q"><b>5. groupby + unstack: длинная → широкая сводка.</b></div>
+<pre class="code" data-cm="">g = long.groupby(["branch", "tariff"])["trips"].sum()
+g.unstack()</pre><div class="out">tariff     business  comfort    econom
+branch
+Бухара       2967.0  25609.0   69309.0
+Самарканд    5881.0  51660.0  109653.0
+Ташкент     14657.0  85140.0  235231.0</div><p class="plain"><b>Простыми словами:</b> <code class="i">g</code> — длинная Series из 9 чисел с двойной меткой (филиал, тариф). <code class="i">unstack()</code> переносит тариф в заголовки — получается привычная таблица 3 × 3. <code class="i">g.unstack().stack()</code> вернёт обратно 9 чисел. В Бухаре comfort за квартал — <b>25.6 тыс.</b> поездок, а не ноль.</p></div>
+<div class="card"><div class="q"><b>6. pivot: дни в строках, филиалы в колонках.</b></div>
+<pre class="code" data-cm="">comf = long[long["tariff"] == "comfort"]
+p = comf.pivot(index="date", columns="branch", values="trips")
+print(p.shape)
+p.head(3)</pre><div class="out">(92, 3)
+branch      Бухара  Самарканд  Ташкент
+date
+2026-07-01   274.0      581.0    896.0
+2026-07-02   233.0      494.0    917.0
+2026-07-03   277.0      499.0    931.0</div><p class="plain"><b>Простыми словами:</b> pivot строит таблицу «день × филиал» — такую удобно отдать в график. Он работает, только если пара (день, филиал) встречается <b>один раз</b>. До удаления дублей Самарканда pivot упал бы с ошибкой <code class="i">ValueError: Index contains duplicate entries</code> — и это полезная ошибка.</p></div>
+</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Не смотреть на колонки после concat</h3><div class="bad">raw = pd.concat([tash, sam, buh])   # 7 колонок, Бухара в «Comfort»</div><div class="good">print(list(raw.columns))   # двойники с большой буквы видно сразу</div><p>concat склеивает по имени. Одна заглавная буква — и данные филиала уходят в отдельную колонку, а сумма теряет их без ошибки.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Забыть ignore_index=True</h3><div class="bad">raw = pd.concat([tash, sam, buh])   # индекс 0–91 повторяется 3 раза</div><div class="good">raw = pd.concat([tash, sam, buh], ignore_index=True)</div><p>С повторяющимся индексом <code class="i">raw.loc[0]</code> вернёт три строки, а не одну. Для «стопки» почти всегда нужен ignore_index=True.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Склеить без подписи источника</h3><div class="bad">pd.concat([tash, sam, buh], ignore_index=True)   # чья строка?</div><div class="good">pd.concat([tash.assign(branch=&#34;Ташкент&#34;), …], ignore_index=True)</div><p>Без колонки branch нельзя ни сгруппировать по филиалу, ни найти, какой файл задвоился.</p></div>
+        <div class="trap"><span class="n">4</span><h3>pivot, когда есть повторы</h3><div class="bad">long.pivot(index=&#34;date&#34;, columns=&#34;branch&#34;, values=&#34;trips&#34;)   # ValueError</div><div class="good">long.pivot_table(index=&#34;date&#34;, columns=&#34;branch&#34;, values=&#34;trips&#34;, aggfunc=&#34;sum&#34;)</div><p>pivot не умеет складывать. Если пара повторяется — сначала разберись, почему (часто это дубль!), и только потом pivot_table с явным aggfunc.</p></div>
+        <div class="trap"><span class="n">5</span><h3>melt без id_vars</h3><div class="bad">df.melt()   # date и branch тоже «расплавились» в value</div><div class="good">df.melt(id_vars=[&#34;date&#34;, &#34;branch&#34;], var_name=&#34;tariff&#34;, value_name=&#34;trips&#34;)</div><p>Без id_vars все колонки становятся значениями, и в колонке value перемешаются даты, города и числа.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>buh = buh.rename(columns=str.lower) <span>— одинаковые имена до склейки</span></li><li>df = pd.concat([a.assign(src=&#34;A&#34;), b.assign(src=&#34;B&#34;)], ignore_index=True) <span>— UNION ALL с подписью</span></li><li>print(list(df.columns)) <span>— нет ли колонок-двойников</span></li><li>df[&#34;src&#34;].value_counts() <span>— строк от каждого источника</span></li><li>df = df.drop_duplicates([&#34;date&#34;, &#34;src&#34;]) <span>— убрать повтор по ключу</span></li><li>long = df.melt(id_vars=[&#34;date&#34;, &#34;src&#34;], var_name=&#34;tariff&#34;, value_name=&#34;trips&#34;) <span>— широкая → длинная</span></li><li>long.pivot_table(index=&#34;src&#34;, columns=&#34;tariff&#34;, values=&#34;trips&#34;, aggfunc=&#34;sum&#34;) <span>— длинная → широкая</span></li><li>pd.concat({&#34;naive&#34;: s1, &#34;correct&#34;: s2}, axis=1) <span>— две Series рядом</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Склеили три таблицы через <code>pd.concat</code>. Ждали 4 колонки, получили 7. Самая вероятная причина?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>concat всегда добавляет колонки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В одном файле колонки названы иначе (например, с большой буквы)</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В файлах есть NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Забыли ignore_index=True</span></button></div>
+          <div class="why" hidden>concat совпадает колонки по имени буква в букву. «Comfort» и «comfort» — разные колонки.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Что делает <code>ignore_index=True</code> в concat?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удаляет дубли</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Нумерует строки заново 0…n−1</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Игнорирует колонки с разными именами</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Сортирует по индексу</span></button></div>
+          <div class="why" hidden>Без него индекс каждой таблицы сохраняется, и номера 0–91 повторяются трижды.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="2">
+          <p>3. Таблица 276 строк: date, branch, econom, comfort, business. Сколько строк будет после <code>melt(id_vars=["date", "branch"])</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>276</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>552</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>828</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>1380</span></button></div>
+          <div class="why" hidden>Расплавляются 3 колонки-тарифа: 276 × 3 = 828.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. <code>long.pivot(index="date", columns="branch", values="trips")</code> упал с <code>ValueError: Index contains duplicate entries</code>. Что это значит?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Неверный тип date</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Пара (date, branch) встречается больше одного раза</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В trips есть NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нужно сначала sort_values</span></button></div>
+          <div class="why" hidden>pivot не складывает. Повтор пары — часто признак дубля в данных. Сначала найди причину, потом pivot_table с aggfunc.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. У Series <code>g</code> двойной индекс (branch, tariff). Что вернёт <code>g.unstack()</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Длинную Series из 9 чисел</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Таблицу: branch в строках, tariff в колонках</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Таблицу: tariff в строках, branch в колонках</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибку</span></button></div>
+          <div class="why" hidden>unstack переносит ПОСЛЕДНИЙ уровень индекса (tariff) в колонки. stack делает обратное.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Наивная склейка: найди подвох</h3>
+            <ol class='steps-t'><li>Склей tash, sam, buh в raw: pd.concat, ignore_index=True.</li><li>Выведи raw.shape.</li><li>Выведи список колонок.</li><li>Выведи, сколько NaN в колонке comfort.</li></ol><p class='rule-t'>Ничего не чини: нужно увидеть, что сломалось.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 12 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">raw =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(306, 7)
+[&#39;date&#39;, &#39;econom&#39;, &#39;comfort&#39;, &#39;business&#39;, &#39;Econom&#39;, &#39;Comfort&#39;, &#39;Business&#39;]
+95</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>raw =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> concat ставит таблицы друг под другом. Если в одной таблице колонки названы иначе (например, с большой буквы), pandas решит, что это новые колонки, — и в старых появятся пустые клетки. Склей и посмотри на имена колонок.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.concat([t1, t2, t3], ignore_index=True)</code> — склеить списком, с новой нумерацией строк. <code class="i">list(raw.columns)</code> — имена колонок списком.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>raw = pd.concat([___, ___, ___], ignore_index=___)
+print(raw.shape)
+print(list(raw.___))
+raw[&#34;___&#34;].isna().sum()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Таблицы передают <b>списком</b> в квадратных скобках: <code class="i">pd.concat(tash, sam)</code> даст ошибку.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Починить имена и подписать филиал</h3>
+            <ol class='steps-t'><li>Приведи имена колонок buh к нижнему регистру.</li><li>Склей три таблицы в df, каждой добавь колонку branch: Ташкент, Самарканд, Бухара.</li><li>Выведи df.shape.</li><li>Выведи число NaN в econom, comfort, business.</li></ol><p class='rule-t'>Подпись — через assign. Порядок: Ташкент, Самарканд, Бухара.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 12 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">buh =
+df =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(306, 5)
+econom      0
+comfort     3
+business    0
+dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>buh =
+df =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Почини имена колонок Бухары (сделай маленькими), а перед склейкой подпиши каждую таблицу её филиалом — иначе после concat не поймёшь, чья строка.</p>
+<p><b>Чем это сделать.</b> <code class="i">buh.rename(columns=str.lower)</code> — все имена колонок маленькими буквами. <code class="i">tash.assign(branch="Ташкент")</code> — добавить колонку с одним значением.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>buh = buh.rename(columns=___)
+df = pd.concat([tash.assign(branch=&#34;___&#34;), sam.assign(branch=&#34;___&#34;), buh.assign(branch=&#34;___&#34;)], ignore_index=True)
+print(df.shape)
+df[[&#34;econom&#34;, &#34;comfort&#34;, &#34;business&#34;]].isna().___()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">str.lower</code> передаётся без скобок — это сама функция, а не её результат.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Найти задвоенный файл</h3>
+            <ol class='steps-t'><li>Собери df, как в задаче 2.</li><li>Выведи число повторов по ключу date + branch.</li><li>Удали их и выведи df.shape.</li><li>Выведи число строк по каждому филиалу.</li></ol><p class='rule-t'>Ключ — пара (день, филиал), а не вся строка.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 12 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">30
+(276, 5)
+branch
+Ташкент      92
+Самарканд    92
+Бухара       92
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Один из файлов выгружен дважды, но строки могли чуть отличаться. Поэтому дубль ищем не по всей строке, а по паре «день + филиал»: в один день у филиала должна быть одна строка.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.duplicated(["date", "branch"])</code> — повтор по выбранным колонкам. <code class="i">df.drop_duplicates(["date", "branch"])</code> — удалить такие повторы.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df.duplicated([___, ___]).sum())
+df = df.drop_duplicates([___, ___])
+print(df.shape)
+df[&#34;___&#34;].value_counts()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">df.duplicated()</code> без списка ищет полные копии и может ничего не найти.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>melt: из широкой в длинную</h3>
+            <ol class='steps-t'><li>Возьми чистый df (задачи 2–3).</li><li>Разверни в long: id_vars date и branch, var_name="tariff", value_name="trips".</li><li>Выведи long.shape.</li><li>Поездки по тарифу, по убыванию.</li></ol><p class='rule-t'>После melt тариф — обычная колонка для groupby.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 12 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True).drop_duplicates([&#34;date&#34;, &#34;branch&#34;])
+long =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(828, 4)
+tariff
+econom      414193.0
+comfort     162409.0
+business     23505.0
+Name: trips, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True).drop_duplicates([&#34;date&#34;, &#34;branch&#34;])
+long =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сейчас тарифы — это три колонки (econom, comfort, business). melt «переворачивает» их в две колонки: «какой тариф» и «сколько поездок». Тогда тариф можно группировать как обычную колонку.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.melt(id_vars=[колонки, которые остаются], var_name="имя для тарифа", value_name="имя для числа")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>long = df.melt(id_vars=[___, ___], var_name=&#34;___&#34;, value_name=&#34;___&#34;)
+print(long.shape)
+long.groupby(&#34;tariff&#34;)[&#34;trips&#34;].___().sort_values(ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> В id_vars перечисляют колонки, которые <b>не</b> надо разворачивать. Тарифы туда не попадают.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Повтор: comfort по месяцам (pivot_table + .str)</h3>
+            <ol class='steps-t'><li>long — как в задаче 4.</li><li>Колонка month: первые 7 символов date (урок 6).</li><li>Оставь только tariff == "comfort".</li><li>pivot_table: строки branch, колонки month, сумма trips (урок 10).</li></ol><p class='rule-t'>aggfunc пиши явно: по умолчанию pivot_table считает среднее.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 12 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True).drop_duplicates([&#34;date&#34;, &#34;branch&#34;])
+long = df.melt(id_vars=[&#34;date&#34;, &#34;branch&#34;], var_name=&#34;tariff&#34;, value_name=&#34;trips&#34;)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">month      2026-07  2026-08  2026-09
+branch
+Бухара      8345.0   8659.0   8605.0
+Самарканд  16806.0  17515.0  17339.0
+Ташкент    27912.0  28992.0  28236.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True).drop_duplicates([&#34;date&#34;, &#34;branch&#34;])
+long = df.melt(id_vars=[&#34;date&#34;, &#34;branch&#34;], var_name=&#34;tariff&#34;, value_name=&#34;trips&#34;)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Месяц — это первые 7 символов даты «2026-09-15» → «2026-09». Оставь только comfort и построй сводную: филиалы в строках, месяцы в столбцах, сумма поездок в клетках.</p>
+<p><b>Чем это сделать.</b> <code class="i">long["date"].str[:7]</code> — первые 7 символов. <code class="i">pivot_table(index=..., columns=..., values=..., aggfunc="sum")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>long[&#34;month&#34;] = long[&#34;date&#34;].str[:___]
+comf = long[long[&#34;tariff&#34;] == &#34;___&#34;]
+comf.pivot_table(index=&#34;___&#34;, columns=&#34;___&#34;, values=&#34;trips&#34;, aggfunc=&#34;___&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">aggfunc="sum"</code> получится среднее число поездок в день, а не сумма за месяц.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl h">Сложно</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Насколько ошиблась Дилноза</h3>
+            <ol class='steps-t'><li>naive: наивный concat трёх сырых таблиц с branch (без rename и без удаления дублей); сумма comfort за сентябрь по branch.</li><li>correct: то же по чистому df.</li><li>cmp = pd.concat({"naive": naive, "correct": correct}, axis=1).</li><li>Колонка diff = naive − correct. Сортировка по correct, убывание.</li><li>Комментарием (#): какие два вывода Дилнозы неверны.</li></ol><p class='rule-t'>Сентябрь: date >= "2026-09-01" (строки сравниваются как текст). Числа не хардкодь.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 12 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">raw = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True)
+naive =
+
+buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True).drop_duplicates([&#34;date&#34;, &#34;branch&#34;])
+correct =
+cmp =
+
+# Дилноза ошиблась в том, что:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">             naive  correct     diff
+branch
+Ташкент    28236.0  28236.0      0.0
+Самарканд  34678.0  17339.0  17339.0
+Бухара         0.0   8605.0  -8605.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>raw = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True)
+naive =
+
+buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True).drop_duplicates([&#34;date&#34;, &#34;branch&#34;])
+correct =
+cmp =
+
+# Дилноза ошиблась в том, что:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>Самарканд не обогнал Ташкент: сентябрь посчитан дважды.
+В Бухаре comfort не ноль: данные лежали в колонке Comfort.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Повтори расчёт Дилнозы «как было» (сырая склейка) и «как правильно» (чистый df), только за сентябрь, и положи результаты рядом. Разница покажет, где именно она ошиблась.</p>
+<p><b>Чем это сделать.</b> Сентябрь: <code class="i">raw[raw["date"] >= "2026-09-01"]</code> — даты в формате ГГГГ-ММ-ДД сравниваются как текст правильно. <code class="i">pd.concat({"naive": a, "correct": b}, axis=1)</code> — две Series в колонки таблицы.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>naive = raw[raw[&#34;date&#34;] &gt;= &#34;___&#34;].groupby(&#34;branch&#34;)[&#34;comfort&#34;].sum()
+correct = df[df[&#34;date&#34;] &gt;= &#34;___&#34;].groupby(&#34;branch&#34;)[&#34;comfort&#34;].sum()
+cmp = pd.concat({&#34;naive&#34;: naive, &#34;correct&#34;: correct}, axis=___)
+cmp[&#34;diff&#34;] = cmp[&#34;___&#34;] - cmp[&#34;___&#34;]
+cmp.sort_values(&#34;correct&#34;, ascending=False)
+# Дилноза ошиблась в том, что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">axis=1</code> ставит Series рядом (колонками). С axis=0 они встанут друг под другом.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Повтор: доли тарифов (unstack) и «дни выше среднего» (transform + mean)</h3>
+            <ol class='steps-t'><li>long — как в задаче 4. g = сумма trips по branch и tariff, затем unstack().</li><li>Выведи долю каждого тарифа в филиале, %, 1 знак: g.div(g.sum(axis=1), axis=0).</li><li>В df колонка above: comfort дня больше среднего comfort своего филиала (transform, урок 9).</li><li>Доля дней above по филиалу, %, 1 знак.</li></ol><p class='rule-t'>Доля True — это mean(). Твоя повторная ошибка: len(df[mask]) / len(df).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 12 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True).drop_duplicates([&#34;date&#34;, &#34;branch&#34;])
+long = df.melt(id_vars=[&#34;date&#34;, &#34;branch&#34;], var_name=&#34;tariff&#34;, value_name=&#34;trips&#34;)
+g =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">tariff     business  comfort  econom
+branch
+Бухара          3.0     26.2    70.8
+Самарканд       3.5     30.9    65.6
+Ташкент         4.4     25.4    70.2
+branch
+Бухара       45.7
+Самарканд    43.5
+Ташкент      41.3
+Name: above, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>buh = buh.rename(columns=str.lower)
+df = pd.concat([tash.assign(branch=&#34;Ташкент&#34;), sam.assign(branch=&#34;Самарканд&#34;), buh.assign(branch=&#34;Бухара&#34;)], ignore_index=True).drop_duplicates([&#34;date&#34;, &#34;branch&#34;])
+long = df.melt(id_vars=[&#34;date&#34;, &#34;branch&#34;], var_name=&#34;tariff&#34;, value_name=&#34;trips&#34;)
+g =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Две части. 1) Сумма поездок по паре «филиал + тариф», развёрнутая в таблицу, а потом доли внутри филиала — как в уроке 10. 2) «День выше среднего» — comfort дня больше среднего comfort своего филиала (среднее филиала в каждой строке даёт transform).</p>
+<p><b>Чем это сделать.</b> <code class="i">.unstack()</code> — второй ключ группировки уходит в столбцы. <code class="i">g.div(g.sum(axis=1), axis=0)</code> — доли в строке. <code class="i">df.groupby("branch")["comfort"].transform("mean")</code> — среднее филиала в каждой строке.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>g = long.groupby([___, ___])[&#34;trips&#34;].sum().___()
+share = g.div(g.sum(axis=1), axis=0).mul(100).round(1)
+print(share)
+df[&#34;above&#34;] = df[&#34;comfort&#34;] &gt; df.groupby(&#34;___&#34;)[&#34;comfort&#34;].transform(&#34;___&#34;)
+df.groupby(&#34;branch&#34;)[&#34;above&#34;].___().mul(100).round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сравнивай со средним <b>своего</b> филиала, а не всей компании: у Бухары поездок меньше, и иначе она всегда будет «ниже среднего».</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Дилнозе до понедельника</h2>
+      <div class="case">
+        <p>Напиши ответ Дилнозе в Telegram. Не больше 6 предложений. Структура: <b>главный вывод (переводить машины на этих цифрах нельзя) → ошибка 1 с цифрами (Самарканд задвоен) → ошибка 2 с цифрами (Бухара не ноль) → правильная картина comfort за сентябрь → 1 риск или оговорка → рекомендация и следующий шаг.</b></p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Comfort Самарканда (правильно)</span><span class="fact-chip">Comfort Бухары</span><span class="fact-chip">Comfort Ташкента</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Дилноза, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Что твой ответ говорит про перевод машин?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>По этим цифрам переводить нельзя: в них ошибки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Переводить срочно: Самарканд обогнал Ташкент</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Перевести все машины в Бухару</span></button></div>
+            <div class="why" hidden>Решение опиралось на неверные цифры: Самарканд задвоен, Бухара потеряна.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Почему Самарканд «обогнал» Ташкент?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Его сентябрь выгружен дважды, и поездки посчитались два раза</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Спрос в Самарканде резко вырос</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В Ташкенте потеряли данные</span></button></div>
+            <div class="why" hidden>Из-за задвоенного файла вышло 34 678 вместо 17 339.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Почему у Бухары comfort был ноль?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Колонки Бухары названы с большой буквы, и её поездки не попали в нужную колонку</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В Бухаре никто не ездит на comfort</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Бухара не прислала данные</span></button></div>
+            <div class="why" hidden>«Comfort» и «comfort» для pandas — разные колонки. После переименования у Бухары 8 605 поездок.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Дилноза, привет! Переводить машины по этим цифрам нельзя: в них две ошибки. Первая: сентябрь Самарканда выгружен дважды, поэтому вышло 34 678 поездок comfort вместо 17 339. Вторая: Бухара не ноль — у неё колонки названы с большой буквы, и поездки (8 605) просто не попали в отчёт. Правильная картина comfort за сентябрь: Ташкент 28 236, Самарканд 17 339, Бухара 8 605, и в Самарканде спрос даже немного упал к августу (−1,0%). Оговорка: в Ташкенте за 3 дня comfort не выгружен, его сентябрь может быть чуть больше. Рекомендую не переводить машины и договориться с филиалами об одном формате выгрузки.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Главный вывод: переводить машины нельзя</li><li>Ошибка 1: Самарканд задвоен (34 678 вместо 17 339)</li><li>Ошибка 2: Бухара не ноль (8 605)</li><li>Правильная картина comfort за сентябрь</li><li>Есть оговорка и рекомендация</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 12</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/11-merge/"><small>← Урок 11</small><b>merge: джойны без дублей и потерь</b></a><a class="nx" href="../../lessons/13-method-chaining/"><small>Урок 13 →</small><b>Method chaining и pipe: читаемый код как у сеньора</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "Comfort \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0430 (\u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e)", "value": 17339}, {"name": "Comfort \u0411\u0443\u0445\u0430\u0440\u044b", "value": 8605}, {"name": "Comfort \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430", "value": 28236}], "logic": [{"a": 0, "o": ["\u041f\u043e \u044d\u0442\u0438\u043c \u0446\u0438\u0444\u0440\u0430\u043c \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442\u044c \u043d\u0435\u043b\u044c\u0437\u044f: \u0432 \u043d\u0438\u0445 \u043e\u0448\u0438\u0431\u043a\u0438", "\u041f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442\u044c \u0441\u0440\u043e\u0447\u043d\u043e: \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u043e\u0431\u043e\u0433\u043d\u0430\u043b \u0422\u0430\u0448\u043a\u0435\u043d\u0442", "\u041f\u0435\u0440\u0435\u0432\u0435\u0441\u0442\u0438 \u0432\u0441\u0435 \u043c\u0430\u0448\u0438\u043d\u044b \u0432 \u0411\u0443\u0445\u0430\u0440\u0443"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043f\u0440\u043e \u043f\u0435\u0440\u0435\u0432\u043e\u0434 \u043c\u0430\u0448\u0438\u043d?", "why": "\u0420\u0435\u0448\u0435\u043d\u0438\u0435 \u043e\u043f\u0438\u0440\u0430\u043b\u043e\u0441\u044c \u043d\u0430 \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0435 \u0446\u0438\u0444\u0440\u044b: \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u0437\u0430\u0434\u0432\u043e\u0435\u043d, \u0411\u0443\u0445\u0430\u0440\u0430 \u043f\u043e\u0442\u0435\u0440\u044f\u043d\u0430."}, {"a": 0, "o": ["\u0415\u0433\u043e \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c \u0432\u044b\u0433\u0440\u0443\u0436\u0435\u043d \u0434\u0432\u0430\u0436\u0434\u044b, \u0438 \u043f\u043e\u0435\u0437\u0434\u043a\u0438 \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043b\u0438\u0441\u044c \u0434\u0432\u0430 \u0440\u0430\u0437\u0430", "\u0421\u043f\u0440\u043e\u0441 \u0432 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0435 \u0440\u0435\u0437\u043a\u043e \u0432\u044b\u0440\u043e\u0441", "\u0412 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435 \u043f\u043e\u0442\u0435\u0440\u044f\u043b\u0438 \u0434\u0430\u043d\u043d\u044b\u0435"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u00ab\u043e\u0431\u043e\u0433\u043d\u0430\u043b\u00bb \u0422\u0430\u0448\u043a\u0435\u043d\u0442?", "why": "\u0418\u0437-\u0437\u0430 \u0437\u0430\u0434\u0432\u043e\u0435\u043d\u043d\u043e\u0433\u043e \u0444\u0430\u0439\u043b\u0430 \u0432\u044b\u0448\u043b\u043e 34 678 \u0432\u043c\u0435\u0441\u0442\u043e 17 339."}, {"a": 0, "o": ["\u041a\u043e\u043b\u043e\u043d\u043a\u0438 \u0411\u0443\u0445\u0430\u0440\u044b \u043d\u0430\u0437\u0432\u0430\u043d\u044b \u0441 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u0431\u0443\u043a\u0432\u044b, \u0438 \u0435\u0451 \u043f\u043e\u0435\u0437\u0434\u043a\u0438 \u043d\u0435 \u043f\u043e\u043f\u0430\u043b\u0438 \u0432 \u043d\u0443\u0436\u043d\u0443\u044e \u043a\u043e\u043b\u043e\u043d\u043a\u0443", "\u0412 \u0411\u0443\u0445\u0430\u0440\u0435 \u043d\u0438\u043a\u0442\u043e \u043d\u0435 \u0435\u0437\u0434\u0438\u0442 \u043d\u0430 comfort", "\u0411\u0443\u0445\u0430\u0440\u0430 \u043d\u0435 \u043f\u0440\u0438\u0441\u043b\u0430\u043b\u0430 \u0434\u0430\u043d\u043d\u044b\u0435"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u0443 \u0411\u0443\u0445\u0430\u0440\u044b comfort \u0431\u044b\u043b \u043d\u043e\u043b\u044c?", "why": "\u00abComfort\u00bb \u0438 \u00abcomfort\u00bb \u0434\u043b\u044f pandas \u2014 \u0440\u0430\u0437\u043d\u044b\u0435 \u043a\u043e\u043b\u043e\u043d\u043a\u0438. \u041f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0435\u0438\u043c\u0435\u043d\u043e\u0432\u0430\u043d\u0438\u044f \u0443 \u0411\u0443\u0445\u0430\u0440\u044b 8 605 \u043f\u043e\u0435\u0437\u0434\u043e\u043a."}]}, "case_model": "\u0414\u0438\u043b\u043d\u043e\u0437\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u041f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442\u044c \u043c\u0430\u0448\u0438\u043d\u044b \u043f\u043e \u044d\u0442\u0438\u043c \u0446\u0438\u0444\u0440\u0430\u043c \u043d\u0435\u043b\u044c\u0437\u044f: \u0432 \u043d\u0438\u0445 \u0434\u0432\u0435 \u043e\u0448\u0438\u0431\u043a\u0438. \u041f\u0435\u0440\u0432\u0430\u044f: \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0430 \u0432\u044b\u0433\u0440\u0443\u0436\u0435\u043d \u0434\u0432\u0430\u0436\u0434\u044b, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0432\u044b\u0448\u043b\u043e 34 678 \u043f\u043e\u0435\u0437\u0434\u043e\u043a comfort \u0432\u043c\u0435\u0441\u0442\u043e 17 339. \u0412\u0442\u043e\u0440\u0430\u044f: \u0411\u0443\u0445\u0430\u0440\u0430 \u043d\u0435 \u043d\u043e\u043b\u044c \u2014 \u0443 \u043d\u0435\u0451 \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u043d\u0430\u0437\u0432\u0430\u043d\u044b \u0441 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u0431\u0443\u043a\u0432\u044b, \u0438 \u043f\u043e\u0435\u0437\u0434\u043a\u0438 (8 605) \u043f\u0440\u043e\u0441\u0442\u043e \u043d\u0435 \u043f\u043e\u043f\u0430\u043b\u0438 \u0432 \u043e\u0442\u0447\u0451\u0442. \u041f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u0430\u044f \u043a\u0430\u0440\u0442\u0438\u043d\u0430 comfort \u0437\u0430 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c: \u0422\u0430\u0448\u043a\u0435\u043d\u0442 28 236, \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 17 339, \u0411\u0443\u0445\u0430\u0440\u0430 8 605, \u0438 \u0432 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434\u0435 \u0441\u043f\u0440\u043e\u0441 \u0434\u0430\u0436\u0435 \u043d\u0435\u043c\u043d\u043e\u0433\u043e \u0443\u043f\u0430\u043b \u043a \u0430\u0432\u0433\u0443\u0441\u0442\u0443 (\u22121,0%). \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435 \u0437\u0430 3 \u0434\u043d\u044f comfort \u043d\u0435 \u0432\u044b\u0433\u0440\u0443\u0436\u0435\u043d, \u0435\u0433\u043e \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u0447\u0443\u0442\u044c \u0431\u043e\u043b\u044c\u0448\u0435. \u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u044e \u043d\u0435 \u043f\u0435\u0440\u0435\u0432\u043e\u0434\u0438\u0442\u044c \u043c\u0430\u0448\u0438\u043d\u044b \u0438 \u0434\u043e\u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c\u0441\u044f \u0441 \u0444\u0438\u043b\u0438\u0430\u043b\u0430\u043c\u0438 \u043e\u0431 \u043e\u0434\u043d\u043e\u043c \u0444\u043e\u0440\u043c\u0430\u0442\u0435 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0438.", "case_xp": 30, "cheat": [["buh = buh.rename(columns=str.lower)", "\u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u044b\u0435 \u0438\u043c\u0435\u043d\u0430 \u0434\u043e \u0441\u043a\u043b\u0435\u0439\u043a\u0438"], ["df = pd.concat([a.assign(src=\"A\"), b.assign(src=\"B\")], ignore_index=True)", "UNION ALL \u0441 \u043f\u043e\u0434\u043f\u0438\u0441\u044c\u044e"], ["print(list(df.columns))", "\u043d\u0435\u0442 \u043b\u0438 \u043a\u043e\u043b\u043e\u043d\u043e\u043a-\u0434\u0432\u043e\u0439\u043d\u0438\u043a\u043e\u0432"], ["df[\"src\"].value_counts()", "\u0441\u0442\u0440\u043e\u043a \u043e\u0442 \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0438\u0441\u0442\u043e\u0447\u043d\u0438\u043a\u0430"], ["df = df.drop_duplicates([\"date\", \"src\"])", "\u0443\u0431\u0440\u0430\u0442\u044c \u043f\u043e\u0432\u0442\u043e\u0440 \u043f\u043e \u043a\u043b\u044e\u0447\u0443"], ["long = df.melt(id_vars=[\"date\", \"src\"], var_name=\"tariff\", value_name=\"trips\")", "\u0448\u0438\u0440\u043e\u043a\u0430\u044f \u2192 \u0434\u043b\u0438\u043d\u043d\u0430\u044f"], ["long.pivot_table(index=\"src\", columns=\"tariff\", values=\"trips\", aggfunc=\"sum\")", "\u0434\u043b\u0438\u043d\u043d\u0430\u044f \u2192 \u0448\u0438\u0440\u043e\u043a\u0430\u044f"], ["pd.concat({\"naive\": s1, \"correct\": s2}, axis=1)", "\u0434\u0432\u0435 Series \u0440\u044f\u0434\u043e\u043c"]], "data": "../../data/", "datasets": ["ketdik_tashkent.csv", "ketdik_samarkand.csv", "ketdik_bukhara.csv"], "day": 12, "hint_cost": 5, "quiz": [1, 1, 2, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ntash = pd.read_csv(\"ketdik_tashkent.csv\")\nsam = pd.read_csv(\"ketdik_samarkand.csv\")\nbuh = pd.read_csv(\"ketdik_bukhara.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["(306, 7)", "Econom", "95"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["(306, 5)", "econom 0", "comfort 3"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["30", "(276, 5)", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 92"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["(828, 4)", "econom 414193.0", "comfort 162409.0", "business 23505.0"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["\u0411\u0443\u0445\u0430\u0440\u0430 8345.0 8659.0 8605.0", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 16806.0 17515.0 17339.0", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 27912.0 28992.0 28236.0"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["\u0422\u0430\u0448\u043a\u0435\u043d\u0442 28236.0 28236.0 0.0", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 34678.0 17339.0 17339.0", "\u0411\u0443\u0445\u0430\u0440\u0430 0.0 8605.0 -8605.0"], "setup": "", "xp": 20}, {"figure": false, "id": "t7", "keys": ["\u0411\u0443\u0445\u0430\u0440\u0430 3.0 26.2 70.8", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 3.5 30.9 65.6", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 4.4 25.4 70.2", "\u0411\u0443\u0445\u0430\u0440\u0430 45.7", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 43.5", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 41.3"], "setup": "", "xp": 20}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

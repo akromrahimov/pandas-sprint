@@ -1,0 +1,673 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 24. Скорость: векторизация вместо циклов и apply — Pandas Sprint</title>
+<meta name="description" content="Урок 24 курса Pandas Sprint — Скорость: векторизация вместо циклов и apply. Сделать медленный код быстрым в десятки раз.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/24-vektorizaciya/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 24. Скорость: векторизация вместо циклов и apply — Pandas Sprint">
+<meta property="og:description" content="Урок 24 курса Pandas Sprint — Скорость: векторизация вместо циклов и apply. Сделать медленный код быстрым в десятки раз.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/24-vektorizaciya/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="24">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#why"><span class="dot">✓</span>Почему медленно</a></li><li><a href="#memory"><span class="dot">✓</span>Память</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Скорость: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В SQL ты и так пишешь «для всей колонки сразу» — векторизация в pandas устроена так же.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>CASE category WHEN &#39;Кафе&#39; THEN 0.05 … END</code></td><td><code>df[&#34;category&#34;].map(RATE)</code></td><td>значение по словарю</td></tr><tr><td><code>CASE WHEN weekend AND category = &#39;Кафе&#39; THEN 0.01 ELSE 0 END</code></td><td><code>np.where(усл, 0.01, 0)</code></td><td>если… то… иначе</td></tr><tr><td><code>LEAST(bonus, 50000)</code></td><td><code>bonus.clip(upper=50_000)</code></td><td>ограничение сверху</td></tr><tr><td><code>SELECT amount FROM …</code></td><td><code>pd.read_csv(..., usecols=[&#34;amount&#34;])</code></td><td>только нужные колонки</td></tr><tr><td><code>курсор, построчная обработка</code></td><td><code>for _, row in df.iterrows()</code></td><td>медленно, избегать</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 24 из 30 · Неделя 4 · Бизнес-кейсы</div>
+      <h1>Скорость: <mark>векторизация</mark> вместо циклов и apply</h1>
+      <p class="lead">На 6 000 строк любой код работает быстро. На 6 миллионах цикл for, который проходит строку за строкой, будет считать минутами, а то и часами. Сегодня учимся писать расчёты «сразу для всей колонки» — так, как pandas умеет лучше всего: через map, np.where, np.select и clip — и экономить память типом category.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Переписать расчёт бонусов программы лояльности из медленного построчного кода в векторный: тот же результат, но в десятки раз быстрее и понятнее, и уменьшить память таблицы.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Объяснять, почему цикл и <code class="i">apply(axis=1)</code> медленные</li><li>Заменять «если… то…» по строкам на <code class="i">map</code>, <code class="i">np.where</code>, <code class="i">np.select</code></li><li>Ограничивать значения через <code class="i">clip</code></li><li>Уменьшать память через тип <code class="i">category</code> и чтение только нужных колонок</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Отчёт по бонусам считается 40 минут</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">О</span>Отабек <small>разработчик программы лояльности · 13:15</small></div>
+          <p>Привет! Наш скрипт считает бонус для каждой покупки в цикле. На тестовых 6 000 строк — секунда, а на настоящих 30 миллионах покупок ночной отчёт идёт 40 минут и иногда падает по памяти. Можешь переписать расчёт по-человечески?</p>
+<div class="file">▤ bonus_tx.csv · 6 000 тестовых покупок</div>        </div>
+      </div>
+      <p class="note">Правила бонусов: базовая ставка по категории (Продукты 1%, АЗС 2%, Кафе 5%, Электроника 3%), множитель уровня клиента (bronze ×1, silver ×1,5, gold ×2), в выходные в Кафе ставка выше на 1 процентный пункт, бонус за одну покупку — не больше 50 000 сум. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/bonus_tx.csv" download>Скачать bonus_tx.csv</a><span class="note">6 000 строк · 225 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+import time
+df = pd.read_csv(&#34;bonus_tx.csv&#34;)
+RATE = {&#34;Продукты&#34;: 0.01, &#34;АЗС&#34;: 0.02, &#34;Кафе&#34;: 0.05, &#34;Электроника&#34;: 0.03}
+MULT = {&#34;bronze&#34;: 1.0, &#34;silver&#34;: 1.5, &#34;gold&#34;: 2.0}</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="why">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Строка за строкой или вся колонка сразу</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь кассира, который пробивает чеки. Можно звать покупателей по одному, спрашивать, что у него, и считать в уме — это <b>цикл</b>. А можно положить все товары на ленту, и сканер посчитает всё разом — это <b>векторизация</b>.</p>
+  <ul>
+    <li><b>Цикл for</b> и <b>apply(axis=1)</b> выполняют Python-код для каждой строки отдельно. На миллионах строк это очень медленно.</li>
+    <li><b>Векторные операции</b> (<code class="i">df["a"] * df["b"]</code>, <code class="i">map</code>, <code class="i">np.where</code>) работают с колонкой целиком: внутри pandas и numpy это быстрый код на C.</li>
+    <li><b>map(словарь)</b> — «замени каждое значение по словарю»: категорию на ставку.</li>
+    <li><b>np.where(условие, если_да, если_нет)</b> — «если… то… иначе…» для всей колонки сразу. <b>np.select</b> — то же для нескольких условий.</li>
+    <li><b>clip(upper=…)</b> — «не больше чем…».</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Медленно: цикл по строкам.</b></div><pre class="code" data-cm>start = time.perf_counter()
+bonuses = []
+for _, row in df.iterrows():
+    rate = RATE[row[&quot;category&quot;]]
+    if row[&quot;is_weekend&quot;] and row[&quot;category&quot;] == &quot;Кафе&quot;:
+        rate += 0.01
+    bonuses.append(min(row[&quot;amount&quot;] * rate * MULT[row[&quot;client_level&quot;]], 50_000))
+print(round(sum(bonuses)), f&quot;{time.perf_counter() - start:.3f} сек&quot;)</pre><div class="out">29432968 0.251 сек</div><p class="plain"><b>Простыми словами:</b> правильно, но каждая из 6 000 строк обрабатывается отдельно. На 30 миллионах строк это и есть «40 минут».</p></div>
+<div class="card"><div class="q"><b>2. Быстро: векторный расчёт.</b></div><pre class="code" data-cm>start = time.perf_counter()
+rate = df[&quot;category&quot;].map(RATE) + np.where(df[&quot;is_weekend&quot;] &amp; (df[&quot;category&quot;] == &quot;Кафе&quot;), 0.01, 0)
+bonus = (df[&quot;amount&quot;] * rate * df[&quot;client_level&quot;].map(MULT)).clip(upper=50_000)
+print(round(bonus.sum()), f&quot;{time.perf_counter() - start:.3f} сек&quot;)</pre><div class="out">29432968 0.006 сек</div><p class="plain"><b>Простыми словами:</b> та же сумма бонусов, но в сотни раз быстрее: три операции над колонками вместо 6 000 маленьких расчётов.</p></div>
+<div class="card"><div class="q"><b>3. Тот же расчёт по шагам на 5 покупках.</b> Видно, что делает каждая операция.</div><pre class="code" data-cm>few = df.head(5)[[&quot;category&quot;, &quot;is_weekend&quot;, &quot;client_level&quot;, &quot;amount&quot;]].copy()
+few[&quot;ставка&quot;] = few[&quot;category&quot;].map(RATE)
+few[&quot;надбавка&quot;] = np.where(few[&quot;is_weekend&quot;] &amp; (few[&quot;category&quot;] == &quot;Кафе&quot;), 0.01, 0)
+few[&quot;множитель&quot;] = few[&quot;client_level&quot;].map(MULT)
+few[&quot;бонус&quot;] = few[&quot;amount&quot;] * (few[&quot;ставка&quot;] + few[&quot;надбавка&quot;]) * few[&quot;множитель&quot;]
+few[&quot;с_потолком&quot;] = few[&quot;бонус&quot;].clip(upper=50_000)
+few</pre><div class="out">      category  is_weekend client_level  amount  ставка  надбавка  множитель    бонус  с_потолком
+0         Кафе       False       bronze  145500    0.05      0.00        1.0   7275.0      7275.0
+1         Кафе        True       silver  122600    0.05      0.01        1.5  11034.0     11034.0
+2          АЗС       False       silver  186300    0.02      0.00        1.5   5589.0      5589.0
+3         Кафе       False       bronze   90100    0.05      0.00        1.0   4505.0      4505.0
+4  Электроника        True       bronze  148800    0.03      0.00        1.0   4464.0      4464.0</div><p class="plain"><b>Простыми словами:</b> map подставил ставку по категории и множитель по уровню клиента. np.where поставил +0,01 только там, где выходной <b>и</b> кафе. Последняя колонка — clip: всё, что больше 50 000, стало бы 50 000 (в этих пяти покупках бонусы маленькие, потолок не сработал). Каждая строка кода — одна колонка сразу для всех покупок, без цикла.</p></div>
+<div class="card"><div class="q"><b>4. np.select: несколько условий по порядку.</b> Приём для задачи 5.</div><pre class="code" data-cm>amounts = pd.Series([20_000, 49_999, 50_000, 300_000, 900_000])
+pd.DataFrame({
+    &quot;сумма&quot;: amounts,
+    &quot;размер&quot;: np.select([amounts &lt; 50_000, amounts &lt; 500_000], [&quot;мелкая&quot;, &quot;средняя&quot;], default=&quot;крупная&quot;),
+})</pre><div class="out">    сумма   размер
+0   20000   мелкая
+1   49999   мелкая
+2   50000  средняя
+3  300000  средняя
+4  900000  крупная</div><p class="plain"><b>Простыми словами:</b> условия проверяются сверху вниз: сначала «меньше 50 000», потом «меньше 500 000». 300 000 не прошла первое условие, но прошла второе — «средняя». Всё, что не подошло ни под одно условие, получает default — «крупная».</p></div>
+<div class="card"><div class="q"><b>5. Почему дроби сравнивают через np.allclose.</b> Приём для задачи 6.</div><pre class="code" data-cm>print(0.1 + 0.2 == 0.3)
+print(0.1 + 0.2)
+print(np.allclose(0.1 + 0.2, 0.3))</pre><div class="out">False
+0.30000000000000004
+True</div><p class="plain"><b>Простыми словами:</b> компьютер хранит дроби чуть-чуть неточно, поэтому 0,1 + 0,2 получается 0,30000000000000004, и обычное «равно» говорит False. Когда сравнивают результаты двух способов расчёта, используют <code class="i">np.allclose</code> — «равны с точностью до крошечной погрешности».</p></div></div>
+    </section>
+    <section id="memory">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Меньше памяти: category и только нужные колонки</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+  <ul>
+    <li><code class="i">memory_usage(deep=True)</code> — сколько байт занимает каждая колонка. deep=True считает и текст честно.</li>
+    <li><b>category</b> — тип для колонок, где мало разных значений и много повторов (уровень клиента, город). pandas хранит каждое слово один раз, а в строках — короткие номера.</li>
+    <li><code class="i">read_csv(..., usecols=[...])</code> — читать только нужные колонки. <code class="i">chunksize=100_000</code> — читать огромный файл кусками.</li>
+    <li><b>Parquet</b> — формат файлов для больших таблиц: читается быстрее CSV и хранит типы. <code class="i">df.to_parquet("x.parquet")</code>, <code class="i">pd.read_parquet("x.parquet")</code> (нужна библиотека pyarrow).</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>6. Сколько памяти занимает таблица.</b></div><pre class="code" data-cm>before = df.memory_usage(deep=True)
+small = df.astype({&quot;client_level&quot;: &quot;category&quot;, &quot;category&quot;: &quot;category&quot;})
+after = small.memory_usage(deep=True)
+pd.DataFrame({&quot;before_kb&quot;: (before / 1024).round(1), &quot;after_kb&quot;: (after / 1024).round(1)})</pre><div class="out">              before_kb  after_kb
+Index               0.1       0.1
+tx_id              46.9      46.9
+client_level       80.9       5.9
+category          120.4       5.9
+amount             46.9      46.9
+is_weekend          5.9       5.9</div><p class="plain"><b>Простыми словами:</b> текстовые колонки с повторами после category занимают в разы меньше. Числа не изменились.</p></div>
+<div class="card"><div class="q"><b>7. Читать кусками.</b> Сумма покупок без загрузки всего файла в память.</div><pre class="code" data-cm>total = 0
+for chunk in pd.read_csv(&quot;bonus_tx.csv&quot;, usecols=[&quot;amount&quot;], chunksize=2_000):
+    total += chunk[&quot;amount&quot;].sum()
+total</pre><div class="out">967570800</div><p class="plain"><b>Простыми словами:</b> файл прочитан тремя кусками по 2 000 строк, в памяти одновременно был только один кусок и только одна колонка.</p></div></div>
+<div class="callout"><b>Правило аналитика.</b> Если пишешь <code class="i">for … in df.iterrows()</code> или <code class="i">apply(…, axis=1)</code>, остановись и спроси: «а можно это колонкой?». Почти всегда можно.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Четыре ловушки скорости</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>apply(axis=1) — тот же цикл</h3><div class="bad">df.apply(lambda r: r[&#34;amount&#34;] * RATE[r[&#34;category&#34;]], axis=1)</div><div class="good">df[&#34;amount&#34;] * df[&#34;category&#34;].map(RATE)</div><p>apply по строкам выглядит короче цикла, но работает почти так же медленно: функция вызывается для каждой строки.</p></div>
+        <div class="trap"><span class="n">2</span><h3>and / or вместо &amp; / |</h3><div class="bad">np.where(df[&#34;is_weekend&#34;] and df[&#34;category&#34;] == &#34;Кафе&#34;, 0.01, 0)   # ValueError</div><div class="good">np.where(df[&#34;is_weekend&#34;] &amp; (df[&#34;category&#34;] == &#34;Кафе&#34;), 0.01, 0)</div><p>Для колонок — только &amp;, | и скобки вокруг каждого условия (урок 2).</p></div>
+        <div class="trap"><span class="n">3</span><h3>map с ключом, которого нет в словаре</h3><p>Если в данных встретится категория, которой нет в словаре, map даст NaN, и бонус молча станет пустым. После map проверь: <code class="i">rate.isna().sum()</code>.</p></div>
+        <div class="trap"><span class="n">4</span><h3>category и новые значения</h3><p>В колонку типа category нельзя записать значение, которого нет в её списке категорий. Для колонок, которые часто меняются, category не подходит.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: быстрый код</h3>
+        <ol><li>df[&#34;cat&#34;].map(словарь) <span>— замена по словарю</span></li><li>np.where(усл, a, b) <span>— если… то… иначе для колонки</span></li><li>np.select([усл1, усл2], [a, b], default=c) <span>— несколько условий</span></li><li>s.clip(lower=0, upper=50_000) <span>— ограничить значения</span></li><li>df.memory_usage(deep=True).sum() <span>— память таблицы</span></li><li>df.astype({&#34;col&#34;: &#34;category&#34;}) <span>— меньше памяти для повторяющегося текста</span></li><li>pd.read_csv(f, usecols=[...], chunksize=100_000) <span>— читать нужное и кусками</span></li><li>time.perf_counter() <span>— засечь время</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Почему <code>apply(..., axis=1)</code> медленный?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Он работает только с числами</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Функция вызывается отдельно для каждой строки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Он копирует таблицу</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Он не медленный</span></button></div>
+          <div class="why" hidden>apply по строкам — это, по сути, тот же цикл Python.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="2">
+          <p>2. Что сделает <code>df["category"].map({"Кафе": 0.05})</code> для строки «АЗС»?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>0</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>0.05</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибку</span></button></div>
+          <div class="why" hidden>Значений, которых нет в словаре, map превращает в NaN.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Как ограничить бонус сверху 50 000?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>bonus.max(50000)</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>bonus.clip(upper=50000)</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>bonus[bonus < 50000]</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>min(bonus, 50000)</code></span></button></div>
+          <div class="why" hidden>clip(upper=…) заменяет всё, что больше порога, на порог. Фильтр удалил бы строки.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Для какой колонки тип category полезнее всего?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Уникальный id покупки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Уровень клиента: 3 значения на 6 000 строк</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сумма покупки</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Дата и время</span></button></div>
+          <div class="why" hidden>category экономит память, когда разных значений мало, а повторов много.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Что делает <code>chunksize</code> в read_csv?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Сжимает файл</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Читает файл кусками по N строк</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Удаляет дубли</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ускоряет apply</span></button></div>
+          <div class="why" hidden>Каждый кусок обрабатывают по очереди, и весь файл не нужно держать в памяти.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Ставка по категории</h3>
+            <ol class='steps-t'><li>Создай колонку <code class='i'>rate</code> через <code class='i'>map(RATE)</code>.</li> <li>Напечатай, сколько пустых значений получилось (должно быть 0).</li> <li>Выведи средний <code class='i'>rate</code> по категориям.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 24 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">df[&#34;rate&#34;] =
+
+# пустых
+
+# средняя ставка по категориям
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">0
+category
+АЗС            0.02
+Кафе           0.05
+Продукты       0.01
+Электроника    0.03
+Name: rate, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;rate&#34;] =
+
+# пустых
+
+# средняя ставка по категориям
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Ставка зависит от категории, а словарь RATE уже говорит, какая ставка у какой категории. Нужно подставить ставку в каждую строку по её категории — без циклов и if.</p>
+<p><b>Чем это сделать.</b> <code class="i">df["category"].map(RATE)</code> — заменить каждую категорию числом из словаря. Если категории нет в словаре — будет NaN.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;rate&#34;] = df[&#34;___&#34;].map(___)
+print(df[&#34;rate&#34;].isna().___())
+df.groupby(&#34;category&#34;)[&#34;rate&#34;].___()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> map работает с колонкой (Series), а не со всей таблицей.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Бонус без условий</h3>
+            <ol class='steps-t'><li>Бонус = сумма × ставка категории × множитель уровня (<code class='i'>MULT</code>) — одной строкой, без циклов → колонка <code class='i'>bonus</code>.</li> <li>Напечатай сумму всех бонусов, целым числом.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 24 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">df[&#34;bonus&#34;] =
+
+# сумма бонусов
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">29272092</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;bonus&#34;] =
+
+# сумма бонусов
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Колонки перемножаются целиком, строка за строкой. Ставка — из словаря категорий, множитель — из словаря уровней. Вся формула — одна строка.</p>
+<p><b>Чем это сделать.</b> <code class="i">df["amount"] * df["category"].map(RATE) * df["client_level"].map(MULT)</code>. <code class="i">round(x)</code> — целое.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;bonus&#34;] = df[&#34;___&#34;] * df[&#34;category&#34;].map(___) * df[&#34;client_level&#34;].map(___)
+round(df[&#34;bonus&#34;].___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Цикл <code class="i">for</code> по строкам даст тот же ответ, но в сотни раз медленнее — именно это урок и исправляет.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Выходные в кафе</h3>
+            <ol class='steps-t'><li>Ставка <code class='i'>rate</code>: по категории плюс 0.01, если это выходной и категория «Кафе» (<code class='i'>np.where</code>).</li> <li>Напечатай, у скольких покупок ставка повышена.</li> <li>Напечатай сумму бонусов с новой ставкой и множителем уровня, целым числом.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 24 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">extra =
+rate =
+
+# покупок с повышенной ставкой
+
+# сумма бонусов
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">456
+30189639</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>extra =
+rate =
+
+# покупок с повышенной ставкой
+
+# сумма бонусов
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Надбавка +0.01 только там, где одновременно выходной и кафе. np.where для всей колонки: «если условие — 0.01, иначе 0». Потом прибавь надбавку к обычной ставке.</p>
+<p><b>Чем это сделать.</b> <code class="i">np.where(усл1 & (усл2), 0.01, 0)</code>. Колонка is_weekend уже True/False — её можно ставить в условие как есть.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>extra = np.where(df[&#34;is_weekend&#34;] &amp; (df[&#34;category&#34;] == &#34;___&#34;), ___, 0)
+rate = df[&#34;category&#34;].map(RATE) + ___
+print((extra &gt; 0).sum())
+print(round((df[&#34;amount&#34;] * rate * df[&#34;client_level&#34;].map(MULT)).sum()))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сравнение категории — в скобках: без них <code class="i">&</code> выполнится раньше <code class="i">==</code> и будет ошибка.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Потолок бонуса</h3>
+            <p>Готов <code class='i'>raw</code> — бонус без ограничения.</p> <ol class='steps-t'><li>Ограничь бонус сверху 50 000 через <code class='i'>clip</code> → <code class='i'>bonus</code>.</li> <li>Напечатай: сколько покупок упёрлись в потолок, сумму bonus (целое) и сколько сэкономил потолок (raw − bonus, целое).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>rate = df[&#34;category&#34;].map(RATE) + np.where(df[&#34;is_weekend&#34;] &amp; (df[&#34;category&#34;] == &#34;Кафе&#34;), 0.01, 0)
+raw = df[&#34;amount&#34;] * rate * df[&#34;client_level&#34;].map(MULT)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 24 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">bonus =
+
+# упёрлись в потолок, сумма, экономия
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">31 29432968 756672</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>bonus =
+
+# упёрлись в потолок, сумма, экономия
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Потолок — «не больше 50 000». Есть готовый метод, который срезает всё, что выше границы. Экономия — разница сумм до и после.</p>
+<p><b>Чем это сделать.</b> <code class="i">raw.clip(upper=50_000)</code> — всё больше 50 000 станет 50 000. <code class="i">(raw > 50_000).sum()</code> — сколько срезано.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>bonus = raw.clip(upper=___)
+print((raw ___ 50_000).sum(), round(bonus.sum()), round(raw.sum() - ___.sum()))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Упёршихся считай по raw (до среза): после clip значений больше 50 000 уже нет.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Размер покупки через np.select</h3>
+            <ol class='steps-t'><li>Колонка <code class='i'>size</code>: «мелкая» — меньше 50 000, «средняя» — меньше 500 000, иначе «крупная» (<code class='i'>np.select</code>).</li> <li>По size: число покупок и средний бонус (целое), в порядке мелкая, средняя, крупная.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>rate = df[&#34;category&#34;].map(RATE) + np.where(df[&#34;is_weekend&#34;] &amp; (df[&#34;category&#34;] == &#34;Кафе&#34;), 0.01, 0)
+df[&#34;bonus&#34;] = (df[&#34;amount&#34;] * rate * df[&#34;client_level&#34;].map(MULT)).clip(upper=50_000)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 24 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">df[&#34;size&#34;] =
+
+# число покупок и средний бонус по size
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">         count     mean
+size
+мелкая    1147   1039.0
+средняя   4619   4987.0
+крупная    234  22248.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;size&#34;] =
+
+# число покупок и средний бонус по size
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Три размера — это np.select с двумя условиями и значением по умолчанию. Условия проверяются по порядку, поэтому «меньше 50 000» идёт первым. Потом группировка и порядок строк «мелкая → крупная».</p>
+<p><b>Чем это сделать.</b> <code class="i">np.select([усл1, усл2], ["мелкая", "средняя"], default="крупная")</code>. <code class="i">.agg(["count", "mean"])</code>, <code class="i">.reindex([...])</code> — нужный порядок строк.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;size&#34;] = np.select([df[&#34;amount&#34;] &lt; ___, df[&#34;amount&#34;] &lt; ___], [&#34;мелкая&#34;, &#34;средняя&#34;], default=&#34;___&#34;)
+(df.groupby(&#34;size&#34;)[&#34;bonus&#34;]
+   .agg([&#34;___&#34;, &#34;___&#34;])
+   .round(0)
+   .reindex([&#34;мелкая&#34;, &#34;средняя&#34;, &#34;крупная&#34;]))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если поставить «меньше 500 000» первым, мелкие покупки тоже станут «средними».</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Тот же ответ, что у медленного кода</h3>
+            <p>Функция <code class='i'>bonus_row</code> считает бонус для одной строки (так было в старом скрипте).</p> <ol class='steps-t'><li>Посчитай старый результат через <code class='i'>df.apply(bonus_row, axis=1)</code> → <code class='i'>slow</code>.</li> <li>Посчитай новый результат векторно → <code class='i'>fast</code> (с выходными в кафе и потолком).</li> <li>Напечатай: совпадают ли они (<code class='i'>np.allclose(slow, fast)</code>) и сумму fast (целое).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 24 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">def bonus_row(row):
+    rate = RATE[row[&#34;category&#34;]] + (0.01 if row[&#34;is_weekend&#34;] and row[&#34;category&#34;] == &#34;Кафе&#34; else 0)
+    return min(row[&#34;amount&#34;] * rate * MULT[row[&#34;client_level&#34;]], 50_000)
+
+slow =
+fast =
+
+# совпадают ли и сумма
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">True 29432968</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>def bonus_row(row):
+    rate = RATE[row[&#34;category&#34;]] + (0.01 if row[&#34;is_weekend&#34;] and row[&#34;category&#34;] == &#34;Кафе&#34; else 0)
+    return min(row[&#34;amount&#34;] * rate * MULT[row[&#34;client_level&#34;]], 50_000)
+
+slow =
+fast =
+
+# совпадают ли и сумма
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Старый способ — apply: функция вызывается для каждой строки. Новый — та же формула над целыми колонками (задачи 2–4 вместе). Убедись, что результаты совпадают: числа с дробями сравнивают «почти равно».</p>
+<p><b>Чем это сделать.</b> <code class="i">df.apply(bonus_row, axis=1)</code> — по строкам. <code class="i">np.allclose(a, b)</code> — равны ли с точностью до копеек.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>slow = df.apply(___, axis=___)
+fast = (df[&#34;amount&#34;] * (df[&#34;category&#34;].map(RATE) + np.where(___, 0.01, 0))
+        * df[&#34;client_level&#34;].map(MULT)).clip(upper=___)
+print(np.allclose(slow, fast), round(fast.sum()))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">slow == fast</code> может дать False из-за крошечных различий в дробях. Поэтому allclose.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Память таблицы</h3>
+            <ol class='steps-t'><li>Напечатай память таблицы <code class='i'>df</code> в килобайтах (deep=True), 1 знак.</li> <li>Сделай копию <code class='i'>small</code>, где client_level и category — тип category.</li> <li>Напечатай память small в килобайтах (1 знак) и во сколько раз она меньше (1 знак).</li> <li>Напечатай <code class='i'>small.dtypes</code>.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 24 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">before =
+small =
+after =
+
+# память до, после и во сколько раз меньше
+
+# типы
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">301.0 111.6 2.7
+tx_id              int64
+client_level    category
+category        category
+amount             int64
+is_weekend          bool
+dtype: object</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>before =
+small =
+after =
+
+# память до, после и во сколько раз меньше
+
+# типы
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Точные килобайты зависят от версии pandas и компьютера, поэтому проверяются только типы колонок. Главное — small должна быть заметно меньше df.</p>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай память таблицы до и после перевода двух текстовых колонок в category. Во сколько раз меньше — это «до / после».</p>
+<p><b>Чем это сделать.</b> <code class="i">df.memory_usage(deep=True).sum() / 1024</code> — килобайты. <code class="i">df.astype({"колонка": "category"})</code> — сменить тип.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>before = df.memory_usage(deep=___).sum() / 1024
+small = df.astype({&#34;client_level&#34;: &#34;___&#34;, &#34;category&#34;: &#34;___&#34;})
+after = small.memory_usage(deep=True).sum() / ___
+print(round(before, 1), round(after, 1), round(before / after, 1))
+small.dtypes</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без deep=True pandas не считает текст в памяти, и выигрыш будет незаметен.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Отабеку</h2>
+      <div class="case">
+        <p>Напиши ответ Отабеку. Не больше 5 предложений. Структура: <b>почему старый код медленный (простыми словами) → что ты изменил → проверка, что результат тот же (цифры) → что даст тип category → 1 риск, за которым следить</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Сумма бонусов</span><span class="fact-chip">Покупок упёрлось в потолок</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Отабек, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Почему, по твоему ответу, старый код медленный?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Он считает бонус для каждой покупки отдельно — миллионы маленьких расчётов</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Компьютер слишком старый</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Данных слишком мало</span></button></div>
+            <div class="why" hidden>Цикл и apply вызывают Python для каждой строки; операции над целыми колонками делают то же за один проход.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Как ты доказываешь, что новый код считает правильно?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Результат совпал со старым: та же сумма бонусов</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Новый код быстрее — значит, правильный</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Никак</span></button></div>
+            <div class="why" hidden>Ускорение без проверки результата опасно. Совпадение сумм — доказательство.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Какой риск ты называешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Новая категория без ставки в словаре даст пустой бонус — нужна проверка на NaN</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Рисков нет</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Код может стать слишком быстрым</span></button></div>
+            <div class="why" hidden>map возвращает NaN для неизвестных ключей молча — это легко пропустить.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Отабек, привет! Старый код медленный, потому что считает бонус для каждой покупки отдельно, — на 30 млн строк это 30 млн маленьких расчётов. Я переписал расчёт тремя операциями над целыми колонками: ставка через словарь, надбавка за выходные в кафе через np.where и потолок через clip. Результат тот же: сумма бонусов 29 432 968 сум в обоих вариантах, 31 покупок упираются в потолок 50 000. Если хранить уровень клиента и категорию как category, таблица займёт в 2,7 раза меньше памяти — это поможет ночному отчёту не падать. Риск: если появится новая категория, которой нет в словаре ставок, бонус молча станет пустым, — нужна проверка на NaN.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Причина медленности без терминов</li><li>Что изменено: колонки вместо строк</li><li>Доказательство: одинаковая сумма бонусов</li><li>Экономия памяти с цифрой</li><li>Риск: новая категория → NaN</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 24</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/23-rfm-abc/"><small>← Урок 23</small><b>RFM-сегментация и ABC-анализ</b></a><a class="nx" href="../../lessons/25-vvod-vyvod-avtomatizaciya/"><small>Урок 25 →</small><b>Ввод-вывод и автоматизация отчёта</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0421\u0443\u043c\u043c\u0430 \u0431\u043e\u043d\u0443\u0441\u043e\u0432", "value": 29432968}, {"name": "\u041f\u043e\u043a\u0443\u043f\u043e\u043a \u0443\u043f\u0451\u0440\u043b\u043e\u0441\u044c \u0432 \u043f\u043e\u0442\u043e\u043b\u043e\u043a", "value": 31}], "logic": [{"a": 0, "o": ["\u041e\u043d \u0441\u0447\u0438\u0442\u0430\u0435\u0442 \u0431\u043e\u043d\u0443\u0441 \u0434\u043b\u044f \u043a\u0430\u0436\u0434\u043e\u0439 \u043f\u043e\u043a\u0443\u043f\u043a\u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u2014 \u043c\u0438\u043b\u043b\u0438\u043e\u043d\u044b \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u0445 \u0440\u0430\u0441\u0447\u0451\u0442\u043e\u0432", "\u041a\u043e\u043c\u043f\u044c\u044e\u0442\u0435\u0440 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0441\u0442\u0430\u0440\u044b\u0439", "\u0414\u0430\u043d\u043d\u044b\u0445 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u0430\u043b\u043e"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0441\u0442\u0430\u0440\u044b\u0439 \u043a\u043e\u0434 \u043c\u0435\u0434\u043b\u0435\u043d\u043d\u044b\u0439?", "why": "\u0426\u0438\u043a\u043b \u0438 apply \u0432\u044b\u0437\u044b\u0432\u0430\u044e\u0442 Python \u0434\u043b\u044f \u043a\u0430\u0436\u0434\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0438; \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043d\u0430\u0434 \u0446\u0435\u043b\u044b\u043c\u0438 \u043a\u043e\u043b\u043e\u043d\u043a\u0430\u043c\u0438 \u0434\u0435\u043b\u0430\u044e\u0442 \u0442\u043e \u0436\u0435 \u0437\u0430 \u043e\u0434\u0438\u043d \u043f\u0440\u043e\u0445\u043e\u0434."}, {"a": 0, "o": ["\u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u0441\u043e\u0432\u043f\u0430\u043b \u0441\u043e \u0441\u0442\u0430\u0440\u044b\u043c: \u0442\u0430 \u0436\u0435 \u0441\u0443\u043c\u043c\u0430 \u0431\u043e\u043d\u0443\u0441\u043e\u0432", "\u041d\u043e\u0432\u044b\u0439 \u043a\u043e\u0434 \u0431\u044b\u0441\u0442\u0440\u0435\u0435 \u2014 \u0437\u043d\u0430\u0447\u0438\u0442, \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u044b\u0439", "\u041d\u0438\u043a\u0430\u043a"], "q": "\u041a\u0430\u043a \u0442\u044b \u0434\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c, \u0447\u0442\u043e \u043d\u043e\u0432\u044b\u0439 \u043a\u043e\u0434 \u0441\u0447\u0438\u0442\u0430\u0435\u0442 \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e?", "why": "\u0423\u0441\u043a\u043e\u0440\u0435\u043d\u0438\u0435 \u0431\u0435\u0437 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442\u0430 \u043e\u043f\u0430\u0441\u043d\u043e. \u0421\u043e\u0432\u043f\u0430\u0434\u0435\u043d\u0438\u0435 \u0441\u0443\u043c\u043c \u2014 \u0434\u043e\u043a\u0430\u0437\u0430\u0442\u0435\u043b\u044c\u0441\u0442\u0432\u043e."}, {"a": 0, "o": ["\u041d\u043e\u0432\u0430\u044f \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u0431\u0435\u0437 \u0441\u0442\u0430\u0432\u043a\u0438 \u0432 \u0441\u043b\u043e\u0432\u0430\u0440\u0435 \u0434\u0430\u0441\u0442 \u043f\u0443\u0441\u0442\u043e\u0439 \u0431\u043e\u043d\u0443\u0441 \u2014 \u043d\u0443\u0436\u043d\u0430 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043d\u0430 NaN", "\u0420\u0438\u0441\u043a\u043e\u0432 \u043d\u0435\u0442", "\u041a\u043e\u0434 \u043c\u043e\u0436\u0435\u0442 \u0441\u0442\u0430\u0442\u044c \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0431\u044b\u0441\u0442\u0440\u044b\u043c"], "q": "\u041a\u0430\u043a\u043e\u0439 \u0440\u0438\u0441\u043a \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "map \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442 NaN \u0434\u043b\u044f \u043d\u0435\u0438\u0437\u0432\u0435\u0441\u0442\u043d\u044b\u0445 \u043a\u043b\u044e\u0447\u0435\u0439 \u043c\u043e\u043b\u0447\u0430 \u2014 \u044d\u0442\u043e \u043b\u0435\u0433\u043a\u043e \u043f\u0440\u043e\u043f\u0443\u0441\u0442\u0438\u0442\u044c."}]}, "case_model": "\u041e\u0442\u0430\u0431\u0435\u043a, \u043f\u0440\u0438\u0432\u0435\u0442! \u0421\u0442\u0430\u0440\u044b\u0439 \u043a\u043e\u0434 \u043c\u0435\u0434\u043b\u0435\u043d\u043d\u044b\u0439, \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0441\u0447\u0438\u0442\u0430\u0435\u0442 \u0431\u043e\u043d\u0443\u0441 \u0434\u043b\u044f \u043a\u0430\u0436\u0434\u043e\u0439 \u043f\u043e\u043a\u0443\u043f\u043a\u0438 \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e, \u2014 \u043d\u0430 30 \u043c\u043b\u043d \u0441\u0442\u0440\u043e\u043a \u044d\u0442\u043e 30 \u043c\u043b\u043d \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u0445 \u0440\u0430\u0441\u0447\u0451\u0442\u043e\u0432. \u042f \u043f\u0435\u0440\u0435\u043f\u0438\u0441\u0430\u043b \u0440\u0430\u0441\u0447\u0451\u0442 \u0442\u0440\u0435\u043c\u044f \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u044f\u043c\u0438 \u043d\u0430\u0434 \u0446\u0435\u043b\u044b\u043c\u0438 \u043a\u043e\u043b\u043e\u043d\u043a\u0430\u043c\u0438: \u0441\u0442\u0430\u0432\u043a\u0430 \u0447\u0435\u0440\u0435\u0437 \u0441\u043b\u043e\u0432\u0430\u0440\u044c, \u043d\u0430\u0434\u0431\u0430\u0432\u043a\u0430 \u0437\u0430 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0432 \u043a\u0430\u0444\u0435 \u0447\u0435\u0440\u0435\u0437 np.where \u0438 \u043f\u043e\u0442\u043e\u043b\u043e\u043a \u0447\u0435\u0440\u0435\u0437 clip. \u0420\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u0442\u043e\u0442 \u0436\u0435: \u0441\u0443\u043c\u043c\u0430 \u0431\u043e\u043d\u0443\u0441\u043e\u0432 29 432 968 \u0441\u0443\u043c \u0432 \u043e\u0431\u043e\u0438\u0445 \u0432\u0430\u0440\u0438\u0430\u043d\u0442\u0430\u0445, 31 \u043f\u043e\u043a\u0443\u043f\u043e\u043a \u0443\u043f\u0438\u0440\u0430\u044e\u0442\u0441\u044f \u0432 \u043f\u043e\u0442\u043e\u043b\u043e\u043a 50 000. \u0415\u0441\u043b\u0438 \u0445\u0440\u0430\u043d\u0438\u0442\u044c \u0443\u0440\u043e\u0432\u0435\u043d\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u0430 \u0438 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e \u043a\u0430\u043a category, \u0442\u0430\u0431\u043b\u0438\u0446\u0430 \u0437\u0430\u0439\u043c\u0451\u0442 \u0432 2,7 \u0440\u0430\u0437\u0430 \u043c\u0435\u043d\u044c\u0448\u0435 \u043f\u0430\u043c\u044f\u0442\u0438 \u2014 \u044d\u0442\u043e \u043f\u043e\u043c\u043e\u0436\u0435\u0442 \u043d\u043e\u0447\u043d\u043e\u043c\u0443 \u043e\u0442\u0447\u0451\u0442\u0443 \u043d\u0435 \u043f\u0430\u0434\u0430\u0442\u044c. \u0420\u0438\u0441\u043a: \u0435\u0441\u043b\u0438 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u043d\u043e\u0432\u0430\u044f \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f, \u043a\u043e\u0442\u043e\u0440\u043e\u0439 \u043d\u0435\u0442 \u0432 \u0441\u043b\u043e\u0432\u0430\u0440\u0435 \u0441\u0442\u0430\u0432\u043e\u043a, \u0431\u043e\u043d\u0443\u0441 \u043c\u043e\u043b\u0447\u0430 \u0441\u0442\u0430\u043d\u0435\u0442 \u043f\u0443\u0441\u0442\u044b\u043c, \u2014 \u043d\u0443\u0436\u043d\u0430 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043d\u0430 NaN.", "case_xp": 30, "cheat": [["df[\"cat\"].map(\u0441\u043b\u043e\u0432\u0430\u0440\u044c)", "\u0437\u0430\u043c\u0435\u043d\u0430 \u043f\u043e \u0441\u043b\u043e\u0432\u0430\u0440\u044e"], ["np.where(\u0443\u0441\u043b, a, b)", "\u0435\u0441\u043b\u0438\u2026 \u0442\u043e\u2026 \u0438\u043d\u0430\u0447\u0435 \u0434\u043b\u044f \u043a\u043e\u043b\u043e\u043d\u043a\u0438"], ["np.select([\u0443\u0441\u043b1, \u0443\u0441\u043b2], [a, b], default=c)", "\u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0443\u0441\u043b\u043e\u0432\u0438\u0439"], ["s.clip(lower=0, upper=50_000)", "\u043e\u0433\u0440\u0430\u043d\u0438\u0447\u0438\u0442\u044c \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f"], ["df.memory_usage(deep=True).sum()", "\u043f\u0430\u043c\u044f\u0442\u044c \u0442\u0430\u0431\u043b\u0438\u0446\u044b"], ["df.astype({\"col\": \"category\"})", "\u043c\u0435\u043d\u044c\u0448\u0435 \u043f\u0430\u043c\u044f\u0442\u0438 \u0434\u043b\u044f \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u044e\u0449\u0435\u0433\u043e\u0441\u044f \u0442\u0435\u043a\u0441\u0442\u0430"], ["pd.read_csv(f, usecols=[...], chunksize=100_000)", "\u0447\u0438\u0442\u0430\u0442\u044c \u043d\u0443\u0436\u043d\u043e\u0435 \u0438 \u043a\u0443\u0441\u043a\u0430\u043c\u0438"], ["time.perf_counter()", "\u0437\u0430\u0441\u0435\u0447\u044c \u0432\u0440\u0435\u043c\u044f"]], "data": "../../data/", "datasets": ["bonus_tx.csv"], "day": 24, "hint_cost": 5, "quiz": [1, 2, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport time\ndf = pd.read_csv(\"bonus_tx.csv\")\nRATE = {\"\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b\": 0.01, \"\u0410\u0417\u0421\": 0.02, \"\u041a\u0430\u0444\u0435\": 0.05, \"\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430\": 0.03}\nMULT = {\"bronze\": 1.0, \"silver\": 1.5, \"gold\": 2.0}", "tasks": [{"figure": false, "id": "t1", "keys": ["0", "category", "\u0410\u0417\u0421 0.02", "\u041a\u0430\u0444\u0435 0.05", "\u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b 0.01", "\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430 0.03"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["29272092"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["456", "30189639"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["31 29432968 756672"], "setup": "rate = df[\"category\"].map(RATE) + np.where(df[\"is_weekend\"] \u0026 (df[\"category\"] == \"\u041a\u0430\u0444\u0435\"), 0.01, 0)\nraw = df[\"amount\"] * rate * df[\"client_level\"].map(MULT)", "xp": 15}, {"figure": false, "id": "t5", "keys": ["count mean", "size", "\u043c\u0435\u043b\u043a\u0430\u044f 1147 1039.0", "\u0441\u0440\u0435\u0434\u043d\u044f\u044f 4619 4987.0", "\u043a\u0440\u0443\u043f\u043d\u0430\u044f 234 22248.0"], "setup": "rate = df[\"category\"].map(RATE) + np.where(df[\"is_weekend\"] \u0026 (df[\"category\"] == \"\u041a\u0430\u0444\u0435\"), 0.01, 0)\ndf[\"bonus\"] = (df[\"amount\"] * rate * df[\"client_level\"].map(MULT)).clip(upper=50_000)", "xp": 20}, {"figure": false, "id": "t6", "keys": ["True 29432968"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["client_level category", "category category", "amount int64"], "setup": "", "xp": 25}], "theory": ["brief", "why", "memory", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

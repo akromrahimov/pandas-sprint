@@ -1,0 +1,889 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Проект 14. Мини-проект 2: продуктовый отчёт по сегментам — Pandas Sprint</title>
+<meta name="description" content="Проект 14 курса Pandas Sprint — Мини-проект 2: продуктовый отчёт по сегментам. Отчёт из нескольких таблиц: группировки, джойны и сводные вместе.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/14-mini-proekt-2/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Проект 14. Мини-проект 2: продуктовый отчёт по сегментам — Pandas Sprint">
+<meta property="og:description" content="Проект 14 курса Pandas Sprint — Мини-проект 2: продуктовый отчёт по сегментам. Отчёт из нескольких таблиц: группировки, джойны и сводные вместе.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/14-mini-proekt-2/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="14">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#plan"><span class="dot">✓</span>План проекта</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 240 XP</b>Задачи: <span id="tasksNow">0 из 8</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Соединение трёх таблиц: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты писал JOIN в SQL, вот как то же самое выглядит в проекте на pandas.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT … FROM orders o LEFT JOIN products p ON o.product_id = p.product_id</code></td><td><code>orders.merge(products, on=&#34;product_id&#34;, how=&#34;left&#34;)</code></td><td>к заказу добавилась цена</td></tr><tr><td><code>… LEFT JOIN customers c USING (customer_id)</code></td><td><code>.merge(cust, on=&#34;customer_id&#34;, how=&#34;left&#34;)</code></td><td>добавились сегмент и город</td></tr><tr><td><code>SELECT customer_id, COUNT(*) … HAVING COUNT(*) &gt; 1</code></td><td><code>customers[&#34;customer_id&#34;].duplicated().sum()</code></td><td>проверка повторов ключа</td></tr><tr><td><code>WHERE c.customer_id IS NULL</code></td><td><code>full[full[&#34;_merge&#34;] == &#34;left_only&#34;]</code></td><td>заказы без клиента</td></tr><tr><td><code>SUM(CASE WHEN segment = &#39;vip&#39; …)</code></td><td><code>pd.pivot_table(…, columns=&#34;category&#34;)</code></td><td>сводная сегмент × категория</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Проект 14 из 30 · Неделя 2 · Агрегации</div>
+      <h1>Мини-проект 2: <mark>продуктовый отчёт</mark> по сегментам</h1>
+      <p class="lead">Неделя 2 позади: группировки, сводные таблицы, соединение таблиц, цепочки. Сегодня всё вместе на трёх настоящих таблицах интернет-магазина: заказы, клиенты и товары. Как на работе: данные лежат отдельно, справочник клиентов с повторами, а часть заказов ссылается на клиентов, которых нет в базе.</p>
+      <div class="chips"><span class="chip">8 шагов проекта + кейс</span><span class="chip">pandas 3.0</span><span class="chip">240 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Собрать для CEO интернет-магазина Baraka отчёт: сколько денег приносят новые, постоянные и VIP-клиенты, в каких категориях и городах, и не потерять и не задвоить ни одного заказа при соединении таблиц.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Проверять ключи таблиц перед соединением: уникальность, «сироты»</li><li>Соединять три таблицы через <code class="i">merge</code> с <code class="i">validate</code> и <code class="i">indicator</code></li><li>Считать выручку и доли по сегментам, категориям и городам</li><li>Собирать итоговую сводку в одну Series для руководителя</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Кто на самом деле приносит деньги</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Н</span>Нодира <small>CEO интернет-магазина Baraka · 09:30</small></div>
+          <p>Привет! На совете директоров спорим: маркетинг хочет тратить бюджет на привлечение новых клиентов, а я думаю, что деньги приносят постоянные и VIP. Нужны цифры за октябрь: выручка по сегментам, категориям и городам.</p>
+<div class="file">▤ baraka_orders.csv · 3 000 заказов</div><div class="file">▤ baraka_customers.csv · справочник клиентов</div><div class="file">▤ baraka_products.csv · 60 товаров</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Н</span>Нодира <small>09:31</small></div>
+          <p>И проверь, пожалуйста, что ничего не задвоилось: в прошлый раз отчёт показал выручку больше, чем в бухгалтерии.</p>
+        </div>
+      </div>
+      <p class="note">Baraka — учебный интернет-магазин, данные сгенерированы. Подвохи как в жизни: в справочнике клиентов у 15 человек две строки (сменили сегмент), город записан по-разному, а 40 заказов сделаны клиентами, которых нет в справочнике. Задачи можно решать прямо на этой странице: все три таблицы уже загружены.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/baraka_orders.csv" download>Скачать заказы</a><a class="btn main" href="../../data/baraka_customers.csv" download>Скачать клиентов</a><a class="btn main" href="../../data/baraka_products.csv" download>Скачать товары</a><span class="note">3 файла · 140 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+orders = pd.read_csv(&#34;baraka_orders.csv&#34;)
+customers = pd.read_csv(&#34;baraka_customers.csv&#34;)
+products = pd.read_csv(&#34;baraka_products.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="plan">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Восемь шагов от трёх файлов до отчёта</h2>
+      <div class="simple"><span class="tag">Как устроен проект</span>
+  <p>Каждая задача — один шаг проекта. Перед задачей уже выполнены все предыдущие шаги (их код можно раскрыть под условием), поэтому таблицы <code class="i">cust</code>, <code class="i">full</code> и другие появляются по ходу работы.</p>
+  <ul>
+    <li><b>Шаги 1–2.</b> Осмотр и очистка справочника клиентов: повторы, город.</li>
+    <li><b>Шаги 3–4.</b> Соединение: заказы + товары (цена) → выручка; + клиенты (сегмент, город). Проверяем, что строк не стало больше.</li>
+    <li><b>Шаги 5–7.</b> Выручка по сегментам, сводная «сегмент × категория», города.</li>
+    <li><b>Шаг 8.</b> Итоговая сводка в одной Series — как паспорт данных из урока 1.</li>
+  </ul>
+</div>
+<p>Три приёма из недели 2, которые сегодня понадобятся. Каждый вывод получен настоящим запуском pandas.</p>
+<div class="cards"><div class="card"><div class="q"><b>1. Ключ уникален?</b> Перед соединением проверь справочник.</div><pre class="code" data-cm>print(customers[&quot;customer_id&quot;].is_unique, customers[&quot;customer_id&quot;].duplicated().sum())</pre><div class="out">False 15</div><p class="plain"><b>Простыми словами:</b> False и 15: у 15 клиентов по две строки. Если соединить заказы с таким справочником, заказы этих клиентов удвоятся.</p></div>
+<div class="card"><div class="q"><b>2. Что будет при «наивном» соединении.</b></div><pre class="code" data-cm>print(len(orders))
+print(len(orders.merge(customers, on=&quot;customer_id&quot;)))</pre><div class="out">3000
+3016</div><p class="plain"><b>Простыми словами:</b> строк стало 3016 вместо 3 000: часть заказов задвоилась (повторы в справочнике), а часть пропала (клиентов нет в справочнике). Две ошибки частично гасят друг друга — поэтому выручка «почти сходится» и ошибку трудно заметить.</p></div>
+<div class="card"><div class="q"><b>3. validate и indicator — страховка.</b></div><pre class="code" data-cm>check = orders.merge(products, on=&quot;product_id&quot;, how=&quot;left&quot;, validate=&quot;many_to_one&quot;, indicator=True)
+check[&quot;_merge&quot;].value_counts()</pre><div class="out">_merge
+both          3000
+left_only        0
+right_only       0
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> <code class="i">validate="many_to_one"</code> упадёт с ошибкой, если в правой таблице ключ не уникален. <code class="i">indicator=True</code> добавляет колонку _merge: both — нашлась пара, left_only — пары нет.</p></div></div>
+<div class="callout"><b>Правило проекта.</b> После каждого merge сравни число строк до и после. Если стало больше — в правой таблице повторы ключа. Если какие-то строки без пары — посчитай, сколько денег на них приходится.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">03 · Ловушки</div>
+      <h2>Четыре ловушки этого проекта</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Справочник с повторами ключа</h3><div class="bad">full = orders.merge(customers, on=&#34;customer_id&#34;)   # строк стало больше</div><div class="good">cust = customers.drop_duplicates(&#34;customer_id&#34;, keep=&#34;last&#34;)
+full = orders.merge(cust, on=&#34;customer_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;)</div><p>Сначала убери повторы в справочнике, потом соединяй. validate сразу скажет, если повторы остались.</p></div>
+        <div class="trap"><span class="n">2</span><h3>inner вместо left</h3><div class="bad">orders.merge(cust, on=&#34;customer_id&#34;)   # 40 заказов молча исчезли</div><div class="good">orders.merge(cust, on=&#34;customer_id&#34;, how=&#34;left&#34;, indicator=True)</div><p>По умолчанию merge оставляет только строки с парой (inner). Заказы клиентов, которых нет в справочнике, пропадут вместе с их деньгами.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Выручка по всем статусам</h3><p>Отменённые и возвращённые заказы денег не принесли. Выручку считай только по <code class="i">status == "delivered"</code>, а долю отмен — по всем заказам.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Доля клиентов ≠ доля денег</h3><p>VIP может быть всего 13,9% клиентов, но заметная доля выручки. Всегда показывай обе доли рядом, иначе вывод будет неверным.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка проекта</h3>
+        <ol><li>df[&#34;key&#34;].is_unique <span>— ключ без повторов?</span></li><li>drop_duplicates(&#34;key&#34;, keep=&#34;last&#34;) <span>— оставить последнюю версию записи</span></li><li>merge(..., how=&#34;left&#34;, validate=&#34;many_to_one&#34;) <span>— соединение со страховкой</span></li><li>merge(..., indicator=True) <span>— колонка _merge: нашлась ли пара</span></li><li>groupby(&#34;a&#34;)[&#34;revenue&#34;].sum() / total <span>— доля в общей сумме</span></li><li>pd.pivot_table(df, index=..., columns=..., values=..., aggfunc=&#34;sum&#34;) <span>— сводная таблица</span></li><li>pd.Series({...}) <span>— итоговая сводка для руководителя</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">04 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. В справочнике клиентов ключ повторяется у 15 человек. Что будет при merge заказов с ним?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничего, pandas сам уберёт повторы</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Заказы этих клиентов задвоятся</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>merge выдаст ошибку всегда</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Пропадут все заказы</span></button></div>
+          <div class="why" hidden>Каждый заказ соединится с обеими строками клиента, и заказ появится дважды. Ошибку даст только validate.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Что значит <code>_merge == "left_only"</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Строка есть в обеих таблицах</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Строка есть только в левой таблице, пары нет</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Строка только в правой</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Строка удалена</span></button></div>
+          <div class="why" hidden>left_only — для строки левой таблицы не нашлось пары в правой. Для заказов это клиенты, которых нет в справочнике.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="2">
+          <p>3. Как по умолчанию соединяет merge?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>left</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>right</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>inner</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>outer</span></button></div>
+          <div class="why" hidden>По умолчанию how="inner": остаются только строки, у которых нашлась пара в обеих таблицах.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Выручку по сегментам считают по…</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>всем заказам</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>доставленным заказам</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>отменённым заказам</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>уникальным клиентам</span></button></div>
+          <div class="why" hidden>Отменённые и возвращённые заказы денег не принесли.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="0">
+          <p>5. Сегмент — 14% клиентов и 25% выручки. Что это значит?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>VIP тратят в среднем больше остальных</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>VIP тратят столько же</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Данные с ошибкой</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нужно отключить VIP</span></button></div>
+          <div class="why" hidden>Доля денег больше доли людей — значит, каждый VIP в среднем приносит больше. Обе доли надо показывать рядом.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">05 · Практика · 190 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Осмотр трёх таблиц</h3>
+            <ol class='steps-t'><li>Напечатай размеры трёх таблиц в одну строку: <code class='i'>orders.shape</code>, <code class='i'>customers.shape</code>, <code class='i'>products.shape</code>.</li> <li>Напечатай, сколько повторов <code class='i'>customer_id</code> в справочнике клиентов.</li> <li>Напечатай, сколько заказов сделаны клиентами, которых нет в справочнике (<code class='i'>~isin</code>).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 14 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># размеры трёх таблиц
+
+# повторы customer_id
+
+# заказы без клиента в справочнике
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(3000, 6) (815, 4) (60, 3)
+15
+40</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># размеры трёх таблиц
+
+# повторы customer_id
+
+# заказы без клиента в справочнике
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Перед склейкой трёх таблиц проверь их: размеры, нет ли повторов ключа в справочнике клиентов и нет ли заказов от клиентов, которых в справочнике нет. Всё это ты делал в уроке 11.</p>
+<p><b>Чем это сделать.</b> <code class="i">.shape</code>, <code class="i">.duplicated().sum()</code>, <code class="i">(~a.isin(b)).sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(orders.shape, customers.___, products.___)
+print(customers[&#34;customer_id&#34;].___().sum())
+print((~orders[&#34;customer_id&#34;].isin(customers[&#34;___&#34;])).sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Проверяй заказы по справочнику (<code class="i">orders[...].isin(customers[...])</code>), а не наоборот.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Чистый справочник клиентов</h3>
+            <ol class='steps-t'><li>Создай <code class='i'>cust</code>: почисти <code class='i'>city</code> (strip + capitalize) и оставь <b>последнюю</b> строку каждого клиента (<code class='i'>keep="last"</code>).</li> <li>Напечатай число строк в <code class='i'>cust</code> и проверку <code class='i'>is_unique</code> для customer_id.</li> <li>Выведи, сколько клиентов в каждом сегменте.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Осмотр трёх таблиц» —
+print(orders.shape, customers.shape, products.shape)
+print(customers[&#34;customer_id&#34;].duplicated().sum())
+print((~orders[&#34;customer_id&#34;].isin(customers[&#34;customer_id&#34;])).sum())</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 14 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">cust = (
+    customers
+    # твой код
+)
+# строк и уникальность ключа
+
+# клиенты по сегментам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">800 True
+segment
+new        361
+regular    328
+vip        111
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>cust = (
+    customers
+    # твой код
+)
+# строк и уникальность ключа
+
+# клиенты по сегментам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Чистый справочник: город в одном виде и одна строка на клиента (последняя). Всё в одной цепочке.</p>
+<p><b>Чем это сделать.</b> <code class="i">.assign(city=lambda d: ...)</code> и <code class="i">.drop_duplicates("customer_id", keep="last")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>cust = (
+    customers
+    .assign(city=lambda d: d[&#34;city&#34;].str.___().str.___())
+    .drop_duplicates(&#34;___&#34;, keep=&#34;___&#34;)
+)
+print(len(cust), cust[&#34;customer_id&#34;].___)
+cust[&#34;segment&#34;].value_counts()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">is_unique</code> — свойство, без скобок.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Заказы + товары = выручка</h3>
+            <ol class='steps-t'><li>Соедини <code class='i'>orders</code> с <code class='i'>products</code> по product_id (<code class='i'>how="left"</code>, <code class='i'>validate="many_to_one"</code>).</li> <li>Добавь колонку <code class='i'>revenue = price * qty</code>, результат сохрани в <code class='i'>op</code>.</li> <li>Напечатай <code class='i'>len(op)</code> и выручку доставленных заказов в млн сум (1 знак).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Осмотр трёх таблиц» —
+print(orders.shape, customers.shape, products.shape)
+print(customers[&#34;customer_id&#34;].duplicated().sum())
+print((~orders[&#34;customer_id&#34;].isin(customers[&#34;customer_id&#34;])).sum())
+# — шаг «Чистый справочник клиентов» —
+cust = (
+    customers
+    .assign(city=lambda d: d[&#34;city&#34;].str.strip().str.capitalize())
+    .drop_duplicates(&#34;customer_id&#34;, keep=&#34;last&#34;)
+)
+print(len(cust), cust[&#34;customer_id&#34;].is_unique)
+cust[&#34;segment&#34;].value_counts()</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 14 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">op = (
+    orders
+    # твой код
+)
+# строк и выручка доставленных, млн
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">3000 4550.4</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>op = (
+    orders
+    # твой код
+)
+# строк и выручка доставленных, млн
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> К каждому заказу приклей цену и категорию товара. У каждого заказа ровно один товар, поэтому строк должно остаться столько же. Потом выручка = цена × количество.</p>
+<p><b>Чем это сделать.</b> <code class="i">merge(products, on="product_id", how="left", validate="many_to_one")</code>. Выручка доставленных: <code class="i">op.loc[op["status"] == "delivered", "revenue"].sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>op = (
+    orders
+    .merge(___, on=&#34;___&#34;, how=&#34;left&#34;, validate=&#34;___&#34;)
+    .assign(revenue=lambda d: d[&#34;___&#34;] * d[&#34;___&#34;])
+)
+print(len(op), round(op.loc[op[&#34;status&#34;] == &#34;___&#34;, &#34;revenue&#34;].sum() / 1e6, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> validate не чинит справочник, а ловит ошибку: если merge упал — в products есть повторы товара.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Добавляем клиентов и считаем потери</h3>
+            <ol class='steps-t'><li>Соедини <code class='i'>op</code> с <code class='i'>cust</code> по customer_id: <code class='i'>how="left"</code>, <code class='i'>validate="many_to_one"</code>, <code class='i'>indicator=True</code>. Результат — <code class='i'>full</code>.</li> <li>Напечатай <code class='i'>len(full)</code> — должно остаться 3 000.</li> <li>Выведи <code class='i'>full["_merge"].value_counts()</code>.</li> <li>Напечатай, какой % выручки доставленных заказов приходится на клиентов без справочника (1 знак).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Осмотр трёх таблиц» —
+print(orders.shape, customers.shape, products.shape)
+print(customers[&#34;customer_id&#34;].duplicated().sum())
+print((~orders[&#34;customer_id&#34;].isin(customers[&#34;customer_id&#34;])).sum())
+# — шаг «Чистый справочник клиентов» —
+cust = (
+    customers
+    .assign(city=lambda d: d[&#34;city&#34;].str.strip().str.capitalize())
+    .drop_duplicates(&#34;customer_id&#34;, keep=&#34;last&#34;)
+)
+print(len(cust), cust[&#34;customer_id&#34;].is_unique)
+cust[&#34;segment&#34;].value_counts()
+# — шаг «Заказы + товары = выручка» —
+op = (
+    orders
+    .merge(products, on=&#34;product_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;)
+    .assign(revenue=lambda d: d[&#34;price&#34;] * d[&#34;qty&#34;])
+)
+print(len(op), round(op.loc[op[&#34;status&#34;] == &#34;delivered&#34;, &#34;revenue&#34;].sum() / 1e6, 1))</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 14 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">full =
+
+# строк
+
+# value_counts по _merge
+
+# % выручки без справочника
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">3000
+_merge
+both          2960
+left_only       40
+right_only       0
+Name: count, dtype: int64
+0.4</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>full =
+
+# строк
+
+# value_counts по _merge
+
+# % выручки без справочника
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Теперь приклей клиентов. indicator покажет, у каких заказов клиента в справочнике не нашлось. Потом среди доставленных посчитай, какая доля выручки пришла от таких «неизвестных» клиентов.</p>
+<p><b>Чем это сделать.</b> <code class="i">indicator=True</code> → колонка <code class="i">_merge</code> (both / left_only). Доля: сумма revenue у left_only / сумма revenue всех доставленных × 100.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>full = op.merge(cust, on=&#34;customer_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;, indicator=___)
+print(len(full))
+print(full[&#34;_merge&#34;].value_counts())
+ok = full[full[&#34;status&#34;] == &#34;___&#34;]
+print(round(ok.loc[ok[&#34;_merge&#34;] == &#34;___&#34;, &#34;revenue&#34;].sum() / ok[&#34;revenue&#34;].sum() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Таблицу <code class="i">ok</code> назови именно так — она нужна в следующих шагах проекта.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Выручка по сегментам</h3>
+            <p>Только доставленные заказы (<code class='i'>ok</code> уже создана в прошлом шаге). Клиентов без справочника не учитываем.</p> <ol class='steps-t'><li>По сегменту: <code class='i'>orders</code> — число заказов, <code class='i'>revenue_mln</code> — выручка в млн (1 знак), <code class='i'>avg_check</code> — средняя выручка заказа (целое).</li> <li>Добавь <code class='i'>share_pct</code> — доля сегмента в выручке этой таблицы, %, 1 знак.</li> <li>Отсортируй по выручке.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Осмотр трёх таблиц» —
+print(orders.shape, customers.shape, products.shape)
+print(customers[&#34;customer_id&#34;].duplicated().sum())
+print((~orders[&#34;customer_id&#34;].isin(customers[&#34;customer_id&#34;])).sum())
+# — шаг «Чистый справочник клиентов» —
+cust = (
+    customers
+    .assign(city=lambda d: d[&#34;city&#34;].str.strip().str.capitalize())
+    .drop_duplicates(&#34;customer_id&#34;, keep=&#34;last&#34;)
+)
+print(len(cust), cust[&#34;customer_id&#34;].is_unique)
+cust[&#34;segment&#34;].value_counts()
+# — шаг «Заказы + товары = выручка» —
+op = (
+    orders
+    .merge(products, on=&#34;product_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;)
+    .assign(revenue=lambda d: d[&#34;price&#34;] * d[&#34;qty&#34;])
+)
+print(len(op), round(op.loc[op[&#34;status&#34;] == &#34;delivered&#34;, &#34;revenue&#34;].sum() / 1e6, 1))
+# — шаг «Добавляем клиентов и считаем потери» —
+full = op.merge(cust, on=&#34;customer_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;, indicator=True)
+print(len(full))
+print(full[&#34;_merge&#34;].value_counts())
+ok = full[full[&#34;status&#34;] == &#34;delivered&#34;]
+print(round(ok.loc[ok[&#34;_merge&#34;] == &#34;left_only&#34;, &#34;revenue&#34;].sum() / ok[&#34;revenue&#34;].sum() * 100, 1))</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 14 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">by_seg = (
+    ok
+    # твой код
+)
+by_seg
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">         orders  revenue_mln  avg_check  share_pct
+segment
+new        1179       1958.7    1661348       43.2
+regular    1030       1418.6    1377314       31.3
+vip         361       1153.7    3195920       25.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>by_seg = (
+    ok
+    # твой код
+)
+by_seg
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Группировка по сегменту: число заказов, выручка и средний чек. Доля сегмента — его выручка / выручка всех сегментов таблицы. Клиенты без сегмента (неизвестные) groupby пропустит сам.</p>
+<p><b>Чем это сделать.</b> <code class="i">.agg(orders=("order_id", "count"), revenue=("revenue", "sum"), avg_check=("revenue", "mean"))</code>, потом assign с долей, миллионами и целым чеком (<code class="i">.round(0).astype(int)</code>).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>by_seg = (
+    ok
+    .groupby(&#34;___&#34;)
+    .agg(orders=(___), revenue=(___), avg_check=(___))
+    .assign(share_pct=lambda d: (d[&#34;revenue&#34;] / d[&#34;revenue&#34;].___() * 100).round(1),
+            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
+            avg_check=lambda d: d[&#34;avg_check&#34;].round(0).astype(int))
+    [[&#34;orders&#34;, &#34;revenue_mln&#34;, &#34;avg_check&#34;, &#34;share_pct&#34;]]
+    .sort_values(&#34;___&#34;, ascending=False)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Долю считай от суммы этой же таблицы (<code class="i">d["revenue"].sum()</code>), а не от всей выручки с неизвестными клиентами.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сводная: сегмент × категория</h3>
+            <ol class='steps-t'><li>Через <code class='i'>pd.pivot_table</code> построй таблицу: строки — сегмент, столбцы — категория, значения — выручка доставленных заказов в млн (1 знак).</li> <li>Пустые клетки заполни нулём (<code class='i'>fill_value=0</code>).</li></ol> <p class='rule-t'>Сохрани в <code class='i'>pv</code> и выведи.</p>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Осмотр трёх таблиц» —
+print(orders.shape, customers.shape, products.shape)
+print(customers[&#34;customer_id&#34;].duplicated().sum())
+print((~orders[&#34;customer_id&#34;].isin(customers[&#34;customer_id&#34;])).sum())
+# — шаг «Чистый справочник клиентов» —
+cust = (
+    customers
+    .assign(city=lambda d: d[&#34;city&#34;].str.strip().str.capitalize())
+    .drop_duplicates(&#34;customer_id&#34;, keep=&#34;last&#34;)
+)
+print(len(cust), cust[&#34;customer_id&#34;].is_unique)
+cust[&#34;segment&#34;].value_counts()
+# — шаг «Заказы + товары = выручка» —
+op = (
+    orders
+    .merge(products, on=&#34;product_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;)
+    .assign(revenue=lambda d: d[&#34;price&#34;] * d[&#34;qty&#34;])
+)
+print(len(op), round(op.loc[op[&#34;status&#34;] == &#34;delivered&#34;, &#34;revenue&#34;].sum() / 1e6, 1))
+# — шаг «Добавляем клиентов и считаем потери» —
+full = op.merge(cust, on=&#34;customer_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;, indicator=True)
+print(len(full))
+print(full[&#34;_merge&#34;].value_counts())
+ok = full[full[&#34;status&#34;] == &#34;delivered&#34;]
+print(round(ok.loc[ok[&#34;_merge&#34;] == &#34;left_only&#34;, &#34;revenue&#34;].sum() / ok[&#34;revenue&#34;].sum() * 100, 1))
+# — шаг «Выручка по сегментам» —
+by_seg = (
+    ok
+    .groupby(&#34;segment&#34;)
+    .agg(orders=(&#34;order_id&#34;, &#34;count&#34;), revenue=(&#34;revenue&#34;, &#34;sum&#34;), avg_check=(&#34;revenue&#34;, &#34;mean&#34;))
+    .assign(share_pct=lambda d: (d[&#34;revenue&#34;] / d[&#34;revenue&#34;].sum() * 100).round(1),
+            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
+            avg_check=lambda d: d[&#34;avg_check&#34;].round(0).astype(int))
+    [[&#34;orders&#34;, &#34;revenue_mln&#34;, &#34;avg_check&#34;, &#34;share_pct&#34;]]
+    .sort_values(&#34;revenue_mln&#34;, ascending=False)
+)
+by_seg</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 14 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">pv =
+
+pv
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category    Дом  Красота  Одежда  Продукты  Электроника
+segment
+new       185.2     73.0   124.2      23.5       1552.9
+regular   171.4     61.3   105.7      21.4       1058.8
+vip        33.6     17.0    26.2       5.8       1071.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>pv =
+
+pv
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сводная таблица: сегменты в строках, категории в столбцах, сумма выручки в клетках. Где сегмент ничего не купил, поставь 0. В конце — миллионы.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.pivot_table(ok, index=..., columns=..., values=..., aggfunc="sum", fill_value=0)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>pv = (pd.pivot_table(ok, index=&#34;___&#34;, columns=&#34;___&#34;, values=&#34;___&#34;,
+                     aggfunc=&#34;___&#34;, fill_value=___) / 1e6).round(1)
+pv</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без aggfunc="sum" в клетках окажется средний чек, а не выручка.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Города: деньги и отмены</h3>
+            <p>Возьми <code class='i'>full</code> (все статусы) и клиентов со справочником.</p> <ol class='steps-t'><li>По городу: <code class='i'>orders</code> — все заказы, <code class='i'>cancel_pct</code> — % отменённых (1 знак), <code class='i'>revenue_mln</code> — выручка только доставленных (1 знак).</li> <li>Отсортируй по выручке.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Осмотр трёх таблиц» —
+print(orders.shape, customers.shape, products.shape)
+print(customers[&#34;customer_id&#34;].duplicated().sum())
+print((~orders[&#34;customer_id&#34;].isin(customers[&#34;customer_id&#34;])).sum())
+# — шаг «Чистый справочник клиентов» —
+cust = (
+    customers
+    .assign(city=lambda d: d[&#34;city&#34;].str.strip().str.capitalize())
+    .drop_duplicates(&#34;customer_id&#34;, keep=&#34;last&#34;)
+)
+print(len(cust), cust[&#34;customer_id&#34;].is_unique)
+cust[&#34;segment&#34;].value_counts()
+# — шаг «Заказы + товары = выручка» —
+op = (
+    orders
+    .merge(products, on=&#34;product_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;)
+    .assign(revenue=lambda d: d[&#34;price&#34;] * d[&#34;qty&#34;])
+)
+print(len(op), round(op.loc[op[&#34;status&#34;] == &#34;delivered&#34;, &#34;revenue&#34;].sum() / 1e6, 1))
+# — шаг «Добавляем клиентов и считаем потери» —
+full = op.merge(cust, on=&#34;customer_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;, indicator=True)
+print(len(full))
+print(full[&#34;_merge&#34;].value_counts())
+ok = full[full[&#34;status&#34;] == &#34;delivered&#34;]
+print(round(ok.loc[ok[&#34;_merge&#34;] == &#34;left_only&#34;, &#34;revenue&#34;].sum() / ok[&#34;revenue&#34;].sum() * 100, 1))
+# — шаг «Выручка по сегментам» —
+by_seg = (
+    ok
+    .groupby(&#34;segment&#34;)
+    .agg(orders=(&#34;order_id&#34;, &#34;count&#34;), revenue=(&#34;revenue&#34;, &#34;sum&#34;), avg_check=(&#34;revenue&#34;, &#34;mean&#34;))
+    .assign(share_pct=lambda d: (d[&#34;revenue&#34;] / d[&#34;revenue&#34;].sum() * 100).round(1),
+            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
+            avg_check=lambda d: d[&#34;avg_check&#34;].round(0).astype(int))
+    [[&#34;orders&#34;, &#34;revenue_mln&#34;, &#34;avg_check&#34;, &#34;share_pct&#34;]]
+    .sort_values(&#34;revenue_mln&#34;, ascending=False)
+)
+by_seg
+# — шаг «Сводная: сегмент × категория» —
+pv = (pd.pivot_table(ok, index=&#34;segment&#34;, columns=&#34;category&#34;, values=&#34;revenue&#34;,
+                     aggfunc=&#34;sum&#34;, fill_value=0) / 1e6).round(1)
+pv</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 14 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">by_city = (
+    full
+    # твой код
+)
+by_city
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           orders  cancel_pct  revenue_mln
+city
+Ташкент      1161         7.8       1915.8
+Самарканд     481         9.4        682.9
+Фергана       336        10.4        538.7
+Бухара        366        13.1        480.7
+Наманган      363        10.5        462.1
+Андижан       253        11.1        451.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>by_city = (
+    full
+    # твой код
+)
+by_city
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Как отчёт по регионам в уроке 13, только по городу клиента и на всех статусах: заказы — все, доля отмен — среднее маски, выручка — только у доставленных (колонка paid через where).</p>
+<p><b>Чем это сделать.</b> <code class="i">paid=lambda d: d["revenue"].where(d["status"] == "delivered")</code>, <code class="i">is_cancel=lambda d: d["status"] == "cancelled"</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>by_city = (
+    full
+    .assign(is_cancel=___, paid=___)
+    .groupby(&#34;___&#34;)
+    .agg(orders=(&#34;order_id&#34;, &#34;count&#34;), cancel_pct=(&#34;is_cancel&#34;, &#34;___&#34;), revenue_mln=(&#34;paid&#34;, &#34;___&#34;))
+    .assign(cancel_pct=___, revenue_mln=___)
+    .sort_values(&#34;revenue_mln&#34;, ascending=False)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Начинай с <code class="i">full</code>, а не с <code class="i">ok</code>: в ok уже нет отменённых заказов.</p>          </div>
+        </article>
+        <article class="task" id="task-t8" data-task="t8" data-xp="30">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 8</span><span class="lvl h">Сложно</span><span class="xp">30 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сводка для CEO</h3>
+            <p>Собери Series <code class='i'>summary</code> с ключами:</p> <ol class='steps-t'><li><code class='i'>revenue_mln</code> — выручка доставленных заказов (все клиенты), млн, 1 знак;</li> <li><code class='i'>vip_revenue_%</code> — доля VIP в этой выручке, 1 знак;</li> <li><code class='i'>vip_customers_%</code> — доля VIP среди клиентов справочника <code class='i'>cust</code>, 1 знак;</li> <li><code class='i'>vip_top_category</code> — категория, где VIP принесли больше всего денег;</li> <li><code class='i'>unknown_revenue_%</code> — доля выручки клиентов без справочника, 1 знак.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Осмотр трёх таблиц» —
+print(orders.shape, customers.shape, products.shape)
+print(customers[&#34;customer_id&#34;].duplicated().sum())
+print((~orders[&#34;customer_id&#34;].isin(customers[&#34;customer_id&#34;])).sum())
+# — шаг «Чистый справочник клиентов» —
+cust = (
+    customers
+    .assign(city=lambda d: d[&#34;city&#34;].str.strip().str.capitalize())
+    .drop_duplicates(&#34;customer_id&#34;, keep=&#34;last&#34;)
+)
+print(len(cust), cust[&#34;customer_id&#34;].is_unique)
+cust[&#34;segment&#34;].value_counts()
+# — шаг «Заказы + товары = выручка» —
+op = (
+    orders
+    .merge(products, on=&#34;product_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;)
+    .assign(revenue=lambda d: d[&#34;price&#34;] * d[&#34;qty&#34;])
+)
+print(len(op), round(op.loc[op[&#34;status&#34;] == &#34;delivered&#34;, &#34;revenue&#34;].sum() / 1e6, 1))
+# — шаг «Добавляем клиентов и считаем потери» —
+full = op.merge(cust, on=&#34;customer_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;, indicator=True)
+print(len(full))
+print(full[&#34;_merge&#34;].value_counts())
+ok = full[full[&#34;status&#34;] == &#34;delivered&#34;]
+print(round(ok.loc[ok[&#34;_merge&#34;] == &#34;left_only&#34;, &#34;revenue&#34;].sum() / ok[&#34;revenue&#34;].sum() * 100, 1))
+# — шаг «Выручка по сегментам» —
+by_seg = (
+    ok
+    .groupby(&#34;segment&#34;)
+    .agg(orders=(&#34;order_id&#34;, &#34;count&#34;), revenue=(&#34;revenue&#34;, &#34;sum&#34;), avg_check=(&#34;revenue&#34;, &#34;mean&#34;))
+    .assign(share_pct=lambda d: (d[&#34;revenue&#34;] / d[&#34;revenue&#34;].sum() * 100).round(1),
+            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
+            avg_check=lambda d: d[&#34;avg_check&#34;].round(0).astype(int))
+    [[&#34;orders&#34;, &#34;revenue_mln&#34;, &#34;avg_check&#34;, &#34;share_pct&#34;]]
+    .sort_values(&#34;revenue_mln&#34;, ascending=False)
+)
+by_seg
+# — шаг «Сводная: сегмент × категория» —
+pv = (pd.pivot_table(ok, index=&#34;segment&#34;, columns=&#34;category&#34;, values=&#34;revenue&#34;,
+                     aggfunc=&#34;sum&#34;, fill_value=0) / 1e6).round(1)
+pv
+# — шаг «Города: деньги и отмены» —
+by_city = (
+    full
+    .assign(is_cancel=lambda d: d[&#34;status&#34;] == &#34;cancelled&#34;,
+            paid=lambda d: d[&#34;revenue&#34;].where(d[&#34;status&#34;] == &#34;delivered&#34;))
+    .groupby(&#34;city&#34;)
+    .agg(orders=(&#34;order_id&#34;, &#34;count&#34;), cancel_pct=(&#34;is_cancel&#34;, &#34;mean&#34;), revenue_mln=(&#34;paid&#34;, &#34;sum&#34;))
+    .assign(cancel_pct=lambda d: (d[&#34;cancel_pct&#34;] * 100).round(1),
+            revenue_mln=lambda d: (d[&#34;revenue_mln&#34;] / 1e6).round(1))
+    .sort_values(&#34;revenue_mln&#34;, ascending=False)
+)
+by_city</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 14 · задача 8</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 8">total = ok[&#34;revenue&#34;].sum()
+summary = pd.Series({
+    &#34;revenue_mln&#34;: ...,
+    # продолжи
+})
+summary
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">revenue_mln               4550.4
+vip_revenue_%               25.4
+vip_customers_%             13.9
+vip_top_category     Электроника
+unknown_revenue_%            0.4
+dtype: object</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>total = ok[&#34;revenue&#34;].sum()
+summary = pd.Series({
+    &#34;revenue_mln&#34;: ...,
+    # продолжи
+})
+summary
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Пять чисел для CEO, каждое — короткая формула. Общая выручка уже лежит в total. Доля VIP — выручка VIP / total. Доля VIP среди клиентов — по справочнику cust. Топ-категория — категория с наибольшей суммой у VIP.</p>
+<p><b>Чем это сделать.</b> <code class="i">.idxmax()</code> — подпись строки с самым большим значением (то есть название категории). Доля клиентов: <code class="i">(cust["segment"] == "vip").mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>vip = ok[ok[&#34;segment&#34;] == &#34;___&#34;]
+summary = pd.Series({
+    &#34;revenue_mln&#34;: round(total / 1e6, 1),
+    &#34;vip_revenue_%&#34;: round(vip[&#34;revenue&#34;].sum() / ___ * 100, 1),
+    &#34;vip_customers_%&#34;: round((cust[&#34;segment&#34;] == &#34;vip&#34;).___() * 100, 1),
+    &#34;vip_top_category&#34;: vip.groupby(&#34;category&#34;)[&#34;revenue&#34;].sum().___(),
+    &#34;unknown_revenue_%&#34;: round(ok.loc[ok[&#34;_merge&#34;] == &#34;___&#34;, &#34;revenue&#34;].sum() / total * 100, 1),
+})</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">.max()</code> вернёт саму сумму, а нужна категория — для этого <code class="i">.idxmax()</code>.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">06 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Нодире до совета директоров</h2>
+      <div class="case">
+        <p>Напиши ответ Нодире. Не больше 6 предложений. Структура: <b>главный вывод (кто приносит деньги) → доля VIP в деньгах против доли в клиентах → где VIP тратят больше всего → почему прошлый отчёт не сошёлся с бухгалтерией (без терминов) → 1 риск → рекомендация по бюджету маркетинга</b>. Только цифры из задач.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Доля VIP среди клиентов</span><span class="fact-chip">Доля VIP в выручке</span><span class="fact-chip">Доля новых клиентов в выручке</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Нодира, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Кто, по твоему ответу, приносит деньги?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Новые клиенты дают больше всего в сумме, но каждый VIP-клиент самый ценный</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Только VIP, новые почти ничего не приносят</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Все сегменты одинаковые</span></button></div>
+            <div class="why" hidden>Новые — 43,0% выручки, но VIP при 13,9% клиентов дают 25,4% денег и самый большой средний заказ.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Почему прошлый отчёт не сошёлся с бухгалтерией?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>У части клиентов по две записи — их заказы считались дважды, а заказы удалённых клиентов выпадали</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Бухгалтерия посчитала неправильно</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Курс валют изменился</span></button></div>
+            <div class="why" hidden>Повторы в справочнике задваивают заказы при склейке, а клиенты, которых нет в справочнике, выпадают.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Что ты рекомендуешь по бюджету маркетинга?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Не урезать удержание VIP ради привлечения новых</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Отказаться от VIP-программы</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Тратить всё на новых клиентов</span></button></div>
+            <div class="why" hidden>VIP — небольшая группа, которая даёт четверть денег. Терять её ради новых рискованно.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Нодира, привет! Коротко: правы обе стороны — новые клиенты дают больше всего денег в сумме (43,0% выручки за октябрь из 4 550,4 млн сум), но самый ценный каждый клиент — VIP. VIP — всего 13,9% клиентов и 25,4% выручки, их средний заказ 3 195 920 сум против 1 661 348 у новых, и тратят они в основном на категорию «Электроника». Прошлый отчёт не сошёлся с бухгалтерией, потому что у 15 клиентов в базе по две записи — их заказы считались дважды, а заказы удалённых клиентов наоборот выпадали. Риск: 0,4% выручки — от клиентов, которых нет в справочнике. Рекомендую не урезать удержание VIP ради привлечения новых, а посчитать, сколько новых клиентов становятся постоянными.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Главный вывод в первом предложении: кто даёт объём, а кто — ценность каждого клиента</li><li>Доля VIP в выручке и доля VIP в клиентах — рядом, плюс средний заказ</li><li>Названа топ-категория VIP</li><li>Ошибка прошлого отчёта объяснена без терминов (дубли и потери)</li><li>Есть риск и рекомендация по бюджету</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">07 · Завершить урок</div>
+        <h2>Закрыть проект 14</h2>
+        <p>Урок засчитывается, когда решены все 8 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/13-method-chaining/"><small>← Урок 13</small><b>Method chaining и pipe: читаемый код как у сеньора</b></a><a class="nx" href="../../lessons/15-daty-to-datetime/"><small>Урок 15 →</small><b>Даты: to_datetime и .dt</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0414\u043e\u043b\u044f VIP \u0441\u0440\u0435\u0434\u0438 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432", "pct": true, "value": 13.9}, {"name": "\u0414\u043e\u043b\u044f VIP \u0432 \u0432\u044b\u0440\u0443\u0447\u043a\u0435", "pct": true, "value": 25.4}, {"name": "\u0414\u043e\u043b\u044f \u043d\u043e\u0432\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0432 \u0432\u044b\u0440\u0443\u0447\u043a\u0435", "pct": true, "value": 43.0}], "logic": [{"a": 0, "o": ["\u041d\u043e\u0432\u044b\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u0434\u0430\u044e\u0442 \u0431\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u0432 \u0441\u0443\u043c\u043c\u0435, \u043d\u043e \u043a\u0430\u0436\u0434\u044b\u0439 VIP-\u043a\u043b\u0438\u0435\u043d\u0442 \u0441\u0430\u043c\u044b\u0439 \u0446\u0435\u043d\u043d\u044b\u0439", "\u0422\u043e\u043b\u044c\u043a\u043e VIP, \u043d\u043e\u0432\u044b\u0435 \u043f\u043e\u0447\u0442\u0438 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u043f\u0440\u0438\u043d\u043e\u0441\u044f\u0442", "\u0412\u0441\u0435 \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u044b \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u044b\u0435"], "q": "\u041a\u0442\u043e, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u043f\u0440\u0438\u043d\u043e\u0441\u0438\u0442 \u0434\u0435\u043d\u044c\u0433\u0438?", "why": "\u041d\u043e\u0432\u044b\u0435 \u2014 43,0% \u0432\u044b\u0440\u0443\u0447\u043a\u0438, \u043d\u043e VIP \u043f\u0440\u0438 13,9% \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0434\u0430\u044e\u0442 25,4% \u0434\u0435\u043d\u0435\u0433 \u0438 \u0441\u0430\u043c\u044b\u0439 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0437\u0430\u043a\u0430\u0437."}, {"a": 0, "o": ["\u0423 \u0447\u0430\u0441\u0442\u0438 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043f\u043e \u0434\u0432\u0435 \u0437\u0430\u043f\u0438\u0441\u0438 \u2014 \u0438\u0445 \u0437\u0430\u043a\u0430\u0437\u044b \u0441\u0447\u0438\u0442\u0430\u043b\u0438\u0441\u044c \u0434\u0432\u0430\u0436\u0434\u044b, \u0430 \u0437\u0430\u043a\u0430\u0437\u044b \u0443\u0434\u0430\u043b\u0451\u043d\u043d\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0432\u044b\u043f\u0430\u0434\u0430\u043b\u0438", "\u0411\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u044f \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043b\u0430 \u043d\u0435\u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e", "\u041a\u0443\u0440\u0441 \u0432\u0430\u043b\u044e\u0442 \u0438\u0437\u043c\u0435\u043d\u0438\u043b\u0441\u044f"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u043f\u0440\u043e\u0448\u043b\u044b\u0439 \u043e\u0442\u0447\u0451\u0442 \u043d\u0435 \u0441\u043e\u0448\u0451\u043b\u0441\u044f \u0441 \u0431\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u0435\u0439?", "why": "\u041f\u043e\u0432\u0442\u043e\u0440\u044b \u0432 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0435 \u0437\u0430\u0434\u0432\u0430\u0438\u0432\u0430\u044e\u0442 \u0437\u0430\u043a\u0430\u0437\u044b \u043f\u0440\u0438 \u0441\u043a\u043b\u0435\u0439\u043a\u0435, \u0430 \u043a\u043b\u0438\u0435\u043d\u0442\u044b, \u043a\u043e\u0442\u043e\u0440\u044b\u0445 \u043d\u0435\u0442 \u0432 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0435, \u0432\u044b\u043f\u0430\u0434\u0430\u044e\u0442."}, {"a": 0, "o": ["\u041d\u0435 \u0443\u0440\u0435\u0437\u0430\u0442\u044c \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435 VIP \u0440\u0430\u0434\u0438 \u043f\u0440\u0438\u0432\u043b\u0435\u0447\u0435\u043d\u0438\u044f \u043d\u043e\u0432\u044b\u0445", "\u041e\u0442\u043a\u0430\u0437\u0430\u0442\u044c\u0441\u044f \u043e\u0442 VIP-\u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u044b", "\u0422\u0440\u0430\u0442\u0438\u0442\u044c \u0432\u0441\u0451 \u043d\u0430 \u043d\u043e\u0432\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432"], "q": "\u0427\u0442\u043e \u0442\u044b \u0440\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u0435\u0448\u044c \u043f\u043e \u0431\u044e\u0434\u0436\u0435\u0442\u0443 \u043c\u0430\u0440\u043a\u0435\u0442\u0438\u043d\u0433\u0430?", "why": "VIP \u2014 \u043d\u0435\u0431\u043e\u043b\u044c\u0448\u0430\u044f \u0433\u0440\u0443\u043f\u043f\u0430, \u043a\u043e\u0442\u043e\u0440\u0430\u044f \u0434\u0430\u0451\u0442 \u0447\u0435\u0442\u0432\u0435\u0440\u0442\u044c \u0434\u0435\u043d\u0435\u0433. \u0422\u0435\u0440\u044f\u0442\u044c \u0435\u0451 \u0440\u0430\u0434\u0438 \u043d\u043e\u0432\u044b\u0445 \u0440\u0438\u0441\u043a\u043e\u0432\u0430\u043d\u043d\u043e."}]}, "case_model": "\u041d\u043e\u0434\u0438\u0440\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u041a\u043e\u0440\u043e\u0442\u043a\u043e: \u043f\u0440\u0430\u0432\u044b \u043e\u0431\u0435 \u0441\u0442\u043e\u0440\u043e\u043d\u044b \u2014 \u043d\u043e\u0432\u044b\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u0434\u0430\u044e\u0442 \u0431\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u0434\u0435\u043d\u0435\u0433 \u0432 \u0441\u0443\u043c\u043c\u0435 (43,0% \u0432\u044b\u0440\u0443\u0447\u043a\u0438 \u0437\u0430 \u043e\u043a\u0442\u044f\u0431\u0440\u044c \u0438\u0437 4 550,4 \u043c\u043b\u043d \u0441\u0443\u043c), \u043d\u043e \u0441\u0430\u043c\u044b\u0439 \u0446\u0435\u043d\u043d\u044b\u0439 \u043a\u0430\u0436\u0434\u044b\u0439 \u043a\u043b\u0438\u0435\u043d\u0442 \u2014 VIP. VIP \u2014 \u0432\u0441\u0435\u0433\u043e 13,9% \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0438 25,4% \u0432\u044b\u0440\u0443\u0447\u043a\u0438, \u0438\u0445 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0437\u0430\u043a\u0430\u0437 3 195 920 \u0441\u0443\u043c \u043f\u0440\u043e\u0442\u0438\u0432 1 661 348 \u0443 \u043d\u043e\u0432\u044b\u0445, \u0438 \u0442\u0440\u0430\u0442\u044f\u0442 \u043e\u043d\u0438 \u0432 \u043e\u0441\u043d\u043e\u0432\u043d\u043e\u043c \u043d\u0430 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044e \u00ab\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430\u00bb. \u041f\u0440\u043e\u0448\u043b\u044b\u0439 \u043e\u0442\u0447\u0451\u0442 \u043d\u0435 \u0441\u043e\u0448\u0451\u043b\u0441\u044f \u0441 \u0431\u0443\u0445\u0433\u0430\u043b\u0442\u0435\u0440\u0438\u0435\u0439, \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0443 15 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0432 \u0431\u0430\u0437\u0435 \u043f\u043e \u0434\u0432\u0435 \u0437\u0430\u043f\u0438\u0441\u0438 \u2014 \u0438\u0445 \u0437\u0430\u043a\u0430\u0437\u044b \u0441\u0447\u0438\u0442\u0430\u043b\u0438\u0441\u044c \u0434\u0432\u0430\u0436\u0434\u044b, \u0430 \u0437\u0430\u043a\u0430\u0437\u044b \u0443\u0434\u0430\u043b\u0451\u043d\u043d\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043d\u0430\u043e\u0431\u043e\u0440\u043e\u0442 \u0432\u044b\u043f\u0430\u0434\u0430\u043b\u0438. \u0420\u0438\u0441\u043a: 0,4% \u0432\u044b\u0440\u0443\u0447\u043a\u0438 \u2014 \u043e\u0442 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432, \u043a\u043e\u0442\u043e\u0440\u044b\u0445 \u043d\u0435\u0442 \u0432 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0435. \u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0443\u044e \u043d\u0435 \u0443\u0440\u0435\u0437\u0430\u0442\u044c \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435 VIP \u0440\u0430\u0434\u0438 \u043f\u0440\u0438\u0432\u043b\u0435\u0447\u0435\u043d\u0438\u044f \u043d\u043e\u0432\u044b\u0445, \u0430 \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u0442\u044c, \u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043d\u043e\u0432\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0441\u0442\u0430\u043d\u043e\u0432\u044f\u0442\u0441\u044f \u043f\u043e\u0441\u0442\u043e\u044f\u043d\u043d\u044b\u043c\u0438.", "case_xp": 30, "cheat": [["df[\"key\"].is_unique", "\u043a\u043b\u044e\u0447 \u0431\u0435\u0437 \u043f\u043e\u0432\u0442\u043e\u0440\u043e\u0432?"], ["drop_duplicates(\"key\", keep=\"last\")", "\u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u044e\u044e \u0432\u0435\u0440\u0441\u0438\u044e \u0437\u0430\u043f\u0438\u0441\u0438"], ["merge(..., how=\"left\", validate=\"many_to_one\")", "\u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u0435 \u0441\u043e \u0441\u0442\u0440\u0430\u0445\u043e\u0432\u043a\u043e\u0439"], ["merge(..., indicator=True)", "\u043a\u043e\u043b\u043e\u043d\u043a\u0430 _merge: \u043d\u0430\u0448\u043b\u0430\u0441\u044c \u043b\u0438 \u043f\u0430\u0440\u0430"], ["groupby(\"a\")[\"revenue\"].sum() / total", "\u0434\u043e\u043b\u044f \u0432 \u043e\u0431\u0449\u0435\u0439 \u0441\u0443\u043c\u043c\u0435"], ["pd.pivot_table(df, index=..., columns=..., values=..., aggfunc=\"sum\")", "\u0441\u0432\u043e\u0434\u043d\u0430\u044f \u0442\u0430\u0431\u043b\u0438\u0446\u0430"], ["pd.Series({...})", "\u0438\u0442\u043e\u0433\u043e\u0432\u0430\u044f \u0441\u0432\u043e\u0434\u043a\u0430 \u0434\u043b\u044f \u0440\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044f"]], "data": "../../data/", "datasets": ["baraka_orders.csv", "baraka_customers.csv", "baraka_products.csv"], "day": 14, "hint_cost": 5, "quiz": [1, 1, 2, 1, 0], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\norders = pd.read_csv(\"baraka_orders.csv\")\ncustomers = pd.read_csv(\"baraka_customers.csv\")\nproducts = pd.read_csv(\"baraka_products.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["(3000, 6) (815, 4) (60, 3)", "15", "40"], "setup": "", "xp": 20}, {"figure": false, "id": "t2", "keys": ["800 True", "segment", "new 361", "regular 328", "vip 111"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041e\u0441\u043c\u043e\u0442\u0440 \u0442\u0440\u0451\u0445 \u0442\u0430\u0431\u043b\u0438\u0446\u00bb \u2014\nprint(orders.shape, customers.shape, products.shape)\nprint(customers[\"customer_id\"].duplicated().sum())\nprint((~orders[\"customer_id\"].isin(customers[\"customer_id\"])).sum())", "xp": 20}, {"figure": false, "id": "t3", "keys": ["3000 4550.4"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041e\u0441\u043c\u043e\u0442\u0440 \u0442\u0440\u0451\u0445 \u0442\u0430\u0431\u043b\u0438\u0446\u00bb \u2014\nprint(orders.shape, customers.shape, products.shape)\nprint(customers[\"customer_id\"].duplicated().sum())\nprint((~orders[\"customer_id\"].isin(customers[\"customer_id\"])).sum())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0438\u0441\u0442\u044b\u0439 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432\u00bb \u2014\ncust = (\n    customers\n    .assign(city=lambda d: d[\"city\"].str.strip().str.capitalize())\n    .drop_duplicates(\"customer_id\", keep=\"last\")\n)\nprint(len(cust), cust[\"customer_id\"].is_unique)\ncust[\"segment\"].value_counts()", "xp": 20}, {"figure": false, "id": "t4", "keys": ["3000", "_merge", "both 2960", "left_only 40", "right_only 0", "0.4"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041e\u0441\u043c\u043e\u0442\u0440 \u0442\u0440\u0451\u0445 \u0442\u0430\u0431\u043b\u0438\u0446\u00bb \u2014\nprint(orders.shape, customers.shape, products.shape)\nprint(customers[\"customer_id\"].duplicated().sum())\nprint((~orders[\"customer_id\"].isin(customers[\"customer_id\"])).sum())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0438\u0441\u0442\u044b\u0439 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432\u00bb \u2014\ncust = (\n    customers\n    .assign(city=lambda d: d[\"city\"].str.strip().str.capitalize())\n    .drop_duplicates(\"customer_id\", keep=\"last\")\n)\nprint(len(cust), cust[\"customer_id\"].is_unique)\ncust[\"segment\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0417\u0430\u043a\u0430\u0437\u044b + \u0442\u043e\u0432\u0430\u0440\u044b = \u0432\u044b\u0440\u0443\u0447\u043a\u0430\u00bb \u2014\nop = (\n    orders\n    .merge(products, on=\"product_id\", how=\"left\", validate=\"many_to_one\")\n    .assign(revenue=lambda d: d[\"price\"] * d[\"qty\"])\n)\nprint(len(op), round(op.loc[op[\"status\"] == \"delivered\", \"revenue\"].sum() / 1e6, 1))", "xp": 25}, {"figure": false, "id": "t5", "keys": ["orders revenue_mln avg_check share_pct", "segment", "new 1179 1958.7 1661348 43.2", "regular 1030 1418.6 1377314 31.3", "vip 361 1153.7 3195920 25.5"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041e\u0441\u043c\u043e\u0442\u0440 \u0442\u0440\u0451\u0445 \u0442\u0430\u0431\u043b\u0438\u0446\u00bb \u2014\nprint(orders.shape, customers.shape, products.shape)\nprint(customers[\"customer_id\"].duplicated().sum())\nprint((~orders[\"customer_id\"].isin(customers[\"customer_id\"])).sum())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0438\u0441\u0442\u044b\u0439 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432\u00bb \u2014\ncust = (\n    customers\n    .assign(city=lambda d: d[\"city\"].str.strip().str.capitalize())\n    .drop_duplicates(\"customer_id\", keep=\"last\")\n)\nprint(len(cust), cust[\"customer_id\"].is_unique)\ncust[\"segment\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0417\u0430\u043a\u0430\u0437\u044b + \u0442\u043e\u0432\u0430\u0440\u044b = \u0432\u044b\u0440\u0443\u0447\u043a\u0430\u00bb \u2014\nop = (\n    orders\n    .merge(products, on=\"product_id\", how=\"left\", validate=\"many_to_one\")\n    .assign(revenue=lambda d: d[\"price\"] * d[\"qty\"])\n)\nprint(len(op), round(op.loc[op[\"status\"] == \"delivered\", \"revenue\"].sum() / 1e6, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u043c \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0438 \u0441\u0447\u0438\u0442\u0430\u0435\u043c \u043f\u043e\u0442\u0435\u0440\u0438\u00bb \u2014\nfull = op.merge(cust, on=\"customer_id\", how=\"left\", validate=\"many_to_one\", indicator=True)\nprint(len(full))\nprint(full[\"_merge\"].value_counts())\nok = full[full[\"status\"] == \"delivered\"]\nprint(round(ok.loc[ok[\"_merge\"] == \"left_only\", \"revenue\"].sum() / ok[\"revenue\"].sum() * 100, 1))", "xp": 25}, {"figure": false, "id": "t6", "keys": ["category \u0414\u043e\u043c \u041a\u0440\u0430\u0441\u043e\u0442\u0430 \u041e\u0434\u0435\u0436\u0434\u0430 \u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b \u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430", "segment", "new 185.2 73.0 124.2 23.5 1552.9", "regular 171.4 61.3 105.7 21.4 1058.8", "vip 33.6 17.0 26.2 5.8 1071.0"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041e\u0441\u043c\u043e\u0442\u0440 \u0442\u0440\u0451\u0445 \u0442\u0430\u0431\u043b\u0438\u0446\u00bb \u2014\nprint(orders.shape, customers.shape, products.shape)\nprint(customers[\"customer_id\"].duplicated().sum())\nprint((~orders[\"customer_id\"].isin(customers[\"customer_id\"])).sum())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0438\u0441\u0442\u044b\u0439 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432\u00bb \u2014\ncust = (\n    customers\n    .assign(city=lambda d: d[\"city\"].str.strip().str.capitalize())\n    .drop_duplicates(\"customer_id\", keep=\"last\")\n)\nprint(len(cust), cust[\"customer_id\"].is_unique)\ncust[\"segment\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0417\u0430\u043a\u0430\u0437\u044b + \u0442\u043e\u0432\u0430\u0440\u044b = \u0432\u044b\u0440\u0443\u0447\u043a\u0430\u00bb \u2014\nop = (\n    orders\n    .merge(products, on=\"product_id\", how=\"left\", validate=\"many_to_one\")\n    .assign(revenue=lambda d: d[\"price\"] * d[\"qty\"])\n)\nprint(len(op), round(op.loc[op[\"status\"] == \"delivered\", \"revenue\"].sum() / 1e6, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u043c \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0438 \u0441\u0447\u0438\u0442\u0430\u0435\u043c \u043f\u043e\u0442\u0435\u0440\u0438\u00bb \u2014\nfull = op.merge(cust, on=\"customer_id\", how=\"left\", validate=\"many_to_one\", indicator=True)\nprint(len(full))\nprint(full[\"_merge\"].value_counts())\nok = full[full[\"status\"] == \"delivered\"]\nprint(round(ok.loc[ok[\"_merge\"] == \"left_only\", \"revenue\"].sum() / ok[\"revenue\"].sum() * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u0430\u043c\u00bb \u2014\nby_seg = (\n    ok\n    .groupby(\"segment\")\n    .agg(orders=(\"order_id\", \"count\"), revenue=(\"revenue\", \"sum\"), avg_check=(\"revenue\", \"mean\"))\n    .assign(share_pct=lambda d: (d[\"revenue\"] / d[\"revenue\"].sum() * 100).round(1),\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            avg_check=lambda d: d[\"avg_check\"].round(0).astype(int))\n    [[\"orders\", \"revenue_mln\", \"avg_check\", \"share_pct\"]]\n    .sort_values(\"revenue_mln\", ascending=False)\n)\nby_seg", "xp": 25}, {"figure": false, "id": "t7", "keys": ["orders cancel_pct revenue_mln", "city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 1161 7.8 1915.8", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 481 9.4 682.9", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 336 10.4 538.7", "\u0411\u0443\u0445\u0430\u0440\u0430 366 13.1 480.7", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 363 10.5 462.1", "\u0410\u043d\u0434\u0438\u0436\u0430\u043d 253 11.1 451.0"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041e\u0441\u043c\u043e\u0442\u0440 \u0442\u0440\u0451\u0445 \u0442\u0430\u0431\u043b\u0438\u0446\u00bb \u2014\nprint(orders.shape, customers.shape, products.shape)\nprint(customers[\"customer_id\"].duplicated().sum())\nprint((~orders[\"customer_id\"].isin(customers[\"customer_id\"])).sum())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0438\u0441\u0442\u044b\u0439 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432\u00bb \u2014\ncust = (\n    customers\n    .assign(city=lambda d: d[\"city\"].str.strip().str.capitalize())\n    .drop_duplicates(\"customer_id\", keep=\"last\")\n)\nprint(len(cust), cust[\"customer_id\"].is_unique)\ncust[\"segment\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0417\u0430\u043a\u0430\u0437\u044b + \u0442\u043e\u0432\u0430\u0440\u044b = \u0432\u044b\u0440\u0443\u0447\u043a\u0430\u00bb \u2014\nop = (\n    orders\n    .merge(products, on=\"product_id\", how=\"left\", validate=\"many_to_one\")\n    .assign(revenue=lambda d: d[\"price\"] * d[\"qty\"])\n)\nprint(len(op), round(op.loc[op[\"status\"] == \"delivered\", \"revenue\"].sum() / 1e6, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u043c \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0438 \u0441\u0447\u0438\u0442\u0430\u0435\u043c \u043f\u043e\u0442\u0435\u0440\u0438\u00bb \u2014\nfull = op.merge(cust, on=\"customer_id\", how=\"left\", validate=\"many_to_one\", indicator=True)\nprint(len(full))\nprint(full[\"_merge\"].value_counts())\nok = full[full[\"status\"] == \"delivered\"]\nprint(round(ok.loc[ok[\"_merge\"] == \"left_only\", \"revenue\"].sum() / ok[\"revenue\"].sum() * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u0430\u043c\u00bb \u2014\nby_seg = (\n    ok\n    .groupby(\"segment\")\n    .agg(orders=(\"order_id\", \"count\"), revenue=(\"revenue\", \"sum\"), avg_check=(\"revenue\", \"mean\"))\n    .assign(share_pct=lambda d: (d[\"revenue\"] / d[\"revenue\"].sum() * 100).round(1),\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            avg_check=lambda d: d[\"avg_check\"].round(0).astype(int))\n    [[\"orders\", \"revenue_mln\", \"avg_check\", \"share_pct\"]]\n    .sort_values(\"revenue_mln\", ascending=False)\n)\nby_seg\n# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u0432\u043e\u0434\u043d\u0430\u044f: \u0441\u0435\u0433\u043c\u0435\u043d\u0442 \u00d7 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u00bb \u2014\npv = (pd.pivot_table(ok, index=\"segment\", columns=\"category\", values=\"revenue\",\n                     aggfunc=\"sum\", fill_value=0) / 1e6).round(1)\npv", "xp": 25}, {"figure": false, "id": "t8", "keys": ["revenue_mln 4550.4", "vip_revenue_% 25.4", "vip_customers_% 13.9", "vip_top_category \u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430", "unknown_revenue_% 0.4"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041e\u0441\u043c\u043e\u0442\u0440 \u0442\u0440\u0451\u0445 \u0442\u0430\u0431\u043b\u0438\u0446\u00bb \u2014\nprint(orders.shape, customers.shape, products.shape)\nprint(customers[\"customer_id\"].duplicated().sum())\nprint((~orders[\"customer_id\"].isin(customers[\"customer_id\"])).sum())\n# \u2014 \u0448\u0430\u0433 \u00ab\u0427\u0438\u0441\u0442\u044b\u0439 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432\u00bb \u2014\ncust = (\n    customers\n    .assign(city=lambda d: d[\"city\"].str.strip().str.capitalize())\n    .drop_duplicates(\"customer_id\", keep=\"last\")\n)\nprint(len(cust), cust[\"customer_id\"].is_unique)\ncust[\"segment\"].value_counts()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0417\u0430\u043a\u0430\u0437\u044b + \u0442\u043e\u0432\u0430\u0440\u044b = \u0432\u044b\u0440\u0443\u0447\u043a\u0430\u00bb \u2014\nop = (\n    orders\n    .merge(products, on=\"product_id\", how=\"left\", validate=\"many_to_one\")\n    .assign(revenue=lambda d: d[\"price\"] * d[\"qty\"])\n)\nprint(len(op), round(op.loc[op[\"status\"] == \"delivered\", \"revenue\"].sum() / 1e6, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u043e\u0431\u0430\u0432\u043b\u044f\u0435\u043c \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0438 \u0441\u0447\u0438\u0442\u0430\u0435\u043c \u043f\u043e\u0442\u0435\u0440\u0438\u00bb \u2014\nfull = op.merge(cust, on=\"customer_id\", how=\"left\", validate=\"many_to_one\", indicator=True)\nprint(len(full))\nprint(full[\"_merge\"].value_counts())\nok = full[full[\"status\"] == \"delivered\"]\nprint(round(ok.loc[ok[\"_merge\"] == \"left_only\", \"revenue\"].sum() / ok[\"revenue\"].sum() * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u0430\u043c\u00bb \u2014\nby_seg = (\n    ok\n    .groupby(\"segment\")\n    .agg(orders=(\"order_id\", \"count\"), revenue=(\"revenue\", \"sum\"), avg_check=(\"revenue\", \"mean\"))\n    .assign(share_pct=lambda d: (d[\"revenue\"] / d[\"revenue\"].sum() * 100).round(1),\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            avg_check=lambda d: d[\"avg_check\"].round(0).astype(int))\n    [[\"orders\", \"revenue_mln\", \"avg_check\", \"share_pct\"]]\n    .sort_values(\"revenue_mln\", ascending=False)\n)\nby_seg\n# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u0432\u043e\u0434\u043d\u0430\u044f: \u0441\u0435\u0433\u043c\u0435\u043d\u0442 \u00d7 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u00bb \u2014\npv = (pd.pivot_table(ok, index=\"segment\", columns=\"category\", values=\"revenue\",\n                     aggfunc=\"sum\", fill_value=0) / 1e6).round(1)\npv\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u043e\u0440\u043e\u0434\u0430: \u0434\u0435\u043d\u044c\u0433\u0438 \u0438 \u043e\u0442\u043c\u0435\u043d\u044b\u00bb \u2014\nby_city = (\n    full\n    .assign(is_cancel=lambda d: d[\"status\"] == \"cancelled\",\n            paid=lambda d: d[\"revenue\"].where(d[\"status\"] == \"delivered\"))\n    .groupby(\"city\")\n    .agg(orders=(\"order_id\", \"count\"), cancel_pct=(\"is_cancel\", \"mean\"), revenue_mln=(\"paid\", \"sum\"))\n    .assign(cancel_pct=lambda d: (d[\"cancel_pct\"] * 100).round(1),\n            revenue_mln=lambda d: (d[\"revenue_mln\"] / 1e6).round(1))\n    .sort_values(\"revenue_mln\", ascending=False)\n)\nby_city", "xp": 30}], "theory": ["brief", "plan", "traps"], "worker": "../../static/js/py-worker.js", "xp": 240}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

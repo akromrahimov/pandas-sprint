@@ -1,0 +1,722 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 16. resample, rolling, shift, pct_change — Pandas Sprint</title>
+<meta name="description" content="Урок 16 курса Pandas Sprint — resample, rolling, shift, pct_change. Посчитать метрики по неделям, скользящее среднее и рост к прошлому периоду.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/16-resample-rolling-shift/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 16. resample, rolling, shift, pct_change — Pandas Sprint">
+<meta property="og:description" content="Урок 16 курса Pandas Sprint — resample, rolling, shift, pct_change. Посчитать метрики по неделям, скользящее среднее и рост к прошлому периоду.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/16-resample-rolling-shift/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="16">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#resample"><span class="dot">✓</span>resample</a></li><li><a href="#rolling"><span class="dot">✓</span>rolling и shift</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Временные ряды: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты писал оконные функции в SQL, вот соответствия.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>DATE_TRUNC(&#39;week&#39;, date) … GROUP BY 1</code></td><td><code>s.resample(&#34;W&#34;).sum()</code></td><td>по неделям</td></tr><tr><td><code>DATE_TRUNC(&#39;month&#39;, date) … GROUP BY 1</code></td><td><code>s.resample(&#34;MS&#34;).sum()</code></td><td>по месяцам</td></tr><tr><td><code>AVG(x) OVER (ORDER BY date ROWS 6 PRECEDING)</code></td><td><code>s[&#34;x&#34;].rolling(7).mean()</code></td><td>скользящее среднее</td></tr><tr><td><code>LAG(x) OVER (ORDER BY date)</code></td><td><code>s[&#34;x&#34;].shift(1)</code></td><td>значение прошлой строки</td></tr><tr><td><code>x - LAG(x) OVER (…)</code></td><td><code>s[&#34;x&#34;].diff()</code></td><td>разница с прошлым</td></tr><tr><td><code>x / LAG(x) OVER (…) - 1</code></td><td><code>s[&#34;x&#34;].pct_change()</code></td><td>рост в долях</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 16 из 30 · Неделя 3 · Время и метрики</div>
+      <h1><mark>resample, rolling, shift</mark> и pct_change</h1>
+      <p class="lead">Руководитель спрашивает не «сколько продали 14 июня», а «как мы растём по неделям», «что с трендом без шума выходных» и «на сколько процентов этот месяц лучше прошлого». Сегодня учимся работать с данными по дням как с временным рядом: собирать дни в недели и месяцы, сглаживать скачки и сравнивать с прошлым периодом.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Помочь молочной лавке Sutli понять, растут ли продажи и сработала ли июньская акция: собрать дневные продажи в недели и месяцы, посчитать рост к прошлому месяцу и сравнить акцию с обычной неделей.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Делать дату индексом и собирать дни в недели и месяцы через <code class="i">resample</code></li><li>Сглаживать ряд скользящим средним <code class="i">rolling(7)</code></li><li>Сравнивать с прошлым периодом через <code class="i">shift</code>, <code class="i">diff</code>, <code class="i">pct_change</code></li><li>Находить пропущенные дни через <code class="i">asfreq("D")</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Растём или нет?</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Г</span>Гульнора <small>владелица молочной лавки Sutli · 18:40</small></div>
+          <p>Добрый вечер! У меня продажи по дням с января. Каждый день цифры прыгают, и я не понимаю, растём мы или нет. И ещё: в июне я потратила на рекламу акции 3,5 млн в день целую неделю. Окупилось ли это?</p>
+<div class="file">▤ sutli_sales.csv · продажи по дням</div>        </div>
+      </div>
+      <p class="note">Sutli — учебная лавка, данные сгенерированы. Подвохи: по выходным заказов больше, в июне была недельная акция, а 4 дня касса не выгрузилась — этих дней в файле просто нет. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/sutli_sales.csv" download>Скачать sutli_sales.csv</a><span class="note">269 строк · 8 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;sutli_sales.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="resample">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Из дней — в недели и месяцы</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь дневник, где каждый день записано, сколько бутылок молока продано. Чтобы понять, растёт ли лавка, ты не читаешь все 270 дней по очереди — ты складываешь их по неделям или месяцам.</p>
+  <ul>
+    <li><b>Временной ряд</b> — таблица, где каждая строка — момент времени (день), а дата стоит слева в индексе.</li>
+    <li><b>set_index("date")</b> — сделать колонку с датой индексом. Сначала её нужно превратить в дату (урок 15).</li>
+    <li><b>resample("W")</b> — «разложи дни по неделям», <code class="i">"MS"</code> — по месяцам (метка — первое число месяца). После resample пишут, что сделать с днями внутри: <code class="i">.sum()</code>, <code class="i">.mean()</code>.</li>
+    <li><b>asfreq("D")</b> — «покажи каждый день по порядку». Дни, которых нет в файле, станут пустыми строками — так находят пропуски.</li>
+  </ul>
+  <p><b>resample — это groupby по календарю.</b> В уроке 8 ты делил заказы на кучки по городу. Здесь делишь дни на кучки по месяцу: все дни января в одну кучку, февраля — в другую. Потом в каждой кучке что-то считаешь: сумму, среднее.</p>
+</div>
+<div class="simple"><span class="tag">Метки частоты</span>
+  <div class="scroll"><table class="mini">
+    <tr><th>Метка</th><th>Что значит</th><th>Подпись группы</th></tr>
+    <tr><td>"D"</td><td>каждый день</td><td>сама дата</td></tr>
+    <tr><td>"W"</td><td>неделя</td><td>воскресенье этой недели</td></tr>
+    <tr><td>"MS"</td><td>месяц</td><td>первое число месяца</td></tr>
+    <tr><td>"ME"</td><td>месяц</td><td>последнее число месяца</td></tr>
+  </table></div>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Дата — в индекс.</b></div><pre class="code" data-cm>s = df.assign(date=pd.to_datetime(df[&quot;date&quot;])).set_index(&quot;date&quot;)
+print(s.index.min(), s.index.max(), len(s))
+s.head(3)</pre><div class="out">2026-01-01 00:00:00 2026-09-30 00:00:00 269
+            orders  revenue  ad_spend
+date
+2026-01-01     116  5518000    840000
+2026-01-02     133  6280000    830000
+2026-01-03     170  8593000    820000</div><p class="plain"><b>Простыми словами:</b> дата теперь слева, как подпись строки. С 1 января по 30 сентября 273 дня, а строк 269 — значит, каких-то дней не хватает.</p></div>
+<div class="card"><div class="q"><b>2. Каких дней нет в файле.</b></div><pre class="code" data-cm>full = s.asfreq(&quot;D&quot;)
+full[full[&quot;orders&quot;].isna()].index</pre><div class="out">DatetimeIndex([&#x27;2026-02-10&#x27;, &#x27;2026-02-11&#x27;, &#x27;2026-05-31&#x27;, &#x27;2026-07-31&#x27;], dtype=&#x27;datetime64[us]&#x27;, name=&#x27;date&#x27;, freq=None)</div><p class="plain"><b>Простыми словами:</b> asfreq("D") вставил строку на каждый день. Пустые — это дни, когда касса не выгрузилась. Их нельзя считать нулём: магазин работал.</p></div>
+<div class="card"><div class="q"><b>3. Месяцы.</b> resample + sum.</div><pre class="code" data-cm>(s.resample(&quot;MS&quot;)[[&quot;orders&quot;, &quot;revenue&quot;]].sum() / [1, 1e6]).round(1)</pre><div class="out">            orders  revenue
+date
+2026-01-01  4083.0    196.9
+2026-02-01  3622.0    171.8
+2026-03-01  4310.0    202.4
+2026-04-01  4429.0    212.5
+2026-05-01  4665.0    228.3
+2026-06-01  5768.0    271.4
+2026-07-01  4844.0    230.5
+2026-08-01  5200.0    242.2
+2026-09-01  5115.0    246.4</div><p class="plain"><b>Простыми словами:</b> каждый месяц — сумма его дней. Выручка в миллионах. Видно, что с января по сентябрь продажи выросли.</p></div></div>
+    </section>
+    <section id="rolling">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Убрать шум и сравнить с прошлым</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+  <ul>
+    <li><code class="i">rolling(7).mean()</code> — «для каждого дня посчитай среднее за 7 последних дней». Скачки выходных сглаживаются, остаётся тренд.</li>
+    <li><code class="i">shift(1)</code> — «сдвинь на одну строку вниз»: в строке текущего месяца окажется значение прошлого.</li>
+    <li><code class="i">diff()</code> — разница с прошлой строкой, <code class="i">pct_change()</code> — изменение в долях: 0.12 значит +12%.</li>
+  </ul>
+  <p><b>Скользящее окно</b> — как рамка шириной 3 дня, которую двигают по календарю на один день. Для каждого положения рамки считают среднее того, что в неё попало. Ниже это видно на маленьком примере из 7 дней.</p>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>4. Как «ползёт» окно — на игрушечном примере.</b> 7 дней продаж и среднее за 3 дня.</div><pre class="code" data-cm>toy = pd.Series([10, 12, 30, 11, 13, 12, 14],
+                index=pd.date_range(&quot;2026-06-01&quot;, periods=7), name=&quot;заказы&quot;)
+pd.DataFrame({
+    &quot;заказы&quot;: toy,
+    &quot;среднее_3_дня&quot;: toy.rolling(3).mean().round(1),
+    &quot;вчера&quot;: toy.shift(1),
+    &quot;разница_с_вчера&quot;: toy.diff(),
+    &quot;рост_%&quot;: (toy.pct_change() * 100).round(1),
+})</pre><div class="out">            заказы  среднее_3_дня  вчера  разница_с_вчера  рост_%
+2026-06-01      10            NaN    NaN              NaN     NaN
+2026-06-02      12            NaN   10.0              2.0    20.0
+2026-06-03      30           17.3   12.0             18.0   150.0
+2026-06-04      11           17.7   30.0            -19.0   -63.3
+2026-06-05      13           18.0   11.0              2.0    18.2
+2026-06-06      12           12.0   13.0             -1.0    -7.7
+2026-06-07      14           13.0   12.0              2.0    16.7</div><p class="plain"><b>Простыми словами:</b> 3 июня: среднее (10 + 12 + 30) / 3 = 17,3. 4 июня окно сдвинулось: (12 + 30 + 11) / 3 = 17,7. Скачок 30 «размазался» по трём дням — это и есть сглаживание. В первые два дня среднего нет: в рамке ещё меньше 3 дней. shift(1) просто кладёт рядом вчерашнее число, diff — разницу с ним, pct_change — эту разницу в процентах.</p></div>
+<div class="card"><div class="q"><b>5. Окно с пропусками: min_periods.</b> Если в рамке есть пустой день.</div><pre class="code" data-cm>gap = pd.Series([10, 12, None, 11, 13], index=pd.date_range(&quot;2026-06-01&quot;, periods=5))
+pd.DataFrame({
+    &quot;заказы&quot;: gap,
+    &quot;rolling(3)&quot;: gap.rolling(3).mean().round(1),
+    &quot;rolling(3, min_periods=2)&quot;: gap.rolling(3, min_periods=2).mean().round(1),
+})</pre><div class="out">            заказы  rolling(3)  rolling(3, min_periods=2)
+2026-06-01    10.0         NaN                        NaN
+2026-06-02    12.0         NaN                       11.0
+2026-06-03     NaN         NaN                       11.0
+2026-06-04    11.0         NaN                       11.5
+2026-06-05    13.0         NaN                       12.0</div><p class="plain"><b>Простыми словами:</b> обычное окно не считает среднее, пока в нём есть пустой день: одна дыра «гасит» три строки. <code class="i">min_periods=2</code> говорит: «считай, если в рамке есть хотя бы 2 настоящих числа». Это понадобится в задаче 5.</p></div>
+<div class="card"><div class="q"><b>6. Скользящее среднее за 7 дней.</b> Теперь на настоящих данных лавки.</div><pre class="code" data-cm>s[&quot;orders_7d&quot;] = s[&quot;orders&quot;].rolling(7).mean().round(1)
+s.loc[&quot;2026-06-07&quot;:&quot;2026-06-18&quot;, [&quot;orders&quot;, &quot;orders_7d&quot;]]</pre><div class="out">            orders  orders_7d
+date
+2026-06-07     192      154.0
+2026-06-08     167      158.3
+2026-06-09     135      155.4
+2026-06-10     255      171.4
+2026-06-11     271      193.7
+2026-06-12     235      208.9
+2026-06-13     363      231.1
+2026-06-14     345      253.0
+2026-06-15     266      267.1
+2026-06-16     311      292.3
+2026-06-17     155      278.0
+2026-06-18     153      261.1</div><p class="plain"><b>Простыми словами:</b> в акцию (10–16 июня) дневные заказы подскочили, и скользящее среднее медленно поднимается вслед. Первые 6 дней года среднего нет — ещё не набралось 7 дней.</p></div>
+<div class="card"><div class="q"><b>7. Рост к прошлому месяцу.</b></div><pre class="code" data-cm>m = s.resample(&quot;MS&quot;)[&quot;revenue&quot;].sum()
+pd.DataFrame({&quot;revenue_mln&quot;: (m / 1e6).round(1),
+              &quot;prev_mln&quot;: (m.shift(1) / 1e6).round(1),
+              &quot;growth_%&quot;: (m.pct_change() * 100).round(1)})</pre><div class="out">            revenue_mln  prev_mln  growth_%
+date
+2026-01-01        196.9       NaN       NaN
+2026-02-01        171.8     196.9     -12.8
+2026-03-01        202.4     171.8      17.8
+2026-04-01        212.5     202.4       5.0
+2026-05-01        228.3     212.5       7.4
+2026-06-01        271.4     228.3      18.9
+2026-07-01        230.5     271.4     -15.1
+2026-08-01        242.2     230.5       5.0
+2026-09-01        246.4     242.2       1.7</div><p class="plain"><b>Простыми словами:</b> shift(1) поставил рядом прошлый месяц, pct_change посчитал рост в процентах. У января роста нет (NaN): сравнивать не с чем.</p></div>
+<div class="card"><div class="q"><b>8. Срез по датам.</b> Взять неделю по календарю — приём для задачи 6.</div><pre class="code" data-cm>week = s.loc[&quot;2026-06-10&quot;:&quot;2026-06-16&quot;]
+print(len(week), &quot;дней&quot;)
+week[[&quot;orders&quot;, &quot;revenue&quot;]].sum()</pre><div class="out">7 дней
+orders         2046
+revenue    98089000
+dtype: int64</div><p class="plain"><b>Простыми словами:</b> когда дата в индексе, строки можно брать срезом «с какого по какое число». В отличие от обычных срезов Python, обе даты <b>включены</b>: здесь ровно 7 дней.</p></div></div>
+<div class="callout"><b>Правило аналитика.</b> Сравнивай равные периоды. Февраль короче марта, а в месяце с пропущенными днями сумма меньше. Если дней разное число, сравнивай среднее за день, а не сумму.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ловушек временных рядов</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>resample без индекса-даты</h3><div class="bad">df.resample(&#34;MS&#34;).sum()   # TypeError: нужен DatetimeIndex</div><div class="good">df.assign(date=pd.to_datetime(df[&#34;date&#34;])).set_index(&#34;date&#34;).resample(&#34;MS&#34;).sum()</div><p>resample работает только когда дата — индекс и это настоящая дата, а не текст.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Старое обозначение месяца</h3><div class="bad">s.resample(&#34;M&#34;).sum()   # в pandas 3.0 — ошибка</div><div class="good">s.resample(&#34;MS&#34;).sum()   # или &#34;ME&#34; — метка в конце месяца</div><p>В pandas 3.0 убрали короткое "M". Пиши "MS" (начало месяца) или "ME" (конец месяца).</p></div>
+        <div class="trap"><span class="n">3</span><h3>Пропущенные дни</h3><p>4 дня в файле отсутствуют. В <code class="i">rolling(7)</code> окно из 7 строк тогда захватит 8–9 календарных дней. Для точности сначала <code class="i">asfreq("D")</code>, чтобы пропуски стали видны.</p></div>
+        <div class="trap"><span class="n">4</span><h3>pct_change в процентах</h3><p><code class="i">pct_change()</code> возвращает доли: 0.12 — это 12%. Не забудь умножить на 100, прежде чем писать «рост 0.12%».</p></div>
+        <div class="trap"><span class="n">5</span><h3>Сравнение акции с «любой» неделей</h3><p>Эффект акции сравнивают с похожим периодом прямо перед ней, а не со средним за год: продажи всё время растут, и год даст завышенный эффект.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк про временные ряды</h3>
+        <ol><li>s = df.assign(date=pd.to_datetime(df[&#34;date&#34;])).set_index(&#34;date&#34;) <span>— дата в индекс</span></li><li>s.asfreq(&#34;D&#34;) <span>— каждый день по порядку, пропуски видны</span></li><li>s.resample(&#34;W&#34;).sum() <span>— по неделям</span></li><li>s.resample(&#34;MS&#34;).sum() <span>— по месяцам</span></li><li>s[&#34;x&#34;].rolling(7).mean() <span>— скользящее среднее за 7 дней</span></li><li>s[&#34;x&#34;].shift(1) <span>— прошлое значение</span></li><li>s[&#34;x&#34;].pct_change() * 100 <span>— рост в %</span></li><li>s.loc[&#34;2026-06-10&#34;:&#34;2026-06-16&#34;] <span>— срез по датам</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что нужно, чтобы работал <code>resample</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Колонка date с текстом</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Индекс из настоящих дат</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Отсортированные суммы</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ничего</span></button></div>
+          <div class="why" hidden>resample раскладывает строки по периодам индекса, поэтому индекс должен быть datetime.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="0">
+          <p>2. Что делает <code>rolling(7).mean()</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Среднее за 7 последних строк для каждой строки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Среднее каждой седьмой строки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сумму за неделю</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Удаляет 7 строк</span></button></div>
+          <div class="why" hidden>Окно из 7 строк сдвигается по ряду, для каждой строки считается среднее внутри окна.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. <code>pct_change()</code> вернул 0.25. Что это значит?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Рост на 0.25%</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Рост на 25%</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Падение на 25%</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Значение 0.25 сум</span></button></div>
+          <div class="why" hidden>pct_change даёт долю: 0.25 × 100 = 25%.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Как найти дни, которых нет в файле?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>s.isna()</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>s.asfreq("D")</code> и пустые строки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>s.dropna()</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>s.resample("W")</code></span></button></div>
+          <div class="why" hidden>asfreq("D") вставляет строку на каждый календарный день, отсутствующие дни становятся NaN.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. С чем честно сравнить неделю акции?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Со средним за год</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>С неделей прямо перед акцией</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>С лучшей неделей года</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>С декабрём прошлого года</span></button></div>
+          <div class="why" hidden>Похожий соседний период убирает влияние тренда и сезона.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Дата в индекс и пропуски</h3>
+            <ol class='steps-t'><li>Создай <code class='i'>s</code>: колонка date как дата и как индекс.</li> <li>Напечатай число строк в s.</li> <li>Через <code class='i'>asfreq("D")</code> найди и напечатай, сколько дней пропущено.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 16 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">s =
+
+# строк
+
+# пропущенных дней
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">269
+4</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>s =
+
+# строк
+
+# пропущенных дней
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Чтобы работать с рядом по времени, дату делают индексом таблицы — тогда строки «знают» свою дату. Пропущенные дни видны, если растянуть ряд на каждый календарный день: недостающие дни станут пустыми строками.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.assign(date=pd.to_datetime(df["date"])).set_index("date")</code> — дата в индекс. <code class="i">s.asfreq("D")</code> — ряд на каждый день; пустые строки — пропуски.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>s = df.assign(date=pd.to_datetime(df[&#34;___&#34;])).set_index(&#34;___&#34;)
+print(len(s))
+print(s.asfreq(&#34;___&#34;)[&#34;orders&#34;].isna().___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без pd.to_datetime дата останется текстом, и asfreq не поймёт, какие дни пропущены.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Выручка по месяцам</h3>
+            <p>Таблица <code class='i'>s</code> с датой в индексе уже готова.</p> <ol class='steps-t'><li>Посчитай выручку по месяцам (<code class='i'>resample("MS")</code>) в миллионах, 1 знак.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>s = df.assign(date=pd.to_datetime(df[&#34;date&#34;])).set_index(&#34;date&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 16 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">date
+2026-01-01    196.9
+2026-02-01    171.8
+2026-03-01    202.4
+2026-04-01    212.5
+2026-05-01    228.3
+2026-06-01    271.4
+2026-07-01    230.5
+2026-08-01    242.2
+2026-09-01    246.4
+Freq: MS, Name: revenue, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> resample — это groupby по времени: «собери все дни в месяцы и сложи». Метка "MS" значит «месяц, подпись — первое число».</p>
+<p><b>Чем это сделать.</b> <code class="i">s.resample("MS")["revenue"].sum()</code> — выручка по месяцам. Миллионы: <code class="i">/ 1e6</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>(s.resample(&#34;___&#34;)[&#34;___&#34;].sum() / 1e6).round(___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> resample работает только когда дата стоит в индексе — поэтому мы готовили s в задаче 1.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Рост к прошлому месяцу</h3>
+            <ol class='steps-t'><li>Месячная выручка → <code class='i'>m</code>.</li> <li>Выведи рост к прошлому месяцу в процентах, 1 знак.</li> <li>Комментарием: в каком месяце рост был самым большим и почему?</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>s = df.assign(date=pd.to_datetime(df[&#34;date&#34;])).set_index(&#34;date&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 16 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">m =
+
+# рост, %
+
+# самый большой рост:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">date
+2026-01-01     NaN
+2026-02-01   -12.8
+2026-03-01    17.8
+2026-04-01     5.0
+2026-05-01     7.4
+2026-06-01    18.9
+2026-07-01   -15.1
+2026-08-01     5.0
+2026-09-01     1.7
+Freq: MS, Name: revenue, dtype: float64
+
++ комментарий: в каком месяце рост больше всего</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>m =
+
+# рост, %
+
+# самый большой рост:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>Самый большой рост — в июне: неделя акции с рекламой.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Рост к прошлому месяцу = этот месяц / прошлый − 1. pandas умеет посчитать это для всего ряда сразу. Для комментария посмотри, в каком месяце число самое большое, и вспомни историю из брифинга.</p>
+<p><b>Чем это сделать.</b> <code class="i">m.pct_change()</code> — изменение к предыдущей строке в долях (0.189 = +18,9%).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>m = s.resample(&#34;MS&#34;)[&#34;revenue&#34;].___()
+(m.___() * 100).round(1)
+# самый большой рост — в ___, потому что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> У первого месяца роста нет — там будет NaN. Это нормально: сравнивать не с чем.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Лучшие недели</h3>
+            <ol class='steps-t'><li>Собери заказы по неделям (<code class='i'>resample("W")</code>).</li> <li>Выведи 3 недели с наибольшим числом заказов.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>s = df.assign(date=pd.to_datetime(df[&#34;date&#34;])).set_index(&#34;date&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 16 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">date
+2026-06-14    1771
+2026-06-21    1402
+2026-09-27    1275
+Name: orders, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Та же сборка по времени, только по неделям, и считаем заказы. Потом выбираем три самые большие недели.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.resample("W")["orders"].sum()</code> — заказы по неделям. <code class="i">.nlargest(3)</code> — три самых больших.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>s.resample(&#34;___&#34;)[&#34;___&#34;].sum().nlargest(___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">.max()</code> даст только одно число, а нужны три недели с датами.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Тренд без шума</h3>
+            <ol class='steps-t'><li>Сделай ряд по каждому календарному дню (<code class='i'>asfreq("D")</code>) → <code class='i'>daily</code>.</li> <li>Посчитай скользящее среднее заказов за 7 дней с <code class='i'>min_periods=5</code> (пропуски не ломают окно).</li> <li>Выведи значение среднего на 1 февраля, 1 мая и 1 сентября, 1 знак.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>s = df.assign(date=pd.to_datetime(df[&#34;date&#34;])).set_index(&#34;date&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 16 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">daily =
+trend =
+
+# значения на три даты
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">date
+2026-02-01    132.7
+2026-05-01    144.7
+2026-09-01    161.3
+Name: orders, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>daily =
+trend =
+
+# значения на три даты
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Скользящее среднее за 7 дней сглаживает «пилу» по дням недели. Сначала растяни ряд на все дни (пропуски станут пустыми), потом считай среднее в окне, разрешив окну работать, если в нём хотя бы 5 настоящих дней.</p>
+<p><b>Чем это сделать.</b> <code class="i">.rolling(7, min_periods=5).mean()</code> — среднее за 7 дней. Несколько дат сразу: <code class="i">trend.loc[["2026-02-01", "2026-05-01"]]</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>daily = s.asfreq(&#34;___&#34;)
+trend = daily[&#34;orders&#34;].rolling(___, min_periods=___).mean()
+trend.loc[[&#34;2026-02-01&#34;, &#34;2026-05-01&#34;, &#34;2026-09-01&#34;]].round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без min_periods один пропущенный день делает окно пустым на 7 дней вперёд.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сработала ли акция</h3>
+            <p>Акция: 10–16 июня. Неделя до неё: 3–9 июня.</p> <ol class='steps-t'><li>Напечатай среднее число заказов в день: в неделю до акции и в неделю акции (1 знак).</li> <li>Напечатай, сколько дополнительной выручки дала неделя акции по сравнению с неделей до (в сумах, целое).</li> <li>Напечатай, сколько денег потрачено на рекламу в неделю акции.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>s = df.assign(date=pd.to_datetime(df[&#34;date&#34;])).set_index(&#34;date&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 16 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">before =
+promo =
+
+# средние заказы до и во время
+
+# дополнительная выручка
+
+# реклама в неделю акции
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">155.4 292.3
+47509000
+24500000</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>before =
+promo =
+
+# средние заказы до и во время
+
+# дополнительная выручка
+
+# реклама в неделю акции
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Возьми две недели — до акции и во время — срезом по датам. Сравни среднее число заказов в день и сумму выручки. Разница выручки — это «дополнительные» деньги от акции. Отдельно сложи расходы на рекламу.</p>
+<p><b>Чем это сделать.</b> Срез по датам индекса: <code class="i">s.loc["2026-06-03":"2026-06-09"]</code> (обе даты включены). <code class="i">int(x)</code> — целое число.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>before = s.loc[&#34;___&#34;:&#34;___&#34;]
+promo = s.loc[&#34;___&#34;:&#34;___&#34;]
+print(round(before[&#34;orders&#34;].mean(), 1), round(promo[&#34;orders&#34;].mean(), 1))
+print(int(promo[&#34;revenue&#34;].sum() - ___[&#34;revenue&#34;].sum()))
+print(promo[&#34;___&#34;].sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Дополнительная выручка — это не вся выручка недели акции, а разница с обычной неделей.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Месячный отчёт</h3>
+            <p>Собери таблицу <code class='i'>report</code> по месяцам:</p> <ol class='steps-t'><li><code class='i'>revenue_mln</code> — выручка, млн, 1 знак;</li> <li><code class='i'>orders</code> — заказы;</li> <li><code class='i'>avg_check</code> — выручка / заказы, целое;</li> <li><code class='i'>roas</code> — выручка / расходы на рекламу, 2 знака;</li> <li><code class='i'>growth_pct</code> — рост выручки к прошлому месяцу, %, 1 знак.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>s = df.assign(date=pd.to_datetime(df[&#34;date&#34;])).set_index(&#34;date&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 16 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">report = (
+    s
+    # твой код
+)
+report
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">            revenue_mln  orders  avg_check  roas  growth_pct
+date
+2026-01-01        196.9    4083      48230  7.43         NaN
+2026-02-01        171.8    3622      47429  7.62       -12.8
+2026-03-01        202.4    4310      46952  7.96        17.8
+2026-04-01        212.5    4429      47982  8.41         5.0
+2026-05-01        228.3    4665      48937  8.84         7.4
+2026-06-01        271.4    5768      47049  6.21        18.9
+2026-07-01        230.5    4844      47591  9.10       -15.1
+2026-08-01        242.2    5200      46568  9.04         5.0
+2026-09-01        246.4    5115      48170  9.42         1.7</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>report = (
+    s
+    # твой код
+)
+report
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала сложи по месяцам три колонки сразу (выручка, заказы, реклама). Потом из них посчитай новые: миллионы, средний чек, окупаемость рекламы (выручка / реклама) и рост к прошлому месяцу.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.resample("MS")[["revenue", "orders", "ad_spend"]].sum()</code> — таблица по месяцам. Дальше <code class="i">.assign(...)</code> с lambda и <code class="i">.pct_change()</code> для роста.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>report = (
+    s
+    .resample(&#34;MS&#34;)[[&#34;revenue&#34;, &#34;orders&#34;, &#34;ad_spend&#34;]].sum()
+    .assign(revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
+            avg_check=lambda d: (d[&#34;revenue&#34;] / d[&#34;___&#34;]).round(0).astype(int),
+            roas=lambda d: (d[&#34;revenue&#34;] / d[&#34;___&#34;]).round(2),
+            growth_pct=lambda d: (d[&#34;revenue&#34;].___() * 100).round(1))
+    [[&#34;revenue_mln&#34;, &#34;orders&#34;, &#34;avg_check&#34;, &#34;roas&#34;, &#34;growth_pct&#34;]]
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Рост считай по сырой выручке (revenue), а не по округлённым миллионам — иначе проценты чуть разойдутся.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Гульноре</h2>
+      <div class="case">
+        <p>Напиши ответ Гульноре простыми словами. Не больше 6 предложений. Структура: <b>растёт ли лавка (январь против сентября) → самый сильный месяц роста → окупилась ли акция (доп. выручка против рекламы) → 1 оговорка про данные → 1 совет</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Выручка в январе</span><span class="fact-chip">Выручка в сентябре</span><span class="fact-chip">Дополнительная выручка от акции</span><span class="fact-chip">Расходы на рекламу в неделю акции</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Гульнора, добрый вечер! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Растёт ли лавка, по твоему ответу?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Да: выручка в сентябре выше, чем в январе</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Нет, выручка падает</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Нельзя понять</span></button></div>
+            <div class="why" hidden>196,9 млн в январе → 246,4 млн в сентябре.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Окупилась ли акция?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Не факт: доп. выручка больше рекламы, но это выручка, а не прибыль — окупится только при большой наценке</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Да, точно: выручка больше расходов на рекламу</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Нет: выручка в неделю акции упала</span></button></div>
+            <div class="why" hidden>47,5 млн дополнительной выручки против 24,5 млн рекламы. Чтобы покрыть рекламу, наценка должна быть больше ~52% — для молочной лавки это маловероятно.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Какую оговорку про данные ты делаешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Несколько дней касса не выгрузилась, поэтому суммы немного занижены</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Данные полностью неверные</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Оговорок нет</span></button></div>
+            <div class="why" hidden>4 дня пропущены — это нужно сказать, чтобы цифрам доверяли правильно.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Гульнора, добрый вечер! Коротко: лавка растёт — выручка выросла с 196,9 млн сум в январе до 246,4 млн в сентябре. Самый сильный рост был в июне (+18,9% к прошлому месяцу) — это неделя акции. Акция принесла около 47,5 млн сум дополнительной выручки, а на рекламу за неделю ушло 24,5 млн. Это выручка, а не прибыль: акция окупилась, только если ваша наценка больше 52%, — для молочной лавки это вряд ли. Оговорка: 4 дня касса не выгрузилась, поэтому суммы за эти месяцы немного занижены. Совет: следующую акцию сделать с рекламой в 3–4 раза дешевле и сравнить результат с обычной неделей.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Ответ на вопрос «растём ли» с цифрами января и сентября</li><li>Назван месяц самого сильного роста</li><li>Честно сравнены дополнительная выручка и расходы на рекламу</li><li>Есть оговорка про пропущенные дни</li><li>Простые слова, без терминов</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 16</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/15-daty-to-datetime/"><small>← Урок 15</small><b>Даты: to_datetime и .dt</b></a><a class="nx" href="../../lessons/17-okonnye-funkcii/"><small>Урок 17 →</small><b>Оконные функции в pandas</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u044f\u043d\u0432\u0430\u0440\u0435", "value": 196900000}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435", "value": 246400000}, {"name": "\u0414\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u0430\u044f \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u043e\u0442 \u0430\u043a\u0446\u0438\u0438", "value": 47500000}, {"name": "\u0420\u0430\u0441\u0445\u043e\u0434\u044b \u043d\u0430 \u0440\u0435\u043a\u043b\u0430\u043c\u0443 \u0432 \u043d\u0435\u0434\u0435\u043b\u044e \u0430\u043a\u0446\u0438\u0438", "value": 24500000}], "logic": [{"a": 0, "o": ["\u0414\u0430: \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435 \u0432\u044b\u0448\u0435, \u0447\u0435\u043c \u0432 \u044f\u043d\u0432\u0430\u0440\u0435", "\u041d\u0435\u0442, \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u0430\u0434\u0430\u0435\u0442", "\u041d\u0435\u043b\u044c\u0437\u044f \u043f\u043e\u043d\u044f\u0442\u044c"], "q": "\u0420\u0430\u0441\u0442\u0451\u0442 \u043b\u0438 \u043b\u0430\u0432\u043a\u0430, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443?", "why": "196,9 \u043c\u043b\u043d \u0432 \u044f\u043d\u0432\u0430\u0440\u0435 \u2192 246,4 \u043c\u043b\u043d \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435."}, {"a": 0, "o": ["\u041d\u0435 \u0444\u0430\u043a\u0442: \u0434\u043e\u043f. \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0431\u043e\u043b\u044c\u0448\u0435 \u0440\u0435\u043a\u043b\u0430\u043c\u044b, \u043d\u043e \u044d\u0442\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0430, \u0430 \u043d\u0435 \u043f\u0440\u0438\u0431\u044b\u043b\u044c \u2014 \u043e\u043a\u0443\u043f\u0438\u0442\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u0440\u0438 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u043d\u0430\u0446\u0435\u043d\u043a\u0435", "\u0414\u0430, \u0442\u043e\u0447\u043d\u043e: \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0431\u043e\u043b\u044c\u0448\u0435 \u0440\u0430\u0441\u0445\u043e\u0434\u043e\u0432 \u043d\u0430 \u0440\u0435\u043a\u043b\u0430\u043c\u0443", "\u041d\u0435\u0442: \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u043d\u0435\u0434\u0435\u043b\u044e \u0430\u043a\u0446\u0438\u0438 \u0443\u043f\u0430\u043b\u0430"], "q": "\u041e\u043a\u0443\u043f\u0438\u043b\u0430\u0441\u044c \u043b\u0438 \u0430\u043a\u0446\u0438\u044f?", "why": "47,5 \u043c\u043b\u043d \u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0439 \u0432\u044b\u0440\u0443\u0447\u043a\u0438 \u043f\u0440\u043e\u0442\u0438\u0432 24,5 \u043c\u043b\u043d \u0440\u0435\u043a\u043b\u0430\u043c\u044b. \u0427\u0442\u043e\u0431\u044b \u043f\u043e\u043a\u0440\u044b\u0442\u044c \u0440\u0435\u043a\u043b\u0430\u043c\u0443, \u043d\u0430\u0446\u0435\u043d\u043a\u0430 \u0434\u043e\u043b\u0436\u043d\u0430 \u0431\u044b\u0442\u044c \u0431\u043e\u043b\u044c\u0448\u0435 ~52% \u2014 \u0434\u043b\u044f \u043c\u043e\u043b\u043e\u0447\u043d\u043e\u0439 \u043b\u0430\u0432\u043a\u0438 \u044d\u0442\u043e \u043c\u0430\u043b\u043e\u0432\u0435\u0440\u043e\u044f\u0442\u043d\u043e."}, {"a": 0, "o": ["\u041d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0434\u043d\u0435\u0439 \u043a\u0430\u0441\u0441\u0430 \u043d\u0435 \u0432\u044b\u0433\u0440\u0443\u0437\u0438\u043b\u0430\u0441\u044c, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0441\u0443\u043c\u043c\u044b \u043d\u0435\u043c\u043d\u043e\u0433\u043e \u0437\u0430\u043d\u0438\u0436\u0435\u043d\u044b", "\u0414\u0430\u043d\u043d\u044b\u0435 \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0435", "\u041e\u0433\u043e\u0432\u043e\u0440\u043e\u043a \u043d\u0435\u0442"], "q": "\u041a\u0430\u043a\u0443\u044e \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0443 \u043f\u0440\u043e \u0434\u0430\u043d\u043d\u044b\u0435 \u0442\u044b \u0434\u0435\u043b\u0430\u0435\u0448\u044c?", "why": "4 \u0434\u043d\u044f \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u044b \u2014 \u044d\u0442\u043e \u043d\u0443\u0436\u043d\u043e \u0441\u043a\u0430\u0437\u0430\u0442\u044c, \u0447\u0442\u043e\u0431\u044b \u0446\u0438\u0444\u0440\u0430\u043c \u0434\u043e\u0432\u0435\u0440\u044f\u043b\u0438 \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e."}]}, "case_model": "\u0413\u0443\u043b\u044c\u043d\u043e\u0440\u0430, \u0434\u043e\u0431\u0440\u044b\u0439 \u0432\u0435\u0447\u0435\u0440! \u041a\u043e\u0440\u043e\u0442\u043a\u043e: \u043b\u0430\u0432\u043a\u0430 \u0440\u0430\u0441\u0442\u0451\u0442 \u2014 \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0432\u044b\u0440\u043e\u0441\u043b\u0430 \u0441 196,9 \u043c\u043b\u043d \u0441\u0443\u043c \u0432 \u044f\u043d\u0432\u0430\u0440\u0435 \u0434\u043e 246,4 \u043c\u043b\u043d \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435. \u0421\u0430\u043c\u044b\u0439 \u0441\u0438\u043b\u044c\u043d\u044b\u0439 \u0440\u043e\u0441\u0442 \u0431\u044b\u043b \u0432 \u0438\u044e\u043d\u0435 (+18,9% \u043a \u043f\u0440\u043e\u0448\u043b\u043e\u043c\u0443 \u043c\u0435\u0441\u044f\u0446\u0443) \u2014 \u044d\u0442\u043e \u043d\u0435\u0434\u0435\u043b\u044f \u0430\u043a\u0446\u0438\u0438. \u0410\u043a\u0446\u0438\u044f \u043f\u0440\u0438\u043d\u0435\u0441\u043b\u0430 \u043e\u043a\u043e\u043b\u043e 47,5 \u043c\u043b\u043d \u0441\u0443\u043c \u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u0435\u043b\u044c\u043d\u043e\u0439 \u0432\u044b\u0440\u0443\u0447\u043a\u0438, \u0430 \u043d\u0430 \u0440\u0435\u043a\u043b\u0430\u043c\u0443 \u0437\u0430 \u043d\u0435\u0434\u0435\u043b\u044e \u0443\u0448\u043b\u043e 24,5 \u043c\u043b\u043d. \u042d\u0442\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0430, \u0430 \u043d\u0435 \u043f\u0440\u0438\u0431\u044b\u043b\u044c: \u0430\u043a\u0446\u0438\u044f \u043e\u043a\u0443\u043f\u0438\u043b\u0430\u0441\u044c, \u0442\u043e\u043b\u044c\u043a\u043e \u0435\u0441\u043b\u0438 \u0432\u0430\u0448\u0430 \u043d\u0430\u0446\u0435\u043d\u043a\u0430 \u0431\u043e\u043b\u044c\u0448\u0435 52%, \u2014 \u0434\u043b\u044f \u043c\u043e\u043b\u043e\u0447\u043d\u043e\u0439 \u043b\u0430\u0432\u043a\u0438 \u044d\u0442\u043e \u0432\u0440\u044f\u0434 \u043b\u0438. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: 4 \u0434\u043d\u044f \u043a\u0430\u0441\u0441\u0430 \u043d\u0435 \u0432\u044b\u0433\u0440\u0443\u0437\u0438\u043b\u0430\u0441\u044c, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0441\u0443\u043c\u043c\u044b \u0437\u0430 \u044d\u0442\u0438 \u043c\u0435\u0441\u044f\u0446\u044b \u043d\u0435\u043c\u043d\u043e\u0433\u043e \u0437\u0430\u043d\u0438\u0436\u0435\u043d\u044b. \u0421\u043e\u0432\u0435\u0442: \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0443\u044e \u0430\u043a\u0446\u0438\u044e \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0441 \u0440\u0435\u043a\u043b\u0430\u043c\u043e\u0439 \u0432 3\u20134 \u0440\u0430\u0437\u0430 \u0434\u0435\u0448\u0435\u0432\u043b\u0435 \u0438 \u0441\u0440\u0430\u0432\u043d\u0438\u0442\u044c \u0440\u0435\u0437\u0443\u043b\u044c\u0442\u0430\u0442 \u0441 \u043e\u0431\u044b\u0447\u043d\u043e\u0439 \u043d\u0435\u0434\u0435\u043b\u0435\u0439.", "case_xp": 30, "cheat": [["s = df.assign(date=pd.to_datetime(df[\"date\"])).set_index(\"date\")", "\u0434\u0430\u0442\u0430 \u0432 \u0438\u043d\u0434\u0435\u043a\u0441"], ["s.asfreq(\"D\")", "\u043a\u0430\u0436\u0434\u044b\u0439 \u0434\u0435\u043d\u044c \u043f\u043e \u043f\u043e\u0440\u044f\u0434\u043a\u0443, \u043f\u0440\u043e\u043f\u0443\u0441\u043a\u0438 \u0432\u0438\u0434\u043d\u044b"], ["s.resample(\"W\").sum()", "\u043f\u043e \u043d\u0435\u0434\u0435\u043b\u044f\u043c"], ["s.resample(\"MS\").sum()", "\u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c"], ["s[\"x\"].rolling(7).mean()", "\u0441\u043a\u043e\u043b\u044c\u0437\u044f\u0449\u0435\u0435 \u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u0437\u0430 7 \u0434\u043d\u0435\u0439"], ["s[\"x\"].shift(1)", "\u043f\u0440\u043e\u0448\u043b\u043e\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435"], ["s[\"x\"].pct_change() * 100", "\u0440\u043e\u0441\u0442 \u0432 %"], ["s.loc[\"2026-06-10\":\"2026-06-16\"]", "\u0441\u0440\u0435\u0437 \u043f\u043e \u0434\u0430\u0442\u0430\u043c"]], "data": "../../data/", "datasets": ["sutli_sales.csv"], "day": 16, "hint_cost": 5, "quiz": [1, 0, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"sutli_sales.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["269", "4"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["date", "2026-01-01 196.9", "2026-02-01 171.8", "2026-03-01 202.4", "2026-06-01 271.4", "2026-07-01 230.5", "2026-08-01 242.2", "2026-09-01 246.4"], "setup": "s = df.assign(date=pd.to_datetime(df[\"date\"])).set_index(\"date\")", "xp": 10}, {"figure": false, "id": "t3", "keys": ["date", "2026-01-01 NaN", "2026-02-01 -12.8", "2026-03-01 17.8", "2026-06-01 18.9", "2026-07-01 -15.1", "2026-08-01 5.0", "2026-09-01 1.7"], "setup": "s = df.assign(date=pd.to_datetime(df[\"date\"])).set_index(\"date\")", "xp": 15}, {"figure": false, "id": "t4", "keys": ["date", "2026-06-14 1771", "2026-06-21 1402", "2026-09-27 1275"], "setup": "s = df.assign(date=pd.to_datetime(df[\"date\"])).set_index(\"date\")", "xp": 15}, {"figure": false, "id": "t5", "keys": ["date", "2026-02-01 132.7", "2026-05-01 144.7", "2026-09-01 161.3"], "setup": "s = df.assign(date=pd.to_datetime(df[\"date\"])).set_index(\"date\")", "xp": 20}, {"figure": false, "id": "t6", "keys": ["155.4 292.3", "47509000", "24500000"], "setup": "s = df.assign(date=pd.to_datetime(df[\"date\"])).set_index(\"date\")", "xp": 15}, {"figure": false, "id": "t7", "keys": ["revenue_mln orders avg_check roas growth_pct", "date", "2026-01-01 196.9 4083 48230 7.43 NaN", "2026-02-01 171.8 3622 47429 7.62 -12.8", "2026-06-01 271.4 5768 47049 6.21 18.9", "2026-07-01 230.5 4844 47591 9.10 -15.1", "2026-08-01 242.2 5200 46568 9.04 5.0", "2026-09-01 246.4 5115 48170 9.42 1.7"], "setup": "s = df.assign(date=pd.to_datetime(df[\"date\"])).set_index(\"date\")", "xp": 25}], "theory": ["brief", "resample", "rolling", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

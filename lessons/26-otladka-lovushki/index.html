@@ -1,0 +1,704 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 26. Отладка и ловушки: CoW, NaN-логика, взрыв джойна — Pandas Sprint</title>
+<meta name="description" content="Урок 26 курса Pandas Sprint — Отладка и ловушки: CoW, NaN-логика, взрыв джойна. Найти тихие ошибки, которые не падают, но портят цифры.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/26-otladka-lovushki/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 26. Отладка и ловушки: CoW, NaN-логика, взрыв джойна — Pandas Sprint">
+<meta property="og:description" content="Урок 26 курса Pandas Sprint — Отладка и ловушки: CoW, NaN-логика, взрыв джойна. Найти тихие ошибки, которые не падают, но портят цифры.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/26-otladka-lovushki/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="26">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#cow"><span class="dot">✓</span>Изменения</a></li><li><a href="#nan"><span class="dot">✓</span>NaN-логика</a></li><li><a href="#join"><span class="dot">✓</span>Взрыв джойна</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Тихие ошибки: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Многие ловушки знакомы по SQL, но в pandas ведут себя иначе.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>WHERE country &lt;&gt; &#39;UZ&#39; (NULL не попадает)</code></td><td><code>tx[&#34;country&#34;] != &#34;UZ&#34; (NaN попадает!)</code></td><td>разная логика пустых</td></tr><tr><td><code>UPDATE tx SET amount = 0 WHERE amount IS NULL</code></td><td><code>tx.loc[tx[&#34;amount&#34;].isna(), &#34;amount&#34;] = 0</code></td><td>изменение строк</td></tr><tr><td><code>COUNT(*) и COUNT(amount)</code></td><td><code>size() и count()</code></td><td>все строки и непустые</td></tr><tr><td><code>JOIN с повторами ключа — тоже размножает строки</code></td><td><code>merge(..., validate=&#34;many_to_one&#34;)</code></td><td>защита от взрыва</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 26 из 30 · Неделя 4 · Бизнес-кейсы</div>
+      <h1>Отладка и ловушки: <mark>тихие ошибки</mark></h1>
+      <p class="lead">Самые опасные ошибки в анализе — не те, после которых код падает, а те, после которых он спокойно выдаёт неправильные цифры. Изменение, которое не сохранилось. Пустые клетки, которые «прошли» фильтр. Соединение таблиц, которое удвоило деньги. Сегодня собираем главные тихие ловушки pandas и учимся ставить проверки, которые их ловят.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Разобрать отчёт с тремя тихими ошибками — несохранённое изменение, неверная логика с пустыми значениями и задвоение при соединении — исправить их и написать функцию проверки данных, которая будет запускаться перед каждым отчётом.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Объяснять, почему цепочка <code class="i">df[…][…] = …</code> ничего не меняет в pandas 3.0, и использовать <code class="i">.loc</code></li><li>Помнить, как NaN ведёт себя в сравнениях, суммах и средних</li><li>Находить причину «взрыва» строк после merge</li><li>Писать проверки через <code class="i">assert</code> и функцию валидации данных</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Цифры отчёта не сходятся</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Т</span>Тимур <small>руководитель аналитики · 16:40</small></div>
+          <p>Привет! Стажёр собрал два отчёта: по транзакциям Oltin Pay и по выручке Tomosha+. Код не падает, но цифры не сходятся с бухгалтерией. Найди, пожалуйста, ошибки и сделай так, чтобы такое больше не проскакивало.</p>
+<div class="file">▤ oltinpay_tx.csv · транзакции (урок 2)</div><div class="file">▤ tomosha_users.csv и tomosha_payments.csv · подписки (урок 11)</div>        </div>
+      </div>
+      <p class="note">Это знакомые данные из уроков 2 и 11, все три таблицы уже загружены: <code class="i">tx</code>, <code class="i">users</code>, <code class="i">pay</code>. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/oltinpay_tx.csv" download>Скачать oltinpay_tx.csv</a><a class="btn main" href="../../data/tomosha_users.csv" download>Скачать tomosha_users.csv</a><a class="btn main" href="../../data/tomosha_payments.csv" download>Скачать tomosha_payments.csv</a><span class="note">3 файла · 230 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+tx = pd.read_csv(&#34;oltinpay_tx.csv&#34;)
+users = pd.read_csv(&#34;tomosha_users.csv&#34;)
+pay = pd.read_csv(&#34;tomosha_payments.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="cow">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Изменение, которое не сохранилось</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь, что ты взял ксерокопию документа и исправил ошибку на копии. Оригинал остался с ошибкой. В pandas 3.0 то же самое: <code class="i">tx[маска]</code> — это новая таблица-копия, и запись в неё не меняет tx. Это правило называется <b>Copy-on-Write</b> («копия при записи»).</p>
+  <ul>
+    <li><b>Не работает:</b> <code class="i">tx[tx["status"] == "declined"]["amount"] = 0</code> — две пары скобок подряд, запись в копию.</li>
+    <li><b>Работает:</b> <code class="i">tx.loc[tx["status"] == "declined", "amount"] = 0</code> — один .loc со строками и колонкой.</li>
+    <li>pandas 3.0 предупреждает о такой записи (ChainedAssignmentError), но предупреждение легко не заметить.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Запись в копию.</b></div><pre class="code" data-cm>t = tx.copy()
+print(t[&quot;amount&quot;].isna().sum())
+t[t[&quot;amount&quot;].isna()][&quot;amount&quot;] = 0      # пишем в копию — t не изменится
+print(t[&quot;amount&quot;].isna().sum())
+t.loc[t[&quot;amount&quot;].isna(), &quot;amount&quot;] = 0  # правильно
+print(t[&quot;amount&quot;].isna().sum())</pre><div class="out">18
+18
+0</div><p class="plain"><b>Простыми словами:</b> после первой попытки пустых по-прежнему 18 — изменение ушло в копию. После .loc пустых 0.</p></div></div>
+    </section>
+    <section id="nan">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Как ведут себя пустые значения</h2>
+      <div class="simple"><span class="tag">Правила NaN, которые надо помнить</span>
+  <ul>
+    <li><code class="i">NaN != "UZ"</code> — <b>True</b>. Поэтому фильтр «не равно» пропускает пустые клетки.</li>
+    <li><code class="i">NaN == NaN</code> — <b>False</b>. Пустые ищут только через <code class="i">isna()</code>.</li>
+    <li><code class="i">sum()</code> и <code class="i">mean()</code> молча пропускают NaN. Если заменить NaN на 0, среднее станет меньше.</li>
+    <li><code class="i">size()</code> считает все строки, <code class="i">count()</code> — только непустые.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>2. «Не равно» и пустые.</b></div><pre class="code" data-cm>print((tx[&quot;country&quot;] != &quot;UZ&quot;).sum())
+print((tx[&quot;country&quot;].notna() &amp; (tx[&quot;country&quot;] != &quot;UZ&quot;)).sum())</pre><div class="out">213
+186</div><p class="plain"><b>Простыми словами:</b> разница 27 — это транзакции без страны, которые наивный фильтр посчитал иностранными.</p></div>
+<div class="card"><div class="q"><b>3. Среднее с пропусками и с нулями.</b></div><pre class="code" data-cm>print(round(tx[&quot;amount&quot;].mean()), round(tx[&quot;amount&quot;].fillna(0).mean()))</pre><div class="out">1098531 1085349</div><p class="plain"><b>Простыми словами:</b> заполнив пустые суммы нулём, мы «нашли» 18 транзакций по 0 сум, которых не было, и среднее уменьшилось.</p></div></div>
+    </section>
+    <section id="join">
+      <div class="eyebrow">04 · Теория</div>
+      <h2>Соединение, которое удвоило деньги</h2>
+      <div class="simple"><span class="tag">Как ловить ошибки заранее</span>
+  <ul>
+    <li>Если в правой таблице ключ повторяется, merge размножит строки левой. Деньги «вырастут», хотя новых платежей не было.</li>
+    <li><code class="i">validate="many_to_one"</code> — merge сам упадёт с понятной ошибкой, если в правой таблице есть повторы ключа.</li>
+    <li><code class="i">assert условие, "сообщение"</code> — «проверь, что условие верно, иначе останови код с этим сообщением». Это сигнализация для данных: лучше упасть, чем отдать неверные цифры.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>4. Взрыв джойна на игрушечном примере.</b> Два платежа и справочник, где один человек записан дважды.</div><pre class="code" data-cm>p2 = pd.DataFrame({&quot;user_id&quot;: [1, 2], &quot;amount&quot;: [100, 50]})
+u2 = pd.DataFrame({&quot;user_id&quot;: [1, 1, 2], &quot;plan&quot;: [&quot;basic&quot;, &quot;pro&quot;, &quot;basic&quot;]})   # у человека 1 две записи
+j = p2.merge(u2, on=&quot;user_id&quot;, how=&quot;left&quot;)
+print(j)
+print(&quot;денег было:&quot;, p2[&quot;amount&quot;].sum(), &quot;— после соединения:&quot;, j[&quot;amount&quot;].sum())</pre><div class="out">   user_id  amount   plan
+0        1     100  basic
+1        1     100    pro
+2        2      50  basic
+денег было: 150 — после соединения: 250</div><p class="plain"><b>Простыми словами:</b> платёж человека 1 нашёл в справочнике <b>две</b> пары и превратился в две строки. Денег «стало» 250 вместо 150, хотя новых платежей не было. Так и появляется лишняя выручка в отчёте.</p></div>
+<div class="card"><div class="q"><b>5. Строк стало больше.</b> То же на настоящих данных.</div><pre class="code" data-cm>joined = pay.merge(users, on=&quot;user_id&quot;, how=&quot;left&quot;)
+print(len(pay), len(joined))
+print(users[&quot;user_id&quot;].duplicated().sum())</pre><div class="out">1261 1309
+24</div><p class="plain"><b>Простыми словами:</b> платежей 1261, а после соединения 1309 строк: у 24 пользователей в справочнике по две записи.</p></div>
+<div class="card"><div class="q"><b>6. assert ловит ошибку до отчёта.</b></div><pre class="code" data-cm>try:
+    assert users[&quot;user_id&quot;].is_unique, &quot;в справочнике пользователей повторяется user_id&quot;
+except AssertionError as e:
+    print(&quot;Проверка не прошла:&quot;, e)</pre><div class="out">Проверка не прошла: в справочнике пользователей повторяется user_id</div><p class="plain"><b>Простыми словами:</b> assert остановил бы скрипт с понятным сообщением. <code class="i">try … except</code> значит «попробуй выполнить; если случится такая-то ошибка — не падай, а сделай вот это». Здесь он нужен только для примера — чтобы показать текст ошибки, а не остановить страницу.</p></div>
+<div class="card"><div class="q"><b>7. Функция-чеклист для данных.</b> Каждая строка — одна проверка. Приём для задачи 7.</div><pre class="code" data-cm>def quick_check(d):
+    return pd.Series({
+        &quot;строк&quot;: len(d),
+        &quot;полных дублей&quot;: d.duplicated().sum(),
+        &quot;пустых сумм&quot;: d[&quot;amount&quot;].isna().sum(),
+        &quot;сумм ≤ 0&quot;: (d[&quot;amount&quot;] &lt;= 0).sum(),
+    })
+
+quick_check(tx)</pre><div class="out">строк            1500
+полных дублей       0
+пустых сумм        18
+сумм ≤ 0            0
+dtype: int64</div><p class="plain"><b>Простыми словами:</b> одна функция собирает главные проверки в Series. Её запускают перед каждым отчётом: если где-то не ноль, сначала разбираются с данными. Обрати внимание: пустые суммы и «сумма ≤ 0» считаются отдельно — сравнение с NaN всегда даёт False.</p></div></div>
+<div class="callout"><b>Правило аналитика.</b> Перед каждым отчётом запускай проверки: число строк, уникальность ключей, пустые значения, допустимые значения статусов. Пять строк проверок экономят часы поиска ошибок потом.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">05 · Ловушки</div>
+      <h2>Пять тихих ошибок</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Двойные скобки для записи</h3><div class="bad">df[df[&#34;a&#34;] &gt; 0][&#34;b&#34;] = 1      # ничего не изменилось</div><div class="good">df.loc[df[&#34;a&#34;] &gt; 0, &#34;b&#34;] = 1</div><p>Копия при записи (Copy-on-Write) в pandas 3.0: запись через цепочку скобок уходит в копию.</p></div>
+        <div class="trap"><span class="n">2</span><h3>!= с пустыми</h3><div class="bad">df[df[&#34;country&#34;] != &#34;UZ&#34;]</div><div class="good">df[df[&#34;country&#34;].notna() &amp; (df[&#34;country&#34;] != &#34;UZ&#34;)]</div><p>NaN != что угодно — True. Пустые значения проходят фильтр «не равно».</p></div>
+        <div class="trap"><span class="n">3</span><h3>fillna(0) перед средним</h3><p>Пустая клетка — «не знаем», а не «ноль». Заполнение нулём занижает средние и медианы.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Повторы ключа в справочнике</h3><p>merge с таким справочником размножает строки. Всегда проверяй <code class="i">is_unique</code> и ставь <code class="i">validate</code>.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Проверка глазами</h3><p>«Вроде похоже на правду» — не проверка. Сверяй итог с независимым числом: общей суммой из бухгалтерии, числом строк до и после.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: защита от тихих ошибок</h3>
+        <ol><li>df.loc[маска, &#34;col&#34;] = значение <span>— изменение, которое сохранится</span></li><li>s.notna() &amp; (s != &#34;x&#34;) <span>— «не равно» без пустых</span></li><li>s.isna().sum() <span>— сколько пустых</span></li><li>groupby(...).size() vs .count() <span>— все строки и непустые</span></li><li>merge(..., validate=&#34;many_to_one&#34;) <span>— защита от размножения строк</span></li><li>assert df[&#34;id&#34;].is_unique, &#34;сообщение&#34; <span>— проверка с остановкой</span></li><li>assert len(after) == len(before) <span>— строк не стало больше</span></li><li>s[~s.isin(allowed)] <span>— недопустимые значения</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">06 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что произойдёт после <code>df[df["a"] > 0]["b"] = 1</code> в pandas 3.0?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>b изменится у нужных строк</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>df не изменится</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Удалятся строки</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Код упадёт всегда</span></button></div>
+          <div class="why" hidden>Запись идёт в копию (Copy-on-Write), исходная df остаётся прежней.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Чему равно <code>np.nan != "UZ"</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>False</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>True</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибка</span></button></div>
+          <div class="why" hidden>Любое «не равно» с NaN даёт True.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Чем <code>count()</code> отличается от <code>size()</code> в groupby?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>count не считает пустые значения</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>size не считает пустые</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>count быстрее</span></button></div>
+          <div class="why" hidden>size — все строки группы, count — только непустые значения колонки.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. После merge строк стало больше, чем было в левой таблице. Почему?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Так всегда</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В правой таблице повторяется ключ</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В левой есть пустые</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибка pandas</span></button></div>
+          <div class="why" hidden>Каждая строка левой таблицы соединилась с несколькими строками правой.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Что делает <code>assert len(a) == len(b), "строк стало больше"</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удаляет лишние строки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Останавливает код с сообщением, если условие неверно</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Печатает длину</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ничего</span></button></div>
+          <div class="why" hidden>assert — проверка: если условие ложно, выполнение прерывается с AssertionError и текстом сообщения.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">07 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Исправь несохранённое изменение</h3>
+            <p>Стажёр хотел поставить сумму 0 отклонённым транзакциям без суммы, но написал <code class='i'>tx[tx["status"] == "declined"]["amount"] = 0</code>.</p> <ol class='steps-t'><li>Напечатай, сколько пустых amount у отклонённых транзакций.</li> <li>Исправь запись через <code class='i'>.loc</code> (для строк: отклонена и сумма пустая).</li> <li>Напечатай, сколько пустых amount у отклонённых осталось, и сколько пустых amount во всей таблице.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 26 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">declined = tx[&#34;status&#34;] == &#34;declined&#34;
+# пустых у отклонённых до
+
+# исправленная запись
+
+# пустых после и всего
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1
+0 17</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>declined = tx[&#34;status&#34;] == &#34;declined&#34;
+# пустых у отклонённых до
+
+# исправленная запись
+
+# пустых после и всего
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Запись <code class="i">tx[маска]["amount"] = 0</code> меняет временную копию, а не саму таблицу. Чтобы изменение сохранилось, строки и колонку выбирают за один раз — одним loc.</p>
+<p><b>Чем это сделать.</b> <code class="i">tx.loc[маска_строк, "колонка"] = значение</code> — запись прямо в таблицу. Маска «отклонена и сумма пустая»: <code class="i">declined & tx["amount"].isna()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(tx.loc[declined, &#34;amount&#34;].___().sum())
+tx.loc[declined &amp; tx[&#34;amount&#34;].___(), &#34;___&#34;] = 0
+print(tx.loc[declined, &#34;amount&#34;].isna().sum(), tx[&#34;amount&#34;].isna().sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Две пары квадратных скобок подряд (<code class="i">tx[...][...] = </code>) — признак того, что запись может не сохраниться.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Иностранные транзакции</h3>
+            <ol class='steps-t'><li>Напечатай, сколько транзакций насчитал стажёр: <code class='i'>(tx["country"] != "UZ").sum()</code>.</li> <li>Напечатай правильное число (без пустых стран).</li> <li>Напечатай разницу и проверь: она равна числу пустых стран.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 26 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">naive =
+correct =
+
+# naive, correct, разница и пустые страны
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">213 186 27 27</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>naive =
+correct =
+
+# naive, correct, разница и пустые страны
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сравнение «не равно UZ» для пустой страны даёт True — поэтому пустые страны засчитались как иностранные. Правильный подсчёт сначала проверяет, что страна вообще указана.</p>
+<p><b>Чем это сделать.</b> <code class="i">tx["country"].notna() & (tx["country"] != "UZ")</code>. Пустые — <code class="i">.isna().sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>naive = (tx[&#34;country&#34;] != &#34;UZ&#34;).sum()
+correct = (tx[&#34;country&#34;].___() &amp; (tx[&#34;country&#34;] != &#34;UZ&#34;)).sum()
+print(naive, correct, naive - correct, tx[&#34;country&#34;].___().sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если разница не равна числу пустых стран, значит, в маске что-то лишнее.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>size или count</h3>
+            <ol class='steps-t'><li>Почисти город: strip + capitalize.</li> <li>По городу: <code class='i'>rows</code> — все транзакции (size), <code class='i'>with_amount</code> — транзакции с суммой (count по amount), <code class='i'>missing</code> — разница.</li> <li>Отсортируй по rows.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 26 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">city = tx[&#34;city&#34;].str.strip().str.capitalize()
+check = (
+    tx
+    # твой код
+)
+check
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           rows  with_amount  missing
+city
+Ташкент     818          807       11
+Самарканд   226          223        3
+Бухара      194          193        1
+Фергана     146          143        3
+Нукус       116          116        0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>city = tx[&#34;city&#34;].str.strip().str.capitalize()
+check = (
+    tx
+    # твой код
+)
+check
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> size считает все строки группы, count — только строки с заполненной суммой. Их разница — пропущенные суммы по городу. Группировать можно по уже почищенной Series city.</p>
+<p><b>Чем это сделать.</b> <code class="i">tx.groupby(city).agg(rows=("tx_id", "size"), with_amount=("amount", "count"))</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>check = (
+    tx
+    .groupby(___)
+    .agg(rows=(&#34;tx_id&#34;, &#34;___&#34;), with_amount=(&#34;amount&#34;, &#34;___&#34;))
+    .assign(missing=lambda d: d[&#34;___&#34;] - d[&#34;___&#34;])
+    .sort_values(&#34;rows&#34;, ascending=False)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если взять count для rows, разница всегда будет 0 — ошибка спрячется.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Взрыв джойна</h3>
+            <ol class='steps-t'><li>Напечатай: платежей в <code class='i'>pay</code> и строк после <code class='i'>pay.merge(users, on="user_id", how="left")</code>.</li> <li>Сделай справочник без повторов: сортировка по updated_at, оставить последнюю запись → <code class='i'>uc</code>.</li> <li>Соедини снова с <code class='i'>validate="many_to_one"</code> и напечатай число строк.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 26 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4"># платежей и строк после наивного соединения
+
+uc =
+
+# соединение с validate
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1261 1309
+1261</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># платежей и строк после наивного соединения
+
+uc =
+
+# соединение с validate
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сравни число платежей до и после склейки со справочником, где у некоторых пользователей по две записи. Потом оставь в справочнике последнюю запись каждого и склей с проверкой «много к одному».</p>
+<p><b>Чем это сделать.</b> <code class="i">sort_values("updated_at").drop_duplicates("user_id", keep="last")</code>. <code class="i">validate="many_to_one"</code> упадёт, если справочник не уникален.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(len(pay), len(pay.merge(users, on=&#34;___&#34;, how=&#34;left&#34;)))
+uc = users.sort_values(&#34;___&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;___&#34;)
+print(len(pay.merge(uc, on=&#34;user_id&#34;, how=&#34;left&#34;, validate=&#34;___&#34;)))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Число строк после left-джойна должно равняться числу платежей. Больше — значит, что-то задвоилось.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько денег «нарисовал» джойн</h3>
+            <ol class='steps-t'><li>Возьми только успешные платежи → <code class='i'>ok</code>. Их настоящая сумма — <code class='i'>ok["amount"].sum()</code>.</li> <li>Посчитай сумму после наивного соединения с <code class='i'>users</code> и после правильного (с <code class='i'>uc</code>).</li> <li>Напечатай три суммы в млн (2 знака) и завышение наивного варианта в % (1 знак).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 26 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">ok = pay[pay[&#34;status&#34;] == &#34;success&#34;]
+uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+
+true_sum =
+naive_sum =
+fixed_sum =
+
+# три суммы в млн и завышение, %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">66.02 68.91 66.02
+4.4</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ok = pay[pay[&#34;status&#34;] == &#34;success&#34;]
+uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+
+true_sum =
+naive_sum =
+fixed_sum =
+
+# три суммы в млн и завышение, %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сравни три суммы успешных платежей: настоящую (без склейки), после наивной склейки и после правильной. Завышение — на сколько процентов наивная больше настоящей.</p>
+<p><b>Чем это сделать.</b> После merge берёшь колонку и суммируешь: <code class="i">ok.merge(...)["amount"].sum()</code>. Завышение: <code class="i">(naive / true - 1) * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>true_sum = ok[&#34;amount&#34;].___()
+naive_sum = ok.merge(___, on=&#34;user_id&#34;, how=&#34;left&#34;)[&#34;amount&#34;].sum()
+fixed_sum = ok.merge(___, on=&#34;user_id&#34;, how=&#34;left&#34;, validate=&#34;many_to_one&#34;)[&#34;amount&#34;].sum()
+print(round(true_sum / 1e6, 2), round(naive_sum / 1e6, 2), round(fixed_sum / 1e6, 2))
+print(round((naive_sum / ___ - 1) * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Правильная сумма после склейки должна совпасть с настоящей. Если нет — справочник ещё не чистый.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Проверка через assert</h3>
+            <ol class='steps-t'><li>Напиши функцию <code class='i'>check_unique(df, col)</code>: <code class='i'>assert df[col].is_unique</code> с сообщением <code class='i'>f"повторы в {col}: {df[col].duplicated().sum()}"</code>.</li> <li>Вызови её для <code class='i'>users</code> внутри try/except и напечатай текст ошибки.</li> <li>Вызови для очищенного справочника и напечатай «ок».</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 26 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">def check_unique(df, col):
+    # твой код
+    pass
+
+try:
+    check_unique(users, &#34;user_id&#34;)
+except AssertionError as e:
+    print(&#34;ошибка:&#34;, e)
+
+uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+# проверка uc и печать «ок»
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">ошибка: повторы в user_id: 24
+ок</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>def check_unique(df, col):
+    # твой код
+    pass
+
+try:
+    check_unique(users, &#34;user_id&#34;)
+except AssertionError as e:
+    print(&#34;ошибка:&#34;, e)
+
+uc = users.sort_values(&#34;updated_at&#34;).drop_duplicates(&#34;user_id&#34;, keep=&#34;last&#34;)
+# проверка uc и печать «ок»
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> assert — «проверь, что это правда, иначе остановись с сообщением». Функция проверяет, что в колонке нет повторов. Для грязного справочника она упадёт (и try поймает ошибку), для чистого — пройдёт молча.</p>
+<p><b>Чем это сделать.</b> <code class="i">assert условие, "сообщение"</code>. Условие — <code class="i">df[col].is_unique</code>, в сообщении — число повторов.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>def check_unique(df, col):
+    assert df[col].___, f&#34;повторы в {col}: {df[col].___().sum()}&#34;
+
+check_unique(uc, &#34;user_id&#34;)
+print(&#34;___&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сообщение пишется через запятую после условия, а не в скобках: <code class="i">assert(усл, "текст")</code> всегда «правда».</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Функция проверки данных</h3>
+            <p>Напиши функцию <code class='i'>validate_tx(df)</code>, которая возвращает Series с проверками:</p> <ol class='steps-t'><li><code class='i'>rows</code> — число строк; <code class='i'>dup_rows</code> — полных дублей;</li> <li><code class='i'>dup_tx_id</code> — повторов tx_id; <code class='i'>empty_amount</code> — пустых сумм;</li> <li><code class='i'>bad_amount</code> — сумм ≤ 0; <code class='i'>bad_status</code> — статусов не из {success, declined, reversed};</li> <li><code class='i'>dirty_city</code> — строк, где город меняется после strip + capitalize.</li></ol> <p class='rule-t'>Вызови её для tx и выведи результат.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 26 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">def validate_tx(df):
+    return pd.Series({
+        &#34;rows&#34;: len(df),
+        # продолжи
+    })
+
+validate_tx(tx)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">rows            1500
+dup_rows           0
+dup_tx_id          0
+empty_amount      18
+bad_amount         0
+bad_status         0
+dirty_city        23
+dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>def validate_tx(df):
+    return pd.Series({
+        &#34;rows&#34;: len(df),
+        # продолжи
+    })
+
+validate_tx(tx)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Функция-чеклист: каждое число — одна простая проверка, которую ты уже делал в курсе (дубли, повторы ключа, пустые, недопустимые значения, грязный текст). Собери их в одну Series.</p>
+<p><b>Чем это сделать.</b> Недопустимый статус: <code class="i">~df["status"].isin([...])</code>. Грязный город — тот, что меняется после чистки: <code class="i">df["city"] != df["city"].str.strip().str.capitalize()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>def validate_tx(df):
+    return pd.Series({
+        &#34;rows&#34;: len(df),
+        &#34;dup_rows&#34;: df.___().sum(),
+        &#34;dup_tx_id&#34;: df[&#34;tx_id&#34;].___().sum(),
+        &#34;empty_amount&#34;: df[&#34;amount&#34;].___().sum(),
+        &#34;bad_amount&#34;: (df[&#34;amount&#34;] ___ 0).sum(),
+        &#34;bad_status&#34;: (~df[&#34;status&#34;].isin([___, ___, ___])).sum(),
+        &#34;dirty_city&#34;: (df[&#34;city&#34;] != df[&#34;city&#34;].str.strip().str.capitalize()).sum(),
+    })</pre></div><p class="hint-trap"><b>Частая ошибка.</b> bad_amount — суммы ≤ 0, а пустые суммы считаются отдельно (сравнение с NaN даёт False и сюда не попадёт).</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">08 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Тимуру</h2>
+      <div class="case">
+        <p>Напиши Тимуру отчёт о найденных ошибках. Не больше 6 предложений. Структура: <b>три ошибки стажёра, каждая с цифрой (как она исказила отчёт) → что ты исправил → какие проверки теперь запускаются перед каждым отчётом</b>. Без упрёков стажёру.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Пустых сумм осталось</span><span class="fact-chip">Иностранных транзакций (правильно)</span><span class="fact-chip">Выручка после правильной склейки</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Тимур, привет! Нашёл три причины …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Какие три ошибки ты называешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Изменение не сохранилось; пустая страна посчиталась иностранной; повторы в справочнике задвоили платежи</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Опечатки в названиях колонок</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Неправильная версия pandas</span></button></div>
+            <div class="why" hidden>Это три «тихие» ошибки: код работает без падений, но цифры неверные.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Как ты говоришь о стажёре?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Без упрёков: это частые ошибки, их полезно разобрать</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Стажёр виноват, надо его наказать</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Стажёра не упоминаю</span></button></div>
+            <div class="why" hidden>Задача — исправить процесс, а не найти виноватого.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Что теперь защищает отчёт от таких ошибок?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Функция проверки перед каждым отчётом, которая останавливает скрипт с понятным сообщением</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ничего, просто будем внимательнее</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Будем считать всё вручную</span></button></div>
+            <div class="why" hidden>Автоматические проверки (assert, validate) ловят ошибки до того, как цифры уйдут руководителю.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Тимур, привет! Нашёл три причины расхождений. Первая: замена пустых сумм на 0 была записана так, что изменение не сохранилось, — в таблице осталось 18 пустых сумм. Вторая: фильтр «страна не Узбекистан» посчитал иностранными ещё 27 транзакций без страны — вышло 213 вместо 186. Третья: в справочнике Tomosha+ у 24 пользователей по две записи, и соединение задвоило их платежи — выручка получилась 68,91 млн вместо 66,02 млн. Всё исправил, а перед каждым отчётом теперь запускается функция проверки: дубли, повторы ключей, пустые и недопустимые значения, грязные названия городов — если что-то не так, скрипт остановится с понятным сообщением. Предлагаю показать стажёру эти примеры: это частые ошибки, их полезно разобрать один раз.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Три ошибки, у каждой — цифра</li><li>Понятно, что исправлено</li><li>Конкретные проверки на будущее</li><li>Доброжелательный тон</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">09 · Завершить урок</div>
+        <h2>Закрыть урок 26</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/25-vvod-vyvod-avtomatizaciya/"><small>← Урок 25</small><b>Ввод-вывод и автоматизация отчёта</b></a><a class="nx" href="../../lessons/27-interview-day/"><small>Проект 27 →</small><b>Interview day: 10 задач на время</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041f\u0443\u0441\u0442\u044b\u0445 \u0441\u0443\u043c\u043c \u043e\u0441\u0442\u0430\u043b\u043e\u0441\u044c", "value": 18}, {"name": "\u0418\u043d\u043e\u0441\u0442\u0440\u0430\u043d\u043d\u044b\u0445 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0439 (\u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e)", "value": 186}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e\u0441\u043b\u0435 \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e\u0439 \u0441\u043a\u043b\u0435\u0439\u043a\u0438", "value": 66020000}], "logic": [{"a": 0, "o": ["\u0418\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u043d\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u043b\u043e\u0441\u044c; \u043f\u0443\u0441\u0442\u0430\u044f \u0441\u0442\u0440\u0430\u043d\u0430 \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043b\u0430\u0441\u044c \u0438\u043d\u043e\u0441\u0442\u0440\u0430\u043d\u043d\u043e\u0439; \u043f\u043e\u0432\u0442\u043e\u0440\u044b \u0432 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0435 \u0437\u0430\u0434\u0432\u043e\u0438\u043b\u0438 \u043f\u043b\u0430\u0442\u0435\u0436\u0438", "\u041e\u043f\u0435\u0447\u0430\u0442\u043a\u0438 \u0432 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f\u0445 \u043a\u043e\u043b\u043e\u043d\u043e\u043a", "\u041d\u0435\u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u0430\u044f \u0432\u0435\u0440\u0441\u0438\u044f pandas"], "q": "\u041a\u0430\u043a\u0438\u0435 \u0442\u0440\u0438 \u043e\u0448\u0438\u0431\u043a\u0438 \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "\u042d\u0442\u043e \u0442\u0440\u0438 \u00ab\u0442\u0438\u0445\u0438\u0435\u00bb \u043e\u0448\u0438\u0431\u043a\u0438: \u043a\u043e\u0434 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442 \u0431\u0435\u0437 \u043f\u0430\u0434\u0435\u043d\u0438\u0439, \u043d\u043e \u0446\u0438\u0444\u0440\u044b \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0435."}, {"a": 0, "o": ["\u0411\u0435\u0437 \u0443\u043f\u0440\u0451\u043a\u043e\u0432: \u044d\u0442\u043e \u0447\u0430\u0441\u0442\u044b\u0435 \u043e\u0448\u0438\u0431\u043a\u0438, \u0438\u0445 \u043f\u043e\u043b\u0435\u0437\u043d\u043e \u0440\u0430\u0437\u043e\u0431\u0440\u0430\u0442\u044c", "\u0421\u0442\u0430\u0436\u0451\u0440 \u0432\u0438\u043d\u043e\u0432\u0430\u0442, \u043d\u0430\u0434\u043e \u0435\u0433\u043e \u043d\u0430\u043a\u0430\u0437\u0430\u0442\u044c", "\u0421\u0442\u0430\u0436\u0451\u0440\u0430 \u043d\u0435 \u0443\u043f\u043e\u043c\u0438\u043d\u0430\u044e"], "q": "\u041a\u0430\u043a \u0442\u044b \u0433\u043e\u0432\u043e\u0440\u0438\u0448\u044c \u043e \u0441\u0442\u0430\u0436\u0451\u0440\u0435?", "why": "\u0417\u0430\u0434\u0430\u0447\u0430 \u2014 \u0438\u0441\u043f\u0440\u0430\u0432\u0438\u0442\u044c \u043f\u0440\u043e\u0446\u0435\u0441\u0441, \u0430 \u043d\u0435 \u043d\u0430\u0439\u0442\u0438 \u0432\u0438\u043d\u043e\u0432\u0430\u0442\u043e\u0433\u043e."}, {"a": 0, "o": ["\u0424\u0443\u043d\u043a\u0446\u0438\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 \u043f\u0435\u0440\u0435\u0434 \u043a\u0430\u0436\u0434\u044b\u043c \u043e\u0442\u0447\u0451\u0442\u043e\u043c, \u043a\u043e\u0442\u043e\u0440\u0430\u044f \u043e\u0441\u0442\u0430\u043d\u0430\u0432\u043b\u0438\u0432\u0430\u0435\u0442 \u0441\u043a\u0440\u0438\u043f\u0442 \u0441 \u043f\u043e\u043d\u044f\u0442\u043d\u044b\u043c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435\u043c", "\u041d\u0438\u0447\u0435\u0433\u043e, \u043f\u0440\u043e\u0441\u0442\u043e \u0431\u0443\u0434\u0435\u043c \u0432\u043d\u0438\u043c\u0430\u0442\u0435\u043b\u044c\u043d\u0435\u0435", "\u0411\u0443\u0434\u0435\u043c \u0441\u0447\u0438\u0442\u0430\u0442\u044c \u0432\u0441\u0451 \u0432\u0440\u0443\u0447\u043d\u0443\u044e"], "q": "\u0427\u0442\u043e \u0442\u0435\u043f\u0435\u0440\u044c \u0437\u0430\u0449\u0438\u0449\u0430\u0435\u0442 \u043e\u0442\u0447\u0451\u0442 \u043e\u0442 \u0442\u0430\u043a\u0438\u0445 \u043e\u0448\u0438\u0431\u043e\u043a?", "why": "\u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0435 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438 (assert, validate) \u043b\u043e\u0432\u044f\u0442 \u043e\u0448\u0438\u0431\u043a\u0438 \u0434\u043e \u0442\u043e\u0433\u043e, \u043a\u0430\u043a \u0446\u0438\u0444\u0440\u044b \u0443\u0439\u0434\u0443\u0442 \u0440\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044e."}]}, "case_model": "\u0422\u0438\u043c\u0443\u0440, \u043f\u0440\u0438\u0432\u0435\u0442! \u041d\u0430\u0448\u0451\u043b \u0442\u0440\u0438 \u043f\u0440\u0438\u0447\u0438\u043d\u044b \u0440\u0430\u0441\u0445\u043e\u0436\u0434\u0435\u043d\u0438\u0439. \u041f\u0435\u0440\u0432\u0430\u044f: \u0437\u0430\u043c\u0435\u043d\u0430 \u043f\u0443\u0441\u0442\u044b\u0445 \u0441\u0443\u043c\u043c \u043d\u0430 0 \u0431\u044b\u043b\u0430 \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u0430 \u0442\u0430\u043a, \u0447\u0442\u043e \u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435 \u043d\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u043b\u043e\u0441\u044c, \u2014 \u0432 \u0442\u0430\u0431\u043b\u0438\u0446\u0435 \u043e\u0441\u0442\u0430\u043b\u043e\u0441\u044c 18 \u043f\u0443\u0441\u0442\u044b\u0445 \u0441\u0443\u043c\u043c. \u0412\u0442\u043e\u0440\u0430\u044f: \u0444\u0438\u043b\u044c\u0442\u0440 \u00ab\u0441\u0442\u0440\u0430\u043d\u0430 \u043d\u0435 \u0423\u0437\u0431\u0435\u043a\u0438\u0441\u0442\u0430\u043d\u00bb \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043b \u0438\u043d\u043e\u0441\u0442\u0440\u0430\u043d\u043d\u044b\u043c\u0438 \u0435\u0449\u0451 27 \u0442\u0440\u0430\u043d\u0437\u0430\u043a\u0446\u0438\u0439 \u0431\u0435\u0437 \u0441\u0442\u0440\u0430\u043d\u044b \u2014 \u0432\u044b\u0448\u043b\u043e 213 \u0432\u043c\u0435\u0441\u0442\u043e 186. \u0422\u0440\u0435\u0442\u044c\u044f: \u0432 \u0441\u043f\u0440\u0430\u0432\u043e\u0447\u043d\u0438\u043a\u0435 Tomosha+ \u0443 24 \u043f\u043e\u043b\u044c\u0437\u043e\u0432\u0430\u0442\u0435\u043b\u0435\u0439 \u043f\u043e \u0434\u0432\u0435 \u0437\u0430\u043f\u0438\u0441\u0438, \u0438 \u0441\u043e\u0435\u0434\u0438\u043d\u0435\u043d\u0438\u0435 \u0437\u0430\u0434\u0432\u043e\u0438\u043b\u043e \u0438\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0438 \u2014 \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e\u043b\u0443\u0447\u0438\u043b\u0430\u0441\u044c 68,91 \u043c\u043b\u043d \u0432\u043c\u0435\u0441\u0442\u043e 66,02 \u043c\u043b\u043d. \u0412\u0441\u0451 \u0438\u0441\u043f\u0440\u0430\u0432\u0438\u043b, \u0430 \u043f\u0435\u0440\u0435\u0434 \u043a\u0430\u0436\u0434\u044b\u043c \u043e\u0442\u0447\u0451\u0442\u043e\u043c \u0442\u0435\u043f\u0435\u0440\u044c \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0435\u0442\u0441\u044f \u0444\u0443\u043d\u043a\u0446\u0438\u044f \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0438: \u0434\u0443\u0431\u043b\u0438, \u043f\u043e\u0432\u0442\u043e\u0440\u044b \u043a\u043b\u044e\u0447\u0435\u0439, \u043f\u0443\u0441\u0442\u044b\u0435 \u0438 \u043d\u0435\u0434\u043e\u043f\u0443\u0441\u0442\u0438\u043c\u044b\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f, \u0433\u0440\u044f\u0437\u043d\u044b\u0435 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0433\u043e\u0440\u043e\u0434\u043e\u0432 \u2014 \u0435\u0441\u043b\u0438 \u0447\u0442\u043e-\u0442\u043e \u043d\u0435 \u0442\u0430\u043a, \u0441\u043a\u0440\u0438\u043f\u0442 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u0438\u0442\u0441\u044f \u0441 \u043f\u043e\u043d\u044f\u0442\u043d\u044b\u043c \u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435\u043c. \u041f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u043f\u043e\u043a\u0430\u0437\u0430\u0442\u044c \u0441\u0442\u0430\u0436\u0451\u0440\u0443 \u044d\u0442\u0438 \u043f\u0440\u0438\u043c\u0435\u0440\u044b: \u044d\u0442\u043e \u0447\u0430\u0441\u0442\u044b\u0435 \u043e\u0448\u0438\u0431\u043a\u0438, \u0438\u0445 \u043f\u043e\u043b\u0435\u0437\u043d\u043e \u0440\u0430\u0437\u043e\u0431\u0440\u0430\u0442\u044c \u043e\u0434\u0438\u043d \u0440\u0430\u0437.", "case_xp": 30, "cheat": [["df.loc[\u043c\u0430\u0441\u043a\u0430, \"col\"] = \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435", "\u0438\u0437\u043c\u0435\u043d\u0435\u043d\u0438\u0435, \u043a\u043e\u0442\u043e\u0440\u043e\u0435 \u0441\u043e\u0445\u0440\u0430\u043d\u0438\u0442\u0441\u044f"], ["s.notna() \u0026 (s != \"x\")", "\u00ab\u043d\u0435 \u0440\u0430\u0432\u043d\u043e\u00bb \u0431\u0435\u0437 \u043f\u0443\u0441\u0442\u044b\u0445"], ["s.isna().sum()", "\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043f\u0443\u0441\u0442\u044b\u0445"], ["groupby(...).size() vs .count()", "\u0432\u0441\u0435 \u0441\u0442\u0440\u043e\u043a\u0438 \u0438 \u043d\u0435\u043f\u0443\u0441\u0442\u044b\u0435"], ["merge(..., validate=\"many_to_one\")", "\u0437\u0430\u0449\u0438\u0442\u0430 \u043e\u0442 \u0440\u0430\u0437\u043c\u043d\u043e\u0436\u0435\u043d\u0438\u044f \u0441\u0442\u0440\u043e\u043a"], ["assert df[\"id\"].is_unique, \"\u0441\u043e\u043e\u0431\u0449\u0435\u043d\u0438\u0435\"", "\u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0441 \u043e\u0441\u0442\u0430\u043d\u043e\u0432\u043a\u043e\u0439"], ["assert len(after) == len(before)", "\u0441\u0442\u0440\u043e\u043a \u043d\u0435 \u0441\u0442\u0430\u043b\u043e \u0431\u043e\u043b\u044c\u0448\u0435"], ["s[~s.isin(allowed)]", "\u043d\u0435\u0434\u043e\u043f\u0443\u0441\u0442\u0438\u043c\u044b\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u044f"]], "data": "../../data/", "datasets": ["oltinpay_tx.csv", "tomosha_users.csv", "tomosha_payments.csv"], "day": 26, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ntx = pd.read_csv(\"oltinpay_tx.csv\")\nusers = pd.read_csv(\"tomosha_users.csv\")\npay = pd.read_csv(\"tomosha_payments.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["1", "0 17"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["213 186 27 27"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["rows with_amount missing", "city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 818 807 11", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 226 223 3", "\u0411\u0443\u0445\u0430\u0440\u0430 194 193 1", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 146 143 3", "\u041d\u0443\u043a\u0443\u0441 116 116 0"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["1261 1309", "1261"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["66.02 68.91 66.02", "4.4"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["\u043e\u0448\u0438\u0431\u043a\u0430: \u043f\u043e\u0432\u0442\u043e\u0440\u044b \u0432 user_id: 24", "\u043e\u043a"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["rows 1500", "dup_rows 0", "dup_tx_id 0", "empty_amount 18", "bad_amount 0", "bad_status 0", "dirty_city 23"], "setup": "", "xp": 25}], "theory": ["brief", "cow", "nan", "join", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

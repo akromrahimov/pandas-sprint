@@ -1,0 +1,789 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 6. Текст: .str-методы и очистка — Pandas Sprint</title>
+<meta name="description" content="Урок 6 курса Pandas Sprint — Текст: .str-методы и очистка. Почистить грязный текст: пробелы, регистр, опечатки, поиск по шаблону.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/06-tekst-str/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 6. Текст: .str-методы и очистка — Pandas Sprint">
+<meta property="og:description" content="Урок 6 курса Pandas Sprint — Текст: .str-методы и очистка. Почистить грязный текст: пробелы, регистр, опечатки, поиск по шаблону.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/06-tekst-str/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="6">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>Текст и .str</a></li><li><a href="#tools"><span class="dot">✓</span>7 приёмов</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">TRIM, LOWER, REPLACE, LIKE</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Всё, что ты делаешь с текстом в SQL, есть в pandas. Отличие: в SQL функция оборачивает колонку LOWER(city) , а в pandas пишешь колонку, потом .str , потом метод: df[&#34;city&#34;].str.lower() . Методы можно ставить цепочкой.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>TRIM(city)</code></td><td><code>df[&#34;city&#34;].str.strip()</code></td><td>пробелы по краям</td></tr><tr><td><code>LOWER(TRIM(city))</code></td><td><code>df[&#34;city&#34;].str.strip().str.lower()</code></td><td>цепочка: каждый шаг через .str</td></tr><tr><td><code>REPLACE(city, &#39;г. &#39;, &#39;&#39;)</code></td><td><code>df[&#34;city&#34;].str.replace(&#34;г. &#34;, &#34;&#34;, regex=False)</code></td><td>простая замена куска</td></tr><tr><td><code>CASE city WHEN &#39;tashkent&#39; THEN &#39;ташкент&#39; … END</code></td><td><code>s.replace({&#34;tashkent&#34;: &#34;ташкент&#34;})</code></td><td>замена целых значений словарём</td></tr><tr><td><code>title ILIKE &#39;%iphone%&#39;</code></td><td><code>df[&#34;title&#34;].str.contains(&#34;iphone&#34;, case=False)</code></td><td>маска True/False</td></tr><tr><td><code>title LIKE &#39;Чехол%&#39;</code></td><td><code>df[&#34;title&#34;].str.startswith(&#34;Чехол&#34;)</code></td><td>начинается с</td></tr><tr><td><code>REGEXP_REPLACE(price, &#39;\D&#39;, &#39;&#39;, &#39;g&#39;)::bigint</code></td><td><code>pd.to_numeric(s.str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)</code></td><td>число из текста</td></tr><tr><td><code>RIGHT(phone, 9) / LENGTH(phone)</code></td><td><code>s.str[-9:] / s.str.len()</code></td><td>кусок и длина</td></tr><tr><td><code>SUBSTRING(title FROM &#39;(samsung|xiaomi)&#39;)</code></td><td><code>s.str.extract(r&#34;(samsung|xiaomi)&#34;, expand=False)</code></td><td>достать по шаблону</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Ловушка из SQL.</b> В Postgres <code class="i">LIKE</code> чувствителен к регистру, а <code class="i">ILIKE</code> — нет. В pandas <code class="i">str.contains</code> по умолчанию <b>чувствителен</b>: «iPhone» не найдёт «iphone» и «IPHONE». Здесь это 317 против 355 объявлений. Пиши <code class="i">case=False</code> или сначала <code class="i">str.lower()</code>.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 6 из 30 · Неделя 1 · Фундамент</div>
+      <h1>Текст: <mark>один Ташкент</mark> вместо тридцати пяти</h1>
+      <p class="lead">Люди пишут текст как попало: «Ташкент», «ташкент», « г. Ташкент», «tashkent». Для компьютера это четыре разных города, и любой подсчёт по такой колонке врёт. Сегодня учимся чистить текст методами .str: убирать пробелы, приводить регистр, заменять и искать по шаблону.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Каталог маркетплейса BozorMarket заполняют сами продавцы — руками, как попало. Привести город, категорию, цену и телефон к одному виду и ответить категорийному менеджеру: сколько у нас на самом деле продавцов, какая доля из Ташкента и сколько стоят смартфоны.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Чистить текст: <code class="i">str.strip()</code>, <code class="i">str.lower()</code>, <code class="i">str.replace(...)</code></li><li>Искать как LIKE: <code class="i">str.contains("iphone", case=False)</code>, <code class="i">str.startswith</code></li><li>Достать число из текста: <code class="i">str.replace(r"\D", "", regex=True)</code> + <code class="i">pd.to_numeric</code></li><li>Вырезать кусок строки: <code class="i">str[-9:]</code>, <code class="i">str.len()</code>, <code class="i">str.extract(...)</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>852 продавца, и только 23% из Ташкента?</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">К</span>Камила <small>категорийный менеджер BozorMarket · 09:40</small></div>
+          <p>Привет! Выгрузила каталог: 1 400 объявлений. По отчёту у нас <b>852 продавца</b> (считали уникальные телефоны), и из Ташкента всего <b>23%</b>. Я уже хотела запускать акцию «регионы — главный рынок».</p>
+<div class="file">▤ bozor_listings.csv · 1 400 строк</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">К</span>Камила <small>09:43</small></div>
+          <p>Ещё маркетинг нашёл поиском «iPhone» 317 объявлений и говорит: «iPhone — наш топ». И мне нужна медианная цена смартфона, но цена у нас текстом — «1 250 000 сум», «договорная»… Excel не считает. Можешь до пятницы?</p>
+        </div>
+      </div>
+      <p class="note">BozorMarket — учебный маркетплейс. Данные сгенерированы, но грязные как настоящие: продавцы сами пишут город (<b>«  Ташкент»</b>, <b>«ТАШКЕНТ»</b>, <b>«г. Ташкент»</b>, <b>«Tashkent»</b>), телефон в пяти форматах, цену с пробелами, точками, «сум», «UZS» или словом «договорная», в названиях лишние пробелы и разный регистр. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/bozor_listings.csv" download>Скачать bozor_listings.csv</a><span class="note">1 400 строк · 180 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;bozor_listings.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Почему «Ташкент» ≠ « Ташкент»</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь, что в классе собирают подписи на открытку. Один написал «Али», другой «АЛИ», третий « али» с пробелом впереди. Учитель сразу видит: это один мальчик. А компьютер сравнивает буквы <b>по одной</b>, как замок с кодом: одна лишняя буква или пробел — и код «не тот». Для него это три разных человека.</p>
+<ul>
+<li><b>Строка (str)</b> — текст в ячейке. В pandas 3.0 у текстовых колонок тип <b>str</b>.</li>
+<li><b>.str</b> — «волшебная дверь» к текстовым методам. <code class="i">df["city"].str.lower()</code> значит: «для каждой строки колонки сделай lower». Без <b>.str</b> pandas не поймёт, что ты хочешь работать с буквами.</li>
+<li><b>strip()</b> — срезать пробелы по краям (TRIM). <b>lower()</b> — все буквы маленькие (LOWER).</li>
+<li><b>replace("г. ", "")</b> — найти кусок текста и заменить (REPLACE).</li>
+<li><b>contains("iphone", case=False)</b> — «есть ли внутри это слово?», True/False (LIKE '%iphone%'). <b>case=False</b> — не обращать внимания на большие и маленькие буквы.</li>
+<li><b>Регулярное выражение (regex)</b> — шаблон поиска. <code class="i">\D</code> значит «любой знак, который НЕ цифра». <code class="i">\s+</code> — «один или больше пробелов подряд».</li>
+</ul>
+<p>Главная мысль дня: <b>сначала приведи текст к одному виду, потом считай</b>. Иначе value_counts, nunique и любые доли делят одного продавца или один город на куски.</p>
+</div>
+<p>Настоящие строки файла. Розовым — то, что ломает подсчёт.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">Index</th><th>title<span class="dt">str</span></th><th>category<span class="dt">str</span></th><th class="ser">price_raw<span class="dt">str — не число!</span></th><th>seller_phone<span class="dt">str</span></th><th>seller_city<span class="dt">str</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">0</td><td>Чехол для Samsung Galaxy A15</td><td class="nan">электроника/аксессуары</td><td class="ser nan">договорная</td><td>998996452691</td><td>Ташкент</td></tr>
+<tr><td class="idx">1</td><td>Пылесос Samsung VC18</td><td class="nan">Дом / Техника</td><td class="ser">1 264 000 сум</td><td>+998917584628</td><td>Ташкент</td></tr>
+<tr><td class="idx">2</td><td>Казан чугунный 12 л</td><td>Дом/Кухня</td><td class="ser nan">461.000 сум</td><td class="nan">93 4906600</td><td>Ташкент</td></tr>
+<tr><td class="idx">3</td><td>Смартфон Samsung Galaxy A15 128GB</td><td>Электроника/Смартфоны</td><td class="ser">2311000</td><td class="nan">+998 90 000-55-41</td><td>Ташкент</td></tr>
+<tr><td class="idx">4</td><td class="nan">смартфон samsung galaxy a15 128gb</td><td>Электроника/Смартфоны</td><td class="ser nan">2 084 000 UZS</td><td>94 8118449</td><td class="nan">Namangan</td></tr>
+</tbody>
+</table>
+</div>
+<div class="legend">
+<div><b>str.strip / lower / replace</b>Привести текст к одному виду: TRIM, LOWER, REPLACE.</div>
+<div><b>str.contains / startswith</b>Поиск внутри текста, ответ True/False: LIKE '%…%' и LIKE '…%'.</div>
+<div><b>str[-9:] / str.len / str.extract</b>Вырезать кусок, посчитать длину, достать слово по шаблону.</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Семь приёмов: почистить, найти, вытащить число</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">df["seller_city"].str.strip().str.lower()</code> — точка = «потом». Взяли колонку → открыли текстовые методы (<b>.str</b>) → срезали пробелы → снова <b>.str</b> → сделали маленькие буквы. После каждого метода получается новая Series, поэтому <b>.str</b> пишем заново.</li>
+<li><code class="i">.str.replace("г. ", "", regex=False)</code> — первое в скобках: что ищем; второе: на что меняем (пустая строка = удалить). <b>regex=False</b>: точку понимать как обычную точку, а не шаблон.</li>
+<li><code class="i">.replace(latin)</code> — БЕЗ <b>.str</b>: меняет значение ячейки целиком по словарю <code class="i">{"было": "стало"}</code>. С <b>.str</b> меняет кусок внутри текста.</li>
+<li><code class="i">r"\D"</code> — буква <b>r</b> перед кавычками значит «сырая строка»: обратную косую черту не трогать. <b>\D</b> — любой НЕ-цифровой знак. Заменили все такие на "" — остались только цифры.</li>
+<li><code class="i">pd.to_numeric(..., errors="coerce")</code> — превратить текст в число; <b>coerce</b> («заставить»): если не получается — поставить NaN, а не падать с ошибкой.</li>
+<li><code class="i">.str[-9:]</code> — как срез у обычной строки: последние 9 знаков. <code class="i">.str.len()</code> — сколько знаков в каждой строке.</li>
+<li><code class="i">.str.extract(r"(samsung|iphone)", expand=False)</code> — круглые скобки = «что достать», <b>|</b> = «или». Нет совпадения — NaN. <b>expand=False</b> — вернуть Series, а не таблицу.</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле BozorMarket. Твои цифры должны совпасть.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. strip + lower — TRIM и LOWER.</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+df = pd.read_csv("bozor_listings.csv")
+print(df["seller_city"].value_counts().head(6))
+city = df["seller_city"].str.strip().str.lower()
+print(df["seller_city"].nunique(), city.nunique())</pre><div class="out">seller_city
+Ташкент      329
+Самарканд     98
+  Ташкент     93
+Наманган      76
+ташкент       74
+Ташкент       71
+Name: count, dtype: int64
+35 15</div><p class="plain"><b>Простыми словами:</b> «Ташкент» стоит в списке три раза: обычный (329), с пробелами впереди (93) и с пробелом в конце (71 — его не видно глазами!). Всего было <b>35</b> «разных» городов. После strip + lower — <b>15</b>. Это ещё не 5: остались «г. ташкент» и «tashkent».</p></div>
+<div class="card"><div class="q"><b>2. str.replace + replace(словарь) — REPLACE и CASE.</b></div>
+<pre class="code" data-cm="">latin = {"tashkent": "ташкент", "samarkand": "самарканд", "bukhara": "бухара",
+         "namangan": "наманган", "andijan": "андижан"}
+city = city.str.replace("г. ", "", regex=False).replace(latin)
+print(city.value_counts())</pre><div class="out">seller_city
+ташкент      760
+самарканд    217
+наманган     170
+бухара       139
+андижан      114
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> <code class="i">str.replace</code> вырезал кусок «г. » внутри текста, а <code class="i">replace(latin)</code> заменил латиницу целиком по словарю. Осталось ровно <b>5 городов</b>. Ташкент — <b>760 из 1 400</b> объявлений, а не 329.</p></div>
+<div class="card"><div class="q"><b>3. str.contains — LIKE и ILIKE.</b></div>
+<pre class="code" data-cm="">print(df["title"].str.contains("iPhone").sum(),
+      df["title"].str.contains("iphone", case=False).sum())</pre><div class="out">317 355</div><p class="plain"><b>Простыми словами:</b> contains на каждую строку отвечает True/False, а <code class="i">.sum()</code> считает True. С учётом регистра — <b>317</b>, без учёта — <b>355</b>: 38 объявлений написаны «iphone» или «IPHONE». Но и 355 — это не «телефоны iPhone»: смотри следующую карточку.</p></div>
+<div class="card"><div class="q"><b>4. Что на самом деле нашёл поиск «iphone».</b></div>
+<pre class="code" data-cm="">mask = df["title"].str.contains("iphone", case=False)
+df.loc[mask, "title"].str.strip().str.lower().value_counts()</pre><div class="out">title
+iphone 13 128gb                       108
+чехол для iphone 13 силиконовый       106
+защитное стекло для iphone 15 pro      78
+iphone 15 pro 256gb                    31
+чехол  для iphone 13 силиконовый       12
+iphone  13 128gb                        9
+защитное  стекло для iphone 15 pro      8
+iphone  15 pro 256gb                    3
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> больше половины находок — <b>чехлы и стёкла</b> «для iPhone», а не телефоны. Ещё видно двойные пробелы внутри («чехол  для»): strip их не убирает, он чистит только края. Внутренние пробелы чистит <code class="i">str.replace(r"\s+", " ", regex=True)</code>. Вывод: смартфоны считаем по <b>категории</b>, а не по слову в названии.</p></div>
+<div class="card"><div class="q"><b>5. Число из текста — REGEXP_REPLACE.</b></div>
+<pre class="code" data-cm="">price = pd.to_numeric(df["price_raw"].str.replace(r"\D", "", regex=True),
+                      errors="coerce")
+pd.DataFrame({"price_raw": df["price_raw"], "price": price}).head(6)</pre><div class="out">       price_raw      price
+0     договорная        NaN
+1  1 264 000 сум  1264000.0
+2    461.000 сум   461000.0
+3        2311000  2311000.0
+4  2 084 000 UZS  2084000.0
+5         80 000    80000.0</div><p class="plain"><b>Простыми словами:</b> мы выкинули всё, что не цифра: пробелы, точки, «сум», «UZS». Из «договорная» не осталось ничего — пустая строка, и <b>coerce</b> превратил её в NaN. Это честно: цены нет, и в медиану она не попадёт.</p></div>
+<div class="card"><div class="q"><b>6. Телефон: только цифры и последние 9.</b></div>
+<pre class="code" data-cm="">digits = df["seller_phone"].str.replace(r"\D", "", regex=True)
+phone = digits.str[-9:]
+print(df["seller_phone"].nunique(), phone.nunique())</pre><div class="out">852 259</div><p class="plain"><b>Простыми словами:</b> один и тот же номер записан как «+998 90 000-55-41», «998900005541» и «90 0005541». Оставили только цифры, а потом последние 9 (код оператора + номер) — «998» в начале есть не у всех. Было <b>852</b> «продавца», стало <b>259</b>. Отчёт Камилы завышал число продавцов в 3.3 раза.</p></div>
+<div class="card"><div class="q"><b>7. str.extract — достать бренд по шаблону.</b></div>
+<pre class="code" data-cm="">title = df["title"].str.strip().str.lower()
+title.str.extract(r"(samsung|iphone|xiaomi)", expand=False).head(6)</pre><div class="out">0    samsung
+1    samsung
+2        NaN
+3    samsung
+4    samsung
+5     iphone
+Name: title, dtype: str</div><p class="plain"><b>Простыми словами:</b> extract ищет внутри каждой строки первое слово из списка и возвращает его. Казан (строка 2) не Samsung, не iPhone и не Xiaomi — поэтому <b>NaN</b>. Бренд стоит в разных местах названия, поэтому «взять второе слово» не работает, а шаблон — работает.</p></div>
+</div>
+<div class="simple"><span class="tag">История про подписи: 4 мальчика или 2?</span>
+<p>На открытке четыре подписи: <b>«Али»</b>, <b>« Али»</b>, <b>«али»</b> и <b>«Самир»</b>. Сколько детей подписалось? Глазами — двое. Компьютер скажет <b>4</b>: пробел и маленькая буква делают «новое» имя. После strip + lower остаются «али», «али», «али», «самир» — <b>2</b> разных.</p>
+<div aria-label="Четыре подписи до чистки и две после" class="story">
+<span style="height:100%"></span><span style="height:100%"></span><span style="height:100%"></span><span style="height:100%"></span>
+<span style="height:0;background:none"></span><span style="height:0;background:none"></span>
+<span class="rich" style="height:100%"></span><span class="rich" style="height:100%"></span>
+<span style="height:0;background:none"></span><span style="height:0;background:none"></span>
+</div>
+<div class="story-lab"><span>до чистки: 4 «разных» имени</span><span>после strip + lower: 2</span></div>
+<pre class="code solo" data-cm="">s = pd.Series(["Али", " Али", "али", "Самир"])
+print(s.nunique(), s.str.strip().str.lower().nunique())   # 4 2</pre>
+<p>Так и у Камилы: 852 «продавца» — это 259 человек, записанных по-разному. Правило: <b>перед nunique, value_counts и долями по тексту — всегда чистка</b>.</p>
+</div>
+<div class="card"><div class="q"><b>Бонус. to_numeric без чистки ломает почти всё.</b></div>
+<pre class="code" data-cm="">print(pd.to_numeric(df["price_raw"], errors="coerce").isna().sum())
+print(pd.to_numeric(pd.Series(["461.000"])))</pre><div class="out">1053
+0    461.0
+dtype: float64</div><p class="plain"><b>Простыми словами:</b> без чистки <b>1 053 из 1 400</b> цен стали NaN — coerce молча выкинул всё с пробелами и «сум». А «461.000» (так пишут 461 тысячу) pandas прочитал как <b>461.0</b> — точка для него десятичная. Цена казана упала бы в 1 000 раз, и ошибки ты бы не увидел. Поэтому выкидываем ВСЕ не-цифры, включая точку.</p></div>
+<div class="callout"><b>Правило аналитика.</b> Прежде чем считать по текстовой колонке, посмотри <code class="i">value_counts()</code> целиком. Если видишь «почти одинаковые» значения — сначала чистка, потом метрики.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Метод без .str</h3><div class="bad">df[&#34;seller_city&#34;].lower()   # AttributeError: &#39;Series&#39; object has no attribute &#39;lower&#39;</div><div class="good">df[&#34;seller_city&#34;].str.lower()</div><p>Текстовые методы живут за дверью .str. И после каждого шага цепочки .str пишем заново.</p></div>
+        <div class="trap"><span class="n">2</span><h3>contains без case=False</h3><div class="bad">df[&#34;title&#34;].str.contains(&#34;iphone&#34;).sum()   # пропустит «iPhone» и «IPHONE»</div><div class="good">df[&#34;title&#34;].str.contains(&#34;iphone&#34;, case=False).sum()   # 355</div><p>Как LIKE против ILIKE. Если не уверен в регистре — case=False.</p></div>
+        <div class="trap"><span class="n">3</span><h3>strip не трогает пробелы внутри</h3><div class="bad">&#34;чехол  для iphone&#34;.strip()   # «чехол  для iphone» — двойной пробел остался</div><div class="good">s.str.strip().str.replace(r&#34;\s+&#34;, &#34; &#34;, regex=True)</div><p>strip чистит только края. Внутри — replace по шаблону \s+.</p></div>
+        <div class="trap"><span class="n">4</span><h3>to_numeric по грязному тексту</h3><div class="bad">pd.to_numeric(df[&#34;price_raw&#34;], errors=&#34;coerce&#34;)   # 1053 NaN, «461.000» → 461.0</div><div class="good">pd.to_numeric(df[&#34;price_raw&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;)</div><p>coerce молчит: не падает, а тихо делает NaN. После него всегда проверяй isna().sum().</p></div>
+        <div class="trap"><span class="n">5</span><h3>Считать товар по слову в названии</h3><div class="bad">df[&#34;title&#34;].str.contains(&#34;iphone&#34;, case=False).sum()   # 355 — с чехлами и стёклами</div><div class="good">df[&#34;category&#34;].str.contains(&#34;смартфоны&#34;, case=False).sum()   # 620 смартфонов</div><p>Слово в названии ≠ тип товара. Для «сколько смартфонов» используй категорию.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>s.str.strip().str.lower() <span>— TRIM + LOWER</span></li><li>s.str.replace(&#34;г. &#34;, &#34;&#34;, regex=False) <span>— REPLACE куска текста</span></li><li>s.replace({&#34;tashkent&#34;: &#34;ташкент&#34;}) <span>— заменить значение целиком (без .str)</span></li><li>s.str.replace(r&#34;\s+&#34;, &#34; &#34;, regex=True) <span>— двойные пробелы внутри → один</span></li><li>s.str.contains(&#34;iphone&#34;, case=False) <span>— ILIKE &#39;%iphone%&#39;, маска True/False</span></li><li>pd.to_numeric(s.str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True), errors=&#34;coerce&#34;) <span>— число из текста</span></li><li>s.str[-9:] / s.str.len() <span>— RIGHT(s, 9) / LENGTH(s)</span></li><li>s.str.extract(r&#34;(samsung|xiaomi)&#34;, expand=False) <span>— достать слово по шаблону</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="0">
+          <p>1. Почему <code>df["seller_city"].lower()</code> падает с ошибкой?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>У Series нет метода lower — нужен <code>.str.lower()</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>lower работает только с числами</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Нужно сначала dropna()</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нужно писать LOWER большими буквами</span></button></div>
+          <div class="why" hidden>Текстовые методы колонки живут за «дверью» .str: <code>df["seller_city"].str.lower()</code>.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. <code>str.contains("iPhone").sum()</code> = 317, а с <code>case=False</code> = 355. Что верно?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>355 — это число проданных телефонов iPhone</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>contains по умолчанию учитывает регистр; 355 — все объявления со словом iphone, включая чехлы</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Разница из-за NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>case=False считает дубли</span></button></div>
+          <div class="why" hidden>Как LIKE против ILIKE. И даже 355 — не смартфоны: там 204 чехла и стекла. Смартфоны считаем по категории.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Что вернёт <code>pd.to_numeric(pd.Series(["461.000"]))</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>461000</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>461.0 — точка понята как десятичная</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Ошибку ValueError</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>NaN</span></button></div>
+          <div class="why" hidden>Для pandas точка — десятичный разделитель. Поэтому сначала убираем ВСЕ не-цифры: <code>str.replace(r"\D", "", regex=True)</code>.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Чем отличается <code>s.str.replace("г. ", "")</code> от <code>s.replace({"tashkent": "ташкент"})</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>str.replace меняет кусок внутри текста, replace без .str — значение ячейки целиком</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>replace без .str работает только с числами</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>str.replace удаляет строки</span></button></div>
+          <div class="why" hidden>«г. Ташкент» → «Ташкент» — кусок (.str.replace). «tashkent» → «ташкент» — значение целиком (replace со словарём).</div>
+        </div>
+        <div class="qz" data-q="4" data-a="2">
+          <p>5. Названия: «чехол  для iphone» (два пробела) и «чехол для iphone». Что сделает их одинаковыми?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>str.strip()</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>str.lower()</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>str.replace(r"\s+", " ", regex=True)</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>drop_duplicates()</code></span></button></div>
+          <div class="why" hidden>strip чистит только края. Пробелы внутри схлопывает шаблон \s+ («один или больше пробелов») → один пробел.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько у нас городов</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>city</code> колонку seller_city без пробелов по краям и маленькими буквами.</li><li>В одну строку выведи <code class='i'>nunique()</code> до и после чистки.</li><li>Выведи топ-3 городов в city через <code class='i'>value_counts()</code>.</li></ol><p class='rule-t'>Цепочка: .str.strip().str.lower(). df не меняй.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 06 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># 1. чистый город
+city =
+
+# 2. уникальных до и после
+
+# 3. топ-3
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">35 15
+seller_city
+ташкент      628
+самарканд    182
+наманган     133
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. чистый город
+city =
+
+# 2. уникальных до и после
+
+# 3. топ-3
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Ташкент», « Ташкент» и «ташкент» для pandas — три разных города. Приведи текст к одному виду: убери пробелы по краям и сделай все буквы маленькими. Потом сравни, сколько разных значений было и стало.</p>
+<p><b>Чем это сделать.</b> Текстовые методы колонки пишутся через <code class="i">.str</code>: <code class="i">.str.strip()</code> — убрать пробелы по краям, <code class="i">.str.lower()</code> — маленькие буквы. Их можно ставить цепочкой.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>city = df[&#34;seller_city&#34;].str.___().str.___()
+print(df[&#34;seller_city&#34;].nunique(), city.___())
+print(city.value_counts().head(___))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">.str</code> будет ошибка: <code class="i">df["city"].lower()</code> — у колонки нет такого метода, он есть у её текста.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Один город — одно имя</h3>
+            <ol class='steps-t'><li>Почисти city как в задаче 1, затем убери кусок <code class='i'>"г. "</code> и замени латиницу словарём <code class='i'>latin</code>.</li><li>Выведи <code class='i'>value_counts()</code> — должно остаться 5 городов.</li><li>В одну строку: доля Ташкента в % по чистому city и по сырому <code class='i'>df["seller_city"] == "Ташкент"</code> (1 знак).</li></ol><p class='rule-t'>Доля = (маска).mean() * 100. Без деления на shape[0].</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 06 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;, &#34;bukhara&#34;: &#34;бухара&#34;,
+         &#34;namangan&#34;: &#34;наманган&#34;, &#34;andijan&#34;: &#34;андижан&#34;}
+city =
+
+# 2. города
+
+# 3. доля Ташкента: чистая и сырая
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">seller_city
+ташкент      760
+самарканд    217
+наманган     170
+бухара       139
+андижан      114
+Name: count, dtype: int64
+54.3 23.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;, &#34;bukhara&#34;: &#34;бухара&#34;,
+         &#34;namangan&#34;: &#34;наманган&#34;, &#34;andijan&#34;: &#34;андижан&#34;}
+city =
+
+# 2. города
+
+# 3. доля Ташкента: чистая и сырая
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> После задачи 1 остались ещё два вида «грязи»: приписка «г. » перед городом и названия латиницей. Первое — убрать кусок текста, второе — заменить целые значения по словарю.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.replace("г. ", "", regex=False)</code> — убрать кусок текста внутри значения. <code class="i">.replace(словарь)</code> — заменить значение целиком: «tashkent» → «ташкент». Доля: <code class="i">(city == "ташкент").mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>city = (df[&#34;seller_city&#34;].str.strip().str.lower()
+        .str.replace(&#34;___&#34;, &#34;&#34;, regex=False)
+        .replace(___))
+print(city.value_counts())
+print(round((city == &#34;___&#34;).mean() * 100, 1), round((df[&#34;seller_city&#34;] == &#34;Ташкент&#34;).mean() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">.str.replace</code> меняет кусок внутри текста, а <code class="i">.replace</code> — значение целиком. Для словаря городов нужен второй.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>LIKE и ILIKE</h3>
+            <ol class='steps-t'><li>В одну строку: сколько названий содержат <code class='i'>"iPhone"</code> с учётом регистра и <code class='i'>"iphone"</code> без учёта регистра.</li><li>Сохрани в <code class='i'>title</code> чистое название (strip + lower).</li><li>Выведи долю объявлений-чехлов в % (название <b>начинается</b> с «чехол»), 1 знак.</li></ol><p class='rule-t'>Доля через .mean() * 100.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 06 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3"># 1. iPhone: с учётом регистра и без
+
+# 2. чистое название
+title =
+
+# 3. доля чехлов, %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">317 355
+16.2</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. iPhone: с учётом регистра и без
+
+# 2. чистое название
+title =
+
+# 3. доля чехлов, %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Содержит слово» — это поиск по тексту, как Ctrl+F. Его можно делать с учётом регистра букв и без него. «Начинается с» — отдельная проверка. Обе дают True/False, а их сумма и среднее — количество и доля.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.contains("слово")</code> — содержит ли; <code class="i">case=False</code> — не важно, большие или маленькие буквы. <code class="i">.str.startswith("слово")</code> — начинается ли.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df[&#34;title&#34;].str.contains(&#34;___&#34;).sum(), df[&#34;title&#34;].str.contains(&#34;iphone&#34;, case=___).sum())
+title = df[&#34;title&#34;].str.strip().str.lower()
+print(round(title.str.___(&#34;чехол&#34;).mean() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Проверку на «чехол» делай по очищенному <code class="i">title</code>: в сыром тексте могут быть пробел в начале или «Чехол» с большой буквы.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Цена из текста</h3>
+            <ol class='steps-t'><li>Выведи, сколько NaN даст <code class='i'>pd.to_numeric(df["price_raw"], errors="coerce")</code> <b>без чистки</b>.</li><li>Сохрани в <code class='i'>price</code> число: убери все не-цифры (<code class='i'>r"\D"</code>), потом to_numeric с coerce.</li><li>В одну строку: число NaN в price, их доля в % (1 знак) и медиана price.</li></ol><p class='rule-t'>NaN здесь — это «договорная». Не заполняй их.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 06 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4"># 1. без чистки
+
+# 2. чистая цена
+price =
+
+# 3. NaN, доля NaN %, медиана
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1053
+96 6.9 1189000.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. без чистки
+
+# 2. чистая цена
+price =
+
+# 3. NaN, доля NaN %, медиана
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> В цене есть «сум», пробелы и слово «договорная», поэтому сразу в число она не переводится. Убери из текста всё, что не цифра, — останутся только цифры, а там, где цифр не было, получится пусто.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.replace(r"\D", "", regex=True)</code> — удалить все не-цифры (<code class="i">\D</code> значит «не цифра»). Потом <code class="i">pd.to_numeric(..., errors="coerce")</code>. Доля NaN — <code class="i">.isna().mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(pd.to_numeric(df[&#34;price_raw&#34;], errors=&#34;coerce&#34;).isna().sum())
+price = pd.to_numeric(df[&#34;price_raw&#34;].str.replace(r&#34;___&#34;, &#34;&#34;, regex=___), errors=&#34;coerce&#34;)
+print(price.isna().sum(), round(price.isna().___() * 100, 1), price.___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">regex=True</code> pandas будет искать буквально текст «\D», а не «любую не-цифру».</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько продавцов на самом деле</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>digits</code> телефон, в котором остались только цифры.</li><li>Выведи <code class='i'>value_counts()</code> длины digits (<code class='i'>str.len()</code>) — какие бывают длины.</li><li>Сохрани в <code class='i'>phone</code> последние 9 цифр и в одну строку выведи nunique сырого телефона и phone.</li></ol><p class='rule-t'>Последние 9 цифр = код оператора + номер; «998» есть не у всех.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 06 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5"># 1. только цифры
+digits =
+
+# 2. длины номеров
+
+# 3. последние 9 цифр и число продавцов
+phone =
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">seller_phone
+12    919
+9     481
+Name: count, dtype: int64
+852 259</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. только цифры
+digits =
+
+# 2. длины номеров
+
+# 3. последние 9 цифр и число продавцов
+phone =
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Один телефон записан десятком способов: с +998, пробелами, скобками. Оставь только цифры, посмотри, какой длины бывают номера, и возьми у всех одинаковый хвост — последние 9 цифр. По ним продавцы и сравниваются.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.replace(r"\D", "", regex=True)</code> — только цифры. <code class="i">.str.len()</code> — длина текста. <code class="i">.str[-9:]</code> — последние 9 символов.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>digits = df[&#34;seller_phone&#34;].str.replace(r&#34;\D&#34;, &#34;&#34;, regex=True)
+print(digits.str.___().value_counts())
+phone = digits.str[___:]
+print(df[&#34;seller_phone&#34;].nunique(), phone.___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не отрезай первые три цифры («998»): они есть не у всех номеров, и короткие номера испортятся.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Бренд из названия</h3>
+            <ol class='steps-t'><li>Сделай чистое <code class='i'>title</code> (strip + lower).</li><li>Достань бренд через <code class='i'>str.extract</code> по шаблону <code class='i'>samsung|iphone|airpods|xiaomi|artel</code> и выведи <code class='i'>value_counts(dropna=False)</code>.</li><li>Комментарием <code class='i'>#</code>: почему <code class='i'>title.str.split().str[1]</code> — плохой способ найти бренд.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 06 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6"># 1. чистое название
+title =
+
+# 2. бренд
+brand =
+
+# 3. почему split().str[1] плохо:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">title
+samsung    495
+iphone     355
+xiaomi     346
+artel       91
+NaN         80
+airpods     33
+Name: count, dtype: int64
+
++ комментарий: почему split().str[1] — плохо</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. чистое название
+title =
+
+# 2. бренд
+brand =
+
+# 3. почему split().str[1] плохо:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>split().str[1] берёт второе слово, а у чехлов это «для» — бренд стоит в разных местах</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Бренд стоит в названии в разных местах, поэтому брать «второе слово» нельзя. Надёжнее найти в тексте одно из известных слов-брендов, где бы оно ни стояло.</p>
+<p><b>Чем это сделать.</b> <code class="i">.str.extract(r"(a|b|c)", expand=False)</code> — достать первое найденное слово из списка; знак <code class="i">|</code> значит «или». <code class="i">value_counts(dropna=False)</code> покажет и строки без бренда (NaN).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>title = df[&#34;title&#34;].str.strip().str.lower()
+brand = title.str.extract(r&#34;(___|___|___|___|___)&#34;, expand=False)
+print(brand.value_counts(dropna=___))
+# split().str[1] плохо, потому что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Шаблон нужно взять в круглые скобки — extract достаёт именно то, что в скобках. Без них будет ошибка.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт для Камилы</h3>
+            <ol class='steps-t'><li>Собери <code class='i'>clean</code> через <code class='i'>df.assign(...)</code>: city (задача 2), category (убери все пробелы + lower), price (задача 4), phone (задача 5).</li><li>Маска <code class='i'>smart</code>: категория содержит «смартфоны».</li><li>Series <code class='i'>report</code>: <code class='i'>rows</code>, <code class='i'>sellers</code>, <code class='i'>tashkent_%</code>, <code class='i'>smartphones</code>, <code class='i'>negotiable_%</code> (цена NaN), <code class='i'>smart_median_price</code>, <code class='i'>smart_gmv_mln</code> (Σ price × sold_30d у смартфонов, млн, 1 знак).</li></ol><p class='rule-t'>Все доли — .mean() * 100, 1 знак. Ни одного числа руками.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 06 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;, &#34;bukhara&#34;: &#34;бухара&#34;,
+         &#34;namangan&#34;: &#34;наманган&#34;, &#34;andijan&#34;: &#34;андижан&#34;}
+clean = df.assign(
+    city=,
+    category=,
+    price=,
+    phone=,
+)
+smart =
+
+report = pd.Series({
+    &#34;rows&#34;: len(clean),
+    # продолжи
+})
+report
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">rows                     1400.0
+sellers                   259.0
+tashkent_%                 54.3
+smartphones               620.0
+negotiable_%                6.9
+smart_median_price    2804000.0
+smart_gmv_mln            8879.1
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>latin = {&#34;tashkent&#34;: &#34;ташкент&#34;, &#34;samarkand&#34;: &#34;самарканд&#34;, &#34;bukhara&#34;: &#34;бухара&#34;,
+         &#34;namangan&#34;: &#34;наманган&#34;, &#34;andijan&#34;: &#34;андижан&#34;}
+clean = df.assign(
+    city=,
+    category=,
+    price=,
+    phone=,
+)
+smart =
+
+report = pd.Series({
+    &#34;rows&#34;: len(clean),
+    # продолжи
+})
+report
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Это сборка задач 2, 4 и 5 в одном assign плюс чистка категории. Потом маска «смартфоны» и 7 чисел. GMV — это сумма «цена × продано» по смартфонам.</p>
+<p><b>Чем это сделать.</b> Все пробелы внутри категории: <code class="i">.str.replace(" ", "")</code>. Продавцов — разных телефонов: <code class="i">.nunique()</code>. GMV: <code class="i">(clean.loc[smart, "price"] * clean.loc[smart, "sold_30d"]).sum()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>clean = df.assign(
+    city=___,          # как в задаче 2
+    category=df[&#34;category&#34;].str.replace(&#34; &#34;, &#34;&#34;).str.___(),
+    price=___,         # как в задаче 4
+    phone=___,         # как в задаче 5
+)
+smart = clean[&#34;category&#34;].str.contains(&#34;___&#34;)
+&#34;sellers&#34;: clean[&#34;___&#34;].nunique(),
+&#34;smart_gmv_mln&#34;: round((___ * ___).sum() / 1_000_000, 1),</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Продавцов считай по очищенному телефону <code class="i">phone</code>, а не по сырому <code class="i">seller_phone</code> — иначе снова получится 852.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Камиле</h2>
+      <div class="case">
+        <p>Напиши ответ Камиле в Telegram. Не больше 6 предложений. Структура: <b>сколько на самом деле продавцов и почему не 852 (без терминов) → настоящая доля Ташкента и что это значит для акции «регионы» → смартфоны: сколько и медианная цена → почему «317 iPhone» — неверная цифра → 1 риск или оговорка → 1 предложение, как не получать такой грязи дальше</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Настоящих продавцов</span><span class="fact-chip">Доля Ташкента</span><span class="fact-chip">Смартфонов</span><span class="fact-chip">Настоящих iPhone</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Камила, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Почему, по твоему ответу, продавцов не 852?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Один и тот же телефон записан по-разному, и один продавец считался несколько раз</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Часть продавцов ушла с платформы</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>852 — правильное число</span></button></div>
+            <div class="why" hidden>+998, пробелы и скобки делали один номер «разными». По последним 9 цифрам продавцов 259.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что следует для акции «регионы» из доли Ташкента?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ташкент — больше половины объявлений, на регионы приходится меньше половины каталога</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ташкент — меньше четверти, значит, регионы — это почти весь каталог</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Доля Ташкента для акции не важна</span></button></div>
+            <div class="why" hidden>Сырые данные дают 23,5%, но после чистки города Ташкент — 54,3%.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Почему «317 iPhone» — неверная цифра?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В неё попали чехлы и стёкла, где в названии есть «iPhone», а смартфонов iPhone меньше</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>iPhone на самом деле больше, часть потерялась</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Цифра верная</span></button></div>
+            <div class="why" hidden>Поиск по слову находит и аксессуары «для iPhone». Настоящих смартфонов iPhone — 151.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Камила, привет! Настоящих продавцов 259, а не 852: один и тот же номер записан по-разному — с +998, пробелами, скобками. Ташкент — это 54,3% объявлений, а не 23,5%: город тоже писали по-разному («г. Ташкент», «tashkent»), поэтому для акции «регионы» остаётся меньше половины каталога. Смартфонов 620, медианная цена — 2 804 000 сум. «317 iPhone» — неверная цифра: в неё попали чехлы и стёкла, настоящих смартфонов iPhone всего 151. Риск: у 96 объявлений цена не указана (договорная). Предлагаю сделать город и телефон выбором из списка, а не свободным текстом.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>259 продавцов и почему не 852</li><li>Доля Ташкента 54,3% против 23,5%</li><li>Смартфоны: 620 и медиана 2 804 000</li><li>Объяснено, почему 317 iPhone — неверно (151 настоящих)</li><li>Есть предложение, как избежать грязных данных</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 6</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/05-propuski-i-dublikaty/"><small>← Урок 5</small><b>Пропуски и дубликаты</b></a><a class="nx" href="../../lessons/07-mini-proekt-1/"><small>Проект 7 →</small><b>Мини-проект 1: грязная выгрузка → чистый датасет</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0445 \u043f\u0440\u043e\u0434\u0430\u0432\u0446\u043e\u0432", "value": 259}, {"name": "\u0414\u043e\u043b\u044f \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430", "pct": true, "value": 54.3}, {"name": "\u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u043e\u0432", "value": 620}, {"name": "\u041d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0445 iPhone", "value": 151}], "logic": [{"a": 0, "o": ["\u041e\u0434\u0438\u043d \u0438 \u0442\u043e\u0442 \u0436\u0435 \u0442\u0435\u043b\u0435\u0444\u043e\u043d \u0437\u0430\u043f\u0438\u0441\u0430\u043d \u043f\u043e-\u0440\u0430\u0437\u043d\u043e\u043c\u0443, \u0438 \u043e\u0434\u0438\u043d \u043f\u0440\u043e\u0434\u0430\u0432\u0435\u0446 \u0441\u0447\u0438\u0442\u0430\u043b\u0441\u044f \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0440\u0430\u0437", "\u0427\u0430\u0441\u0442\u044c \u043f\u0440\u043e\u0434\u0430\u0432\u0446\u043e\u0432 \u0443\u0448\u043b\u0430 \u0441 \u043f\u043b\u0430\u0442\u0444\u043e\u0440\u043c\u044b", "852 \u2014 \u043f\u0440\u0430\u0432\u0438\u043b\u044c\u043d\u043e\u0435 \u0447\u0438\u0441\u043b\u043e"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u043f\u0440\u043e\u0434\u0430\u0432\u0446\u043e\u0432 \u043d\u0435 852?", "why": "+998, \u043f\u0440\u043e\u0431\u0435\u043b\u044b \u0438 \u0441\u043a\u043e\u0431\u043a\u0438 \u0434\u0435\u043b\u0430\u043b\u0438 \u043e\u0434\u0438\u043d \u043d\u043e\u043c\u0435\u0440 \u00ab\u0440\u0430\u0437\u043d\u044b\u043c\u0438\u00bb. \u041f\u043e \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u043c 9 \u0446\u0438\u0444\u0440\u0430\u043c \u043f\u0440\u043e\u0434\u0430\u0432\u0446\u043e\u0432 259."}, {"a": 0, "o": ["\u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 \u0431\u043e\u043b\u044c\u0448\u0435 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u044b \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u0438\u0439, \u043d\u0430 \u0440\u0435\u0433\u0438\u043e\u043d\u044b \u043f\u0440\u0438\u0445\u043e\u0434\u0438\u0442\u0441\u044f \u043c\u0435\u043d\u044c\u0448\u0435 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u044b \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0430", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 \u043c\u0435\u043d\u044c\u0448\u0435 \u0447\u0435\u0442\u0432\u0435\u0440\u0442\u0438, \u0437\u043d\u0430\u0447\u0438\u0442, \u0440\u0435\u0433\u0438\u043e\u043d\u044b \u2014 \u044d\u0442\u043e \u043f\u043e\u0447\u0442\u0438 \u0432\u0435\u0441\u044c \u043a\u0430\u0442\u0430\u043b\u043e\u0433", "\u0414\u043e\u043b\u044f \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430 \u0434\u043b\u044f \u0430\u043a\u0446\u0438\u0438 \u043d\u0435 \u0432\u0430\u0436\u043d\u0430"], "q": "\u0427\u0442\u043e \u0441\u043b\u0435\u0434\u0443\u0435\u0442 \u0434\u043b\u044f \u0430\u043a\u0446\u0438\u0438 \u00ab\u0440\u0435\u0433\u0438\u043e\u043d\u044b\u00bb \u0438\u0437 \u0434\u043e\u043b\u0438 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430?", "why": "\u0421\u044b\u0440\u044b\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u0434\u0430\u044e\u0442 23,5%, \u043d\u043e \u043f\u043e\u0441\u043b\u0435 \u0447\u0438\u0441\u0442\u043a\u0438 \u0433\u043e\u0440\u043e\u0434\u0430 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 54,3%."}, {"a": 0, "o": ["\u0412 \u043d\u0435\u0451 \u043f\u043e\u043f\u0430\u043b\u0438 \u0447\u0435\u0445\u043b\u044b \u0438 \u0441\u0442\u0451\u043a\u043b\u0430, \u0433\u0434\u0435 \u0432 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u0438 \u0435\u0441\u0442\u044c \u00abiPhone\u00bb, \u0430 \u0441\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u043e\u0432 iPhone \u043c\u0435\u043d\u044c\u0448\u0435", "iPhone \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435 \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0430\u0441\u0442\u044c \u043f\u043e\u0442\u0435\u0440\u044f\u043b\u0430\u0441\u044c", "\u0426\u0438\u0444\u0440\u0430 \u0432\u0435\u0440\u043d\u0430\u044f"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u00ab317 iPhone\u00bb \u2014 \u043d\u0435\u0432\u0435\u0440\u043d\u0430\u044f \u0446\u0438\u0444\u0440\u0430?", "why": "\u041f\u043e\u0438\u0441\u043a \u043f\u043e \u0441\u043b\u043e\u0432\u0443 \u043d\u0430\u0445\u043e\u0434\u0438\u0442 \u0438 \u0430\u043a\u0441\u0435\u0441\u0441\u0443\u0430\u0440\u044b \u00ab\u0434\u043b\u044f iPhone\u00bb. \u041d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0445 \u0441\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u043e\u0432 iPhone \u2014 151."}]}, "case_model": "\u041a\u0430\u043c\u0438\u043b\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u041d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0445 \u043f\u0440\u043e\u0434\u0430\u0432\u0446\u043e\u0432 259, \u0430 \u043d\u0435 852: \u043e\u0434\u0438\u043d \u0438 \u0442\u043e\u0442 \u0436\u0435 \u043d\u043e\u043c\u0435\u0440 \u0437\u0430\u043f\u0438\u0441\u0430\u043d \u043f\u043e-\u0440\u0430\u0437\u043d\u043e\u043c\u0443 \u2014 \u0441 +998, \u043f\u0440\u043e\u0431\u0435\u043b\u0430\u043c\u0438, \u0441\u043a\u043e\u0431\u043a\u0430\u043c\u0438. \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 \u044d\u0442\u043e 54,3% \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u0438\u0439, \u0430 \u043d\u0435 23,5%: \u0433\u043e\u0440\u043e\u0434 \u0442\u043e\u0436\u0435 \u043f\u0438\u0441\u0430\u043b\u0438 \u043f\u043e-\u0440\u0430\u0437\u043d\u043e\u043c\u0443 (\u00ab\u0433. \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u00bb, \u00abtashkent\u00bb), \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0434\u043b\u044f \u0430\u043a\u0446\u0438\u0438 \u00ab\u0440\u0435\u0433\u0438\u043e\u043d\u044b\u00bb \u043e\u0441\u0442\u0430\u0451\u0442\u0441\u044f \u043c\u0435\u043d\u044c\u0448\u0435 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u044b \u043a\u0430\u0442\u0430\u043b\u043e\u0433\u0430. \u0421\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u043e\u0432 620, \u043c\u0435\u0434\u0438\u0430\u043d\u043d\u0430\u044f \u0446\u0435\u043d\u0430 \u2014 2 804 000 \u0441\u0443\u043c. \u00ab317 iPhone\u00bb \u2014 \u043d\u0435\u0432\u0435\u0440\u043d\u0430\u044f \u0446\u0438\u0444\u0440\u0430: \u0432 \u043d\u0435\u0451 \u043f\u043e\u043f\u0430\u043b\u0438 \u0447\u0435\u0445\u043b\u044b \u0438 \u0441\u0442\u0451\u043a\u043b\u0430, \u043d\u0430\u0441\u0442\u043e\u044f\u0449\u0438\u0445 \u0441\u043c\u0430\u0440\u0442\u0444\u043e\u043d\u043e\u0432 iPhone \u0432\u0441\u0435\u0433\u043e 151. \u0420\u0438\u0441\u043a: \u0443 96 \u043e\u0431\u044a\u044f\u0432\u043b\u0435\u043d\u0438\u0439 \u0446\u0435\u043d\u0430 \u043d\u0435 \u0443\u043a\u0430\u0437\u0430\u043d\u0430 (\u0434\u043e\u0433\u043e\u0432\u043e\u0440\u043d\u0430\u044f). \u041f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u0433\u043e\u0440\u043e\u0434 \u0438 \u0442\u0435\u043b\u0435\u0444\u043e\u043d \u0432\u044b\u0431\u043e\u0440\u043e\u043c \u0438\u0437 \u0441\u043f\u0438\u0441\u043a\u0430, \u0430 \u043d\u0435 \u0441\u0432\u043e\u0431\u043e\u0434\u043d\u044b\u043c \u0442\u0435\u043a\u0441\u0442\u043e\u043c.", "case_xp": 30, "cheat": [["s.str.strip().str.lower()", "TRIM + LOWER"], ["s.str.replace(\"\u0433. \", \"\", regex=False)", "REPLACE \u043a\u0443\u0441\u043a\u0430 \u0442\u0435\u043a\u0441\u0442\u0430"], ["s.replace({\"tashkent\": \"\u0442\u0430\u0448\u043a\u0435\u043d\u0442\"})", "\u0437\u0430\u043c\u0435\u043d\u0438\u0442\u044c \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0446\u0435\u043b\u0438\u043a\u043e\u043c (\u0431\u0435\u0437 .str)"], ["s.str.replace(r\"\\s+\", \" \", regex=True)", "\u0434\u0432\u043e\u0439\u043d\u044b\u0435 \u043f\u0440\u043e\u0431\u0435\u043b\u044b \u0432\u043d\u0443\u0442\u0440\u0438 \u2192 \u043e\u0434\u0438\u043d"], ["s.str.contains(\"iphone\", case=False)", "ILIKE \u0027%iphone%\u0027, \u043c\u0430\u0441\u043a\u0430 True/False"], ["pd.to_numeric(s.str.replace(r\"\\D\", \"\", regex=True), errors=\"coerce\")", "\u0447\u0438\u0441\u043b\u043e \u0438\u0437 \u0442\u0435\u043a\u0441\u0442\u0430"], ["s.str[-9:] / s.str.len()", "RIGHT(s, 9) / LENGTH(s)"], ["s.str.extract(r\"(samsung|xiaomi)\", expand=False)", "\u0434\u043e\u0441\u0442\u0430\u0442\u044c \u0441\u043b\u043e\u0432\u043e \u043f\u043e \u0448\u0430\u0431\u043b\u043e\u043d\u0443"]], "data": "../../data/", "datasets": ["bozor_listings.csv"], "day": 6, "hint_cost": 5, "quiz": [0, 1, 1, 1, 2], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"bozor_listings.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["35", "15", "\u0442\u0430\u0448\u043a\u0435\u043d\u0442 628", "\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 182", "\u043d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 133"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["\u0442\u0430\u0448\u043a\u0435\u043d\u0442 760", "\u0441\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 217", "\u043d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 170", "\u0431\u0443\u0445\u0430\u0440\u0430 139", "\u0430\u043d\u0434\u0438\u0436\u0430\u043d 114", "54.3", "23.5"], "setup": "", "xp": 15}, {"figure": false, "id": "t3", "keys": ["317", "355", "16.2"], "setup": "", "xp": 10}, {"figure": false, "id": "t4", "keys": ["1053", "96", "6.9", "1189000"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["12 919", "9 481", "852", "259"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["samsung 495", "iphone 355", "xiaomi 346", "artel 91", "NaN 80", "airpods 33"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["rows 1400", "sellers 259", "tashkent_% 54.3", "smartphones 620", "negotiable_% 6.9", "smart_median_price 2804000", "smart_gmv_mln 8879.1"], "setup": "", "xp": 25}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

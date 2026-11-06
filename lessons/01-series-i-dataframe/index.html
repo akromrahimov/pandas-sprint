@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 1. Series и DataFrame: первый взгляд на данные — Pandas Sprint</title>
+<meta name="description" content="Урок 1 курса Pandas Sprint: что такое Series, DataFrame и Index, как загрузить CSV и за пять минут понять, что в таблице — размер, типы, пропуски, среднее и медиана.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/01-series-i-dataframe/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 1. Series и DataFrame: первый взгляд на данные — Pandas Sprint">
+<meta property="og:description" content="Урок 1 курса Pandas Sprint: что такое Series, DataFrame и Index, как загрузить CSV и за пять минут понять, что в таблице — размер, типы, пропуски, среднее и медиана.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/01-series-i-dataframe/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="1">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>Анатомия</a></li><li><a href="#tools"><span class="dot">✓</span>Осмотр данных</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Ты уже это умеешь, только на SQL</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Левая колонка — что ты написал бы в базе данных, правая — то же самое в pandas.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT * FROM orders LIMIT 5</code></td><td><code>df.head()</code></td><td>DataFrame, первые 5 строк</td></tr><tr><td><code>SELECT COUNT(*) FROM orders</code></td><td><code>len(df) или df.shape[0]</code></td><td>число</td></tr><tr><td><code>DESCRIBE orders (схема)</code></td><td><code>df.info(), df.dtypes</code></td><td>типы и непустые значения</td></tr><tr><td><code>SELECT city FROM orders</code></td><td><code>df[&#34;city&#34;]</code></td><td>Series</td></tr><tr><td><code>SELECT city, category FROM orders</code></td><td><code>df[[&#34;city&#34;, &#34;category&#34;]]</code></td><td>DataFrame</td></tr><tr><td><code>SELECT COUNT(DISTINCT city)</code></td><td><code>df[&#34;city&#34;].nunique()</code></td><td>число</td></tr><tr><td><code>SELECT city, COUNT(*) … GROUP BY city ORDER BY 2 DESC</code></td><td><code>df[&#34;city&#34;].value_counts()</code></td><td>Series, по убыванию</td></tr><tr><td><code>SELECT AVG(x), MIN(x), MAX(x)</code></td><td><code>df[&#34;x&#34;].describe()</code></td><td>Series со статистиками</td></tr><tr><td><code>COUNT(*) - COUNT(rating)</code></td><td><code>df[&#34;rating&#34;].isna().sum()</code></td><td>число пропусков</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 1 из 30 · Неделя 1 · Фундамент</div>
+      <h1>Series и DataFrame: <mark>первый взгляд</mark> на данные</h1>
+      <p class="lead">Аналитик получает новый файл и за пять минут понимает, что в нём: сколько строк, какие типы, где дыры, как распределены деньги. Сегодня ты научишься делать это в pandas.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Составить «паспорт данных» для незнакомого CSV: размер, период, типы колонок, пропуски, медиана и среднее чека, структура по городам. И объяснить это коллеге без лишних слов.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Объяснить разницу между Series, DataFrame и Index</li><li>Загрузить CSV и проверить размер, типы, пропуски</li><li>Читать <code class="i">describe()</code> и видеть, где среднее врёт</li><li>Посчитать структуру категорий через <code class="i">value_counts</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Твой первый рабочий день в Tez Food</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">М</span>Малика <small>продакт-менеджер · 09:41</small></div>
+          <p>Привет! Выгрузила все заказы за сентябрь. До встречи в понедельник хочу понимать: сколько у нас данных, за какой период, где в них дыры и какой у нас реально «типичный» чек. Глянешь?</p>
+<div class="file">▤ tezfood_orders.csv · 1 200 строк</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">М</span>Малика <small>09:42</small></div>
+          <p>Только без «примерно». Мне нужны цифры, на которые можно сослаться.</p>
+        </div>
+      </div>
+      <p class="note">Tez Food — учебная компания. Данные сгенерированы, но устроены как реальная выгрузка сервиса доставки: есть пропуски, крупные корпоративные заказы и колонка с датой, которая прочиталась как текст. Задачи можно решать прямо на этой странице. Если работаешь в Jupyter на своём компьютере, скачай файл и положи его в одну папку с ноутбуком.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/tezfood_orders.csv" download>Скачать tezfood_orders.csv</a><span class="note">1 200 строк · 102 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+df = pd.read_csv(&#34;tezfood_orders.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Анатомия DataFrame</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь классный журнал. Каждая <b>строка</b> — один ученик. Каждая <b>колонка</b> — что мы о нём знаем: рост, оценка, класс. В нашей таблице всё то же самое: строка — это один заказ, колонки — его город, сумма, оценка клиента.</p>
+  <ul>
+    <li><b>DataFrame</b> — весь журнал целиком: все строки и все колонки.</li>
+    <li><b>Series</b> — одна колонка из журнала. Например, только список городов. В одной колонке всегда лежит один вид данных: или только числа, или только текст.</li>
+    <li><b>Index</b> — номера слева от строк. Это не «место по порядку», а бирка, приклеенная к строке. Если вычеркнуть из журнала строки 4, 5 и 6, у следующей строки так и останется бирка «7». Поэтому в таблице ниже после 3 сразу идёт 7.</li>
+    <li><b>Тип данных (dtype)</b> — что лежит в колонке: <code class="i">int64</code> — целые числа (1200), <code class="i">float64</code> — числа с точкой (59.0), <code class="i">str</code> — текст («Ташкент»), <code class="i">bool</code> — да/нет (True/False).</li>
+    <li><b>NaN</b> — пустая клетка. Так pandas говорит «я не знаю». Например, клиент не поставил оценку.</li>
+  </ul>
+  <p>Загадка с подвохом: минуты доставки всегда целые, почему тогда у <code class="i">delivery_min</code> тип <code class="i">float64</code>? Потому что там есть пустые клетки. Пустая клетка NaN в pandas бывает только у чисел с точкой, и одна такая клетка превращает всю колонку в float64.</p>
+</div>
+<p>Ниже настоящие первые строки нашей таблицы. Жёлтая колонка — одна Series, <code class="i">df["city"]</code>. Под именем каждой колонки написан её тип.</p>
+<div class="scroll">
+  <table class="anat">
+    <thead><tr><th class="idx">Index</th><th>order_id<span class="dt">int64</span></th><th>order_date<span class="dt">str ⚠</span></th><th>user_id<span class="dt">int64</span></th><th class="ser">city<span class="dt">str · Series</span></th><th>category<span class="dt">str</span></th><th>order_amount<span class="dt">int64</span></th><th>delivery_min<span class="dt">float64</span></th><th>promo_used<span class="dt">bool</span></th><th>rating<span class="dt">float64</span></th></tr></thead>
+    <tbody>
+      <tr><td class="idx">0</td><td>100001</td><td>2026-09-01 01:17</td><td>5431</td><td class="ser">Самарканд</td><td>Суши</td><td>155000</td><td>59.0</td><td>False</td><td class="nan">NaN</td></tr>
+      <tr><td class="idx">1</td><td>100002</td><td>2026-09-01 01:52</td><td>5706</td><td class="ser">Бухара</td><td>Плов</td><td>62000</td><td>40.0</td><td>False</td><td class="nan">NaN</td></tr>
+      <tr><td class="idx">2</td><td>100003</td><td>2026-09-01 02:59</td><td>5434</td><td class="ser">Ташкент</td><td>Десерты</td><td>26000</td><td>46.0</td><td>False</td><td>3.0</td></tr>
+      <tr><td class="idx">3</td><td>100004</td><td>2026-09-01 03:05</td><td>5785</td><td class="ser">Ташкент</td><td>Десерты</td><td>73000</td><td>34.0</td><td>False</td><td class="nan">NaN</td></tr>
+      <tr><td class="idx">7</td><td>100008</td><td>2026-09-01 05:19</td><td>5370</td><td class="ser">Ташкент</td><td>Пицца</td><td>99000</td><td class="nan">NaN</td><td>False</td><td>5.0</td></tr>
+    </tbody>
+  </table>
+</div>
+<div class="legend">
+  <div><b>Series</b>Одна колонка: значения + индекс + один тип данных. Как столбец в Excel, но со своими подписями строк.</div>
+  <div><b>DataFrame</b>Набор Series с общим индексом. Двумерная таблица: строки × колонки.</div>
+  <div><b>Index</b>Подписи строк, а не их номер. Посмотри на последнюю строку: метка 7 стоит после 3. После фильтрации номера «рвутся», это нормально.</div>
+</div>
+<div class="callout y"><b>pandas 3.0.</b> В версии 3.0 (январь 2026) текстовые колонки по умолчанию получают тип <code class="i">str</code>. Во многих старых курсах и ответах в интернете ты увидишь тип <code class="i">object</code>: это одно и то же по смыслу, просто старее.</div>
+
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Шесть вопросов, которые аналитик задаёт новым данным</h2>
+      <div class="simple"><span class="tag">Как читать код pandas</span>
+  <ul>
+    <li><code class="i">import pandas as pd</code> — «возьми инструмент pandas и дальше зови его коротко: pd».</li>
+    <li><code class="i">df = pd.read_csv("файл.csv")</code> — «открой файл и положи таблицу в коробку с именем df». df — просто имя, сокращение от DataFrame. Можно назвать и orders.</li>
+    <li><b>Точка</b> после df значит «таблица, сделай для меня…»: <code class="i">df.head()</code> — «таблица, покажи начало».</li>
+    <li><b>Круглые скобки</b> <code class="i">()</code> — это действие, его нужно выполнить: <code class="i">df.head()</code>. <b>Без скобок</b> — это свойство, его просто читают: <code class="i">df.shape</code>. Как у человека: «бегать» — действие, «рост» — свойство.</li>
+    <li><b>Квадратные скобки</b> <code class="i">[ ]</code> — «достань оттуда»: <code class="i">df["city"]</code> — «достань из таблицы колонку city».</li>
+    <li><b>Решётка</b> <code class="i">#</code> — комментарий: всё, что после неё в строке, Python не выполняет. Это заметки для людей.</li>
+  </ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле Tez Food. Твои цифры должны совпасть.</p>
+<div class="cards">
+  <div class="card"><div class="q"><b>1. Сколько у меня данных?</b> <code class="i">shape</code> — свойство, без скобок.</div>
+<pre class="code" data-cm>import pandas as pd
+
+df = pd.read_csv("tezfood_orders.csv")
+df.shape</pre><div class="out">(1200, 11)</div><p class="plain"><b>Простыми словами:</b> сколько в таблице строк и сколько колонок. (1200, 11) значит 1200 заказов, и про каждый мы знаем 11 вещей. Как спросить: сколько учеников в журнале и сколько в нём граф.</p></div>
+  <div class="card"><div class="q"><b>2. Как выглядит строка?</b> <code class="i">head</code> = начало файла, <code class="i">sample</code> = случайные строки.</div>
+<pre class="code" data-cm>df.head(3)
+df.sample(5, random_state=42)  # воспроизводимая случайность</pre><div class="out">   order_id        order_date  user_id       city category ...
+0    100001  2026-09-01 01:17     5431  Самарканд     Суши ...
+1    100002  2026-09-01 01:52     5706     Бухара     Плов ...
+2    100003  2026-09-01 02:59     5434    Ташкент  Десерты ...</div><p class="plain"><b>Простыми словами:</b> <code class="i">head(3)</code> — показать первые 3 строки, как открыть журнал на первой странице. <code class="i">sample(5)</code> — вытащить 5 случайных строк, как 5 карточек из перемешанной колоды. <code class="i">random_state=42</code> — номер перемешивания: с тем же числом всегда выпадают те же строки, и твой результат совпадёт с нашим.</p></div>
+  <div class="card"><div class="q"><b>3. Какие типы и где пусто?</b> Сравни Non-Null Count с 1200.</div>
+<pre class="code" data-cm>df.info()</pre><div class="out"> #   Column        Non-Null Count  Dtype
+ 0   order_id      1200 non-null   int64
+ 1   order_date    1200 non-null   str      ← дата как текст!
+ 2   user_id       1200 non-null   int64
+ 3   city          1200 non-null   str
+ ...
+ 7   delivery_min  1163 non-null   float64  ← 37 пропусков
+ 9   promo_used    1200 non-null   bool
+10   rating        818 non-null    float64  ← 382 пропуска
+memory usage: 95.1 KB</div><p class="plain"><b>Простыми словами:</b> это паспорт таблицы. Для каждой колонки: имя, сколько в ней заполненных клеток (Non-Null Count) и какой тип. Всего строк 1200. Если у колонки заполненных меньше 1200, значит, в ней есть пустые клетки.</p></div>
+  <div class="card"><div class="q"><b>4. Сколько пропусков точно?</b> <code class="i">isna()</code> даёт True/False, <code class="i">sum()</code> считает True.</div>
+<pre class="code" data-cm>df.isna().sum()</pre><div class="out">order_id          0
+...
+delivery_min     37
+rating          382
+dtype: int64</div><p class="plain"><b>Простыми словами:</b> <code class="i">isna()</code> проходит по каждой клетке и ставит пометку: пусто — True («да, пусто»), заполнено — False. <code class="i">sum()</code> складывает пометки, а True считается как 1. Получается число пустых клеток в каждой колонке.</p></div>
+  <div class="card"><div class="q"><b>5. Как распределены числа?</b> <code class="i">describe()</code> берёт только числовые колонки.</div>
+<pre class="code" data-cm>df["order_amount"].describe()</pre><div class="out">count       1200.0
+mean      107697.5   ← среднее
+std       109939.8
+min        17000.0
+25%        60000.0
+50%        85500.0   ← медиана
+75%       123000.0
+max      2073000.0   ← корпоративный заказ</div><p class="plain"><b>Простыми словами:</b> восемь чисел про колонку сразу. count — сколько значений, mean — среднее, std — насколько сильно числа отличаются друг от друга, min и max — самое маленькое и самое большое. 25%, 50%, 75% — границы: четверть заказов дешевле 60 000, половина дешевле 85 500, три четверти дешевле 123 000. Строка 50% — это медиана, ровно середина.</p></div>
+  <div class="card"><div class="q"><b>6. Какая структура категорий?</b> Доли через <code class="i">normalize=True</code>.</div>
+<pre class="code" data-cm>df["city"].value_counts()
+df["city"].value_counts(normalize=True).round(3)</pre><div class="out">city
+Ташкент      599      0.499
+Самарканд    199      0.166
+Бухара       163      0.136
+Наманган     131      0.109
+Андижан      108      0.090</div><p class="plain"><b>Простыми словами:</b> считает, сколько раз встречается каждое значение, и ставит самые частые наверх. С <code class="i">normalize=True</code> вместо штук показывает доли: 0.499 значит 49.9%, почти половина заказов из Ташкента.</p></div>
+</div>
+<div class="simple"><span class="tag">Среднее или медиана: история про карманные деньги</span>
+  <p>В классе 10 учеников. У девяти по 10 000 сум карманных денег, а у одного — 1 000 000.</p>
+  <div><div class="story" aria-label="Девять маленьких столбиков по 10 000 и один огромный 1 000 000"><span style="height:4%"></span><span style="height:4%"></span><span style="height:4%"></span><span style="height:4%"></span><span style="height:4%"></span><span style="height:4%"></span><span style="height:4%"></span><span style="height:4%"></span><span style="height:4%"></span><span class="rich" style="height:100%"></span></div>
+  <div class="story-lab"><span>9 учеников × 10 000</span><span>1 ученик × 1 000 000</span></div></div>
+  <p><b>Среднее</b> = (9 × 10 000 + 1 000 000) / 10 = <b>109 000 сум</b>. Но ни у одного ученика нет 109 000! <b>Медиана</b> — это деньги того, кто стоит посередине, если всех выстроить от бедного к богатому: <b>10 000 сум</b>. Она честнее показывает обычного ученика.</p>
+  <p>С заказами то же самое: 13 очень дорогих корпоративных заказов тянут среднее вверх до 107 698 сум, а обычный заказ стоит около 85 500 (медиана).</p>
+</div>
+<div class="callout"><b>Правило аналитика.</b> <code class="i">describe()</code> посчитает среднее и для <code class="i">user_id</code> (5398.6). Это бессмысленное число: ID — это метка, а не количество. Перед тем как считать статистику по колонке, спроси себя, имеет ли сумма или среднее этой колонки смысл.</div>
+
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Скобки после shape</h3><div class="bad">df.shape()   # TypeError: &#39;tuple&#39; object is not callable</div><div class="good">df.shape     # (1200, 11)   →   df.shape[0] = 1200 строк</div></div>
+        <div class="trap"><span class="n">2</span><h3>Несколько колонок в одинарных скобках</h3><div class="bad">df[&#34;city&#34;, &#34;category&#34;]     # KeyError</div><div class="good">df[[&#34;city&#34;, &#34;category&#34;]]   # внешние скобки — выбор, внутренние — список</div></div>
+        <div class="trap"><span class="n">3</span><h3>Среднее чека как «типичный чек»</h3><p>Среднее 107 698 сум, медиана 85 500 сум. Разница в 26% — это 13 заказов дороже 500 000 сум (максимум 2 073 000). Деньги почти всегда скошены вправо: коллеге называй медиану, а среднее давай рядом с пояснением.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Метрика без базы</h3><p>Средний рейтинг 4.06 посчитан только по 818 заказам из 1 200: <code class="i">mean()</code> молча пропускает NaN. 31.8% заказов не оценены, и это не случайные 31.8%. Всегда пиши базу: «4.06 по 818 оценённым заказам (68%)».</p></div>
+        <div class="trap"><span class="n">5</span><h3>head() вместо выборки</h3><p>Файл отсортирован по времени, поэтому <code class="i">head()</code> показывает только ночь 1 сентября. Чтобы почувствовать данные, смотри <code class="i">df.sample(5, random_state=42)</code>: случайно, но воспроизводимо.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>pd.read_csv(&#34;file.csv&#34;) <span>— открыть файл</span></li><li>df.shape <span>— (строки, колонки), без скобок</span></li><li>df.sample(5, random_state=42) <span>— 5 случайных строк, одинаково каждый раз</span></li><li>df.info() <span>— типы и сколько заполнено</span></li><li>df.isna().sum() <span>— пустые клетки по колонкам</span></li><li>df[&#34;x&#34;].describe() <span>— 8 чисел о колонке</span></li><li>df[&#34;x&#34;].median() <span>— «типичное» значение для денег</span></li><li>df[&#34;x&#34;].value_counts(normalize=True) <span>— доли категорий</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="0">
+          <p>1. Что вернёт <code>df["city"]</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Series</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>DataFrame из одной колонки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Python-список</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Index</span></button></div>
+          <div class="why" hidden>Одинарные скобки и одно имя дают Series. Двойные скобки <code>df[["city"]]</code> дали бы DataFrame.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Как получить число строк таблицы?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>df.shape(0)</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>df.shape[0]</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df.size</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df.count</code></span></button></div>
+          <div class="why" hidden>shape — кортеж, к нему обращаются квадратными скобками. size = строки × колонки = 13 200.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="2">
+          <p>3. В <code>info()</code> у rating 818 non-null из 1200. Сколько пропусков?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>818</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>0, NaN не считается</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>382</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>31.8</span></button></div>
+          <div class="why" hidden>1200 − 818 = 382. Это 31.8% заказов без оценки.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Какие колонки покажет <code>df.describe()</code> по умолчанию?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Все</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Только числовые</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Только текстовые</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Только без пропусков</span></button></div>
+          <div class="why" hidden>По умолчанию числовые. Для текстовых: <code>df.describe(include="str")</code> или <code>include="all"</code>.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Среднее чека 107 698, медиана 85 500. Что сказать коллеге?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Типичный чек ≈ 107 698</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Типичный чек ≈ 85 500, среднее завышают крупные заказы</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Данные с ошибкой</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Чек невозможно оценить</span></button></div>
+          <div class="why" hidden>Медиана устойчива к выбросам. 13 заказов дороже 500 000 сум тянут среднее вверх.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <div class="howto">
+        <h3>Как решать задачи</h3>
+        <ol>
+          <li>Напиши код в редакторе.</li>
+          <li>Нажми <b>▶ Запустить</b> — под редактором появится, что выводит <b>твой</b> код.</li>
+          <li>Не уверен в результате? Открой <b>🎯 Ожидаемый результат</b> и сравни.</li>
+          <li>Нажми <b>✓ Проверить</b> — вывод сверится с правильным ответом, и задача засчитается.</li>
+        </ol>
+        <p><b>Сначала попробуй решить сам.</b> Даже если не получилось с первого раза, перечитай теорию и примеры выше, поменяй код и запусти ещё раз — именно так навык и запоминается. Если совсем застрял, открой <b>💡 Подсказку</b>: она одна на задачу и стоит 5 XP, а потом её можно скрывать и открывать бесплатно.</p>
+        <p class="note">Перед каждой задачей таблица уже загружена в <code class="i">df</code>. Как в Jupyter, значение последней строки выводится само, без print(). Код и ответы сохраняются в браузере — можно уйти и вернуться позже.</p>
+      </div>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Загрузи и измерь</h3>
+            <ol class='steps-t'><li>Загрузи файл <b>tezfood_orders.csv</b> в переменную <code class='i'>df</code>.</li> <li>Напечатай размер таблицы <b>ровно в таком виде</b>: <code class='i'>Строк: 1200, колонок: 11</code></li></ol> <p class='rule-t'>Числа не пиши руками: возьми их из <code class='i'>df.shape</code>.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 01 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">import pandas as pd
+
+# твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">Строк: 1200, колонок: 11</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>import pandas as pd
+
+# твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Размер таблицы pandas уже знает — он лежит в <code class="i">df.shape</code> как пара чисел (строки, колонки). Тебе нужно достать эти два числа и вставить их в готовую фразу.</p>
+<p><b>Чем это сделать.</b> Пару можно сразу «разложить» по двум переменным: <code class="i">a, b = (3, 7)</code> даёт a = 3 и b = 7. А f-строка подставляет переменные в текст: <code class="i">print(f"Мне {a} года")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df = pd.read_csv(&#34;___&#34;)
+rows, cols = df.___
+print(f&#34;Строк: {___}, колонок: {___}&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">df.shape()</code> со скобками падает с ошибкой: shape — это свойство, а не действие, скобки не нужны.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Посмотри правильно</h3>
+            <ol class='steps-t'><li>Покажи <b>5 случайных строк</b>. При каждом запуске должны выходить <b>одни и те же</b> строки.</li> <li>Покажи <b>последние 3 строки</b> таблицы.</li> <li>Комментарием (<code class='i'># ...</code>) ответь: почему <code class='i'>df.head()</code> плохо показывает эти данные?</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 01 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># 5 случайных воспроизводимых строк
+
+# последние 3 строки
+
+# почему head() не годится:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">5 случайных строк (random_state=42), order_id:
+101179, 100866, 100102, 100440, 100059
+
+Последние 3 строки, order_id:
+101198, 101199, 101200
+
++ комментарий: почему head() не годится</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 5 случайных воспроизводимых строк
+
+# последние 3 строки
+
+# почему head() не годится:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>Файл отсортирован по order_date: head() покажет только первые часы 1 сентября,
+это не представительная картина данных.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Одни и те же случайные строки» звучит странно, но так можно: случайности задают номер перемешивания, и с тем же номером выпадают те же строки. Для вопроса в комментарии посмотри на колонку order_date в начале и в конце файла.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.sample(5, random_state=42)</code> — 5 случайных строк, одинаковых при каждом запуске. <code class="i">df.tail(n)</code> — последние n строк (как <code class="i">head</code>, только с конца).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df.sample(___, random_state=___))
+df.___(3)
+# head() не годится, потому что файл отсортирован по ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если вывести два результата подряд без print, Jupyter покажет только последний. Первый оберни в <code class="i">print()</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Паспорт типов</h3>
+            <ol class='steps-t'><li>Одной командой посчитай: <b>сколько колонок каждого типа</b> (<code class='i'>int64</code>, <code class='i'>str</code>, …).</li> <li>Комментарием: какая колонка прочитана с <b>неправильным типом</b> и какой тип ей нужен?</li> <li>Комментарием: какие <b>2 числовые колонки</b> бессмысленно усреднять и почему?</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 01 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3"># сколько колонок каждого типа
+
+# 1) неправильный тип:
+# 2) нельзя усреднять:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">int64      4
+str        4
+float64    2
+bool       1
+Name: count, dtype: int64
+
++ 2 ответа в комментариях</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># сколько колонок каждого типа
+
+# 1) неправильный тип:
+# 2) нельзя усреднять:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>int64 4, str 4, float64 2, bool 1
+1) order_date прочитана как str, нужна datetime64
+(pd.to_datetime или parse_dates=[&#34;order_date&#34;] в read_csv).
+2) order_id и user_id: это метки, а не количества,
+их среднее не имеет смысла.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала получи «список типов всех колонок» — это тоже Series. А посчитать, сколько раз встречается каждый тип, умеет тот же метод, которым ты считал города.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.dtypes</code> — тип каждой колонки. <code class="i">.value_counts()</code> — сколько раз встречается каждое значение. Методы можно ставить один за другим через точку.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df.___.value_counts()
+# 1) неправильный тип: колонка ___ прочитана как str, а это ___
+# 2) нельзя усреднять: ___ и ___, потому что это ___, а не количества</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не путай «выглядит как число» и «является количеством». Номер заказа — это метка, как номер паспорта: средний номер паспорта ничего не значит.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Дыры в данных</h3>
+            <ol class='steps-t'><li>Найди колонки, где <b>есть пропуски</b> (NaN).</li> <li>Для них выведи <b>% пропусков</b> от всех строк, округли до 0.1.</li></ol> <p class='rule-t'>Колонки без пропусков не показывай. Должно получиться 2 строки.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 01 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">na = df.isna().sum()
+
+# оставь колонки с пропусками и переведи в %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">delivery_min     3.1
+rating          31.8
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>na = df.isna().sum()
+
+# оставь колонки с пропусками и переведи в %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> У тебя уже есть <code class="i">na</code> — сколько пустых клеток в каждой колонке. Оставь в нём только те строки, где число больше нуля, и переведи количество в проценты от всех заказов.</p>
+<p><b>Чем это сделать.</b> Фильтр работает и у Series: <code class="i">s[s > 0]</code> оставляет только положительные значения. Процент = часть / целое × 100, а целое — это число строк <code class="i">len(df)</code>. <code class="i">.round(1)</code> оставляет 1 знак после точки.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>na = df.isna().sum()
+(na[___] / ___ * 100).round(___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Делить нужно на число строк (1200), а не на число пропусков или на <code class="i">df.size</code> (это клетки всей таблицы).</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Среднее против медианы</h3>
+            <p>Колонка <code class='i'>order_amount</code> — сумма заказа в сумах.</p> <ol class='steps-t'><li>Выведи <b>среднее, медиану и максимум</b>.</li> <li>Выведи, <b>сколько заказов дороже 500 000</b>.</li> <li>Комментарием: что назвать «типичным чеком» — среднее или медиану? Почему?</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 01 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">amount = df[&#34;order_amount&#34;]
+
+# среднее, медиана, максимум
+
+# сколько заказов &gt; 500 000
+
+# типичный чек — это … потому что …
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">107697.5 85500.0 2073000
+13
+
++ комментарий: какой чек типичный и почему</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>amount = df[&#34;order_amount&#34;]
+
+# среднее, медиана, максимум
+
+# сколько заказов &gt; 500 000
+
+# типичный чек — это … потому что …
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>Типичный чек — медиана 85 500 сум. 13 крупных заказов (до 2 073 000)
+тянут среднее вверх до 107 698, поэтому среднее завышает «обычный» заказ.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Три числа — это три готовых метода у колонки. А чтобы посчитать «сколько заказов дороже 500 000», сначала задай каждому заказу вопрос «ты дороже?» и сложи ответы «да».</p>
+<p><b>Чем это сделать.</b> <code class="i">.mean()</code> — среднее, <code class="i">.median()</code> — медиана, <code class="i">.max()</code> — максимум. Сравнение <code class="i">amount > 500000</code> даёт True/False для каждого заказа, а <code class="i">.sum()</code> считает True как 1 — получается количество.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(amount.___(), amount.___(), amount.___())
+print((amount ___ 500000).___())
+# типичный чек — это ___, потому что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Не пиши 500 000 с пробелами — Python их не понимает. Пиши <code class="i">500000</code> или <code class="i">500_000</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>География и клиенты</h3>
+            <p>Выведи <b>4 числа</b>, каждое кодом:</p> <ol class='steps-t'><li>Сколько <b>разных городов</b>.</li> <li>Какой <b>% заказов из Ташкента</b> (округли до 0.1).</li> <li>Сколько <b>разных клиентов</b> (<code class='i'>user_id</code>).</li> <li>Сколько <b>заказов в среднем на 1 клиента</b> (округли до 0.01).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 01 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6"># уникальные города
+
+# доля Ташкента, %
+
+# уникальные клиенты и заказов на клиента
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">5
+49.9
+620 1.94</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># уникальные города
+
+# доля Ташкента, %
+
+# уникальные клиенты и заказов на клиента
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Тут четыре маленьких вопроса. «Сколько разных» — это отдельный метод. Доля Ташкента — это одно значение из таблицы долей городов. Заказов на клиента = все заказы / число разных клиентов.</p>
+<p><b>Чем это сделать.</b> <code class="i">.nunique()</code> — сколько разных значений. <code class="i">value_counts(normalize=True)</code> — доли, а одно значение из результата достаётся по подписи: <code class="i">s["Бухара"]</code>. <code class="i">round(x, 2)</code> округляет обычное число.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df[&#34;___&#34;].nunique())
+share = df[&#34;city&#34;].value_counts(normalize=True)[&#34;___&#34;] * 100
+print(round(share, ___))
+users = df[&#34;___&#34;].nunique()
+print(users, round(___ / users, 2))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Доля из <code class="i">normalize=True</code> — это 0.499, а не 49.9. Не забудь умножить на 100.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Паспорт данных одной Series</h3>
+            <p>Собери главные цифры в <b>одну Series</b> с именем <code class='i'>passport</code>. Ключи и что в них:</p> <ol class='steps-t'><li><code class='i'>orders</code> — число заказов</li><li><code class='i'>users</code> — разных клиентов</li> <li><code class='i'>cities</code> — разных городов</li><li><code class='i'>period_start</code> / <code class='i'>period_end</code> — первая и последняя дата заказа</li> <li><code class='i'>median_check</code> — медиана суммы заказа</li><li><code class='i'>rating_coverage_%</code> — % заказов с оценкой (до 0.1)</li></ol> <p class='rule-t'>Все значения считай из <code class='i'>df</code>, руками ничего не вписывай.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 01 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">passport = pd.Series({
+    &#34;orders&#34;: ...,
+    &#34;users&#34;: ...,
+    # продолжи
+})
+passport
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">orders                           1200
+users                             620
+cities                              5
+period_start         2026-09-01 01:17
+period_end           2026-09-30 23:35
+median_check                  85500.0
+rating_coverage_%                68.2
+dtype: object</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>passport = pd.Series({
+    &#34;orders&#34;: ...,
+    &#34;users&#34;: ...,
+    # продолжи
+})
+passport
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Это сборка: каждое значение ты уже считал в прошлых задачах. Положи их в словарь «название → формула», и <code class="i">pd.Series</code> превратит названия в подписи строк. Для дат подойдут min и max — самая ранняя и самая поздняя.</p>
+<p><b>Чем это сделать.</b> <code class="i">len(df)</code> — число строк, <code class="i">.nunique()</code> — разных значений, <code class="i">.min()</code> / <code class="i">.max()</code> — первая и последняя дата. Доля непустых: <code class="i">.notna().mean()</code> — как доля True.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>passport = pd.Series({
+    &#34;orders&#34;: len(df),
+    &#34;users&#34;: df[&#34;___&#34;].nunique(),
+    &#34;cities&#34;: ___,
+    &#34;period_start&#34;: df[&#34;order_date&#34;].___(),
+    &#34;period_end&#34;: ___,
+    &#34;median_check&#34;: ___,
+    &#34;rating_coverage_%&#34;: round(df[&#34;rating&#34;].___().mean() * 100, 1),
+})
+passport</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Ключи пишутся строго как в задании, вместе со знаком %: <code class="i">"rating_coverage_%"</code>. Проверка ищет именно их.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Малике</h2>
+      <div class="case">
+        <p>Напиши ответ в мессенджер на её сообщение. Не больше 6 предложений. Структура, которую ждут на работе: <b>главный вывод → 3–4 цифры → 2 риска в данных → 1 вопрос к ней</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Число заказов</span><span class="fact-chip">Типичный чек (медиана)</span><span class="fact-chip">Доля заказов без оценки</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Малика, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Что твой ответ называет «типичным» чеком?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Медиану ≈ 85 500: несколько очень крупных заказов завышают среднее</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Среднее ≈ 107 698: оно честнее, потому что учитывает все заказы</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Самый крупный заказ — 2 073 000</span></button></div>
+            <div class="why" hidden>Среднее тянут вверх 13 корпоративных заказов дороже 500 000. Обычный заказ лучше описывает медиана — середина всех заказов.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="1">
+            <p>2. Что твой ответ говорит про средний рейтинг 4,06?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ему можно полностью доверять: это оценка всех заказов</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Его нужно читать осторожно: оценку поставили только у части заказов (≈ 68%)</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Рейтинг низкий, клиенты недовольны</span></button></div>
+            <div class="why" hidden>mean() молча пропускает пустые клетки: 4,06 посчитан по 818 оценённым заказам, а 31,8% заказов не оценены вообще. Это риск в данных.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. С чего начинается твой ответ?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>С главного вывода для Малики</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>С рассказа, какие команды я запускал</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сразу со списка всех цифр</span></button></div>
+            <div class="why" hidden>Руководителю важен вывод. Первое предложение — главная мысль, цифры — после неё как доказательство.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Малика, привет! Коротко: данных достаточно для выводов, но средний рейтинг читать осторожно. С 1 по 30 сентября 1 200 заказов от 620 клиентов (1,94 заказа на клиента), почти половина — Ташкент (49,9%). Типичный чек — 85 500 сум (медиана); среднее 107 698 завышают 13 корпоративных заказов дороже 500 000. Риски: у 31,8% заказов нет оценки, поэтому рейтинг 4,06 посчитан только по 818 заказам, а у 37 заказов (3,1%) не записано время доставки. Вопрос: корпоративные заказы в отчёте показываем отдельно или вместе со всеми?</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Первое предложение — главный вывод, а не «я посмотрел данные»</li><li>Все цифры совпадают с теми, что ты получил в задачах</li><li>«Типичный чек» — это медиана, а среднее объяснено</li><li>Названы 2 риска: пропуски в рейтинге и во времени доставки</li><li>В конце один конкретный вопрос</li><li>Не больше 6 предложений</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 1</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../program/"><small>←</small><b>Программа курса</b></a><a class="nx" href="../../lessons/02-vybor-dannyh-loc-iloc/"><small>Урок 2 →</small><b>Выбор данных: колонки, loc / iloc, фильтры</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0427\u0438\u0441\u043b\u043e \u0437\u0430\u043a\u0430\u0437\u043e\u0432", "value": 1200}, {"name": "\u0422\u0438\u043f\u0438\u0447\u043d\u044b\u0439 \u0447\u0435\u043a (\u043c\u0435\u0434\u0438\u0430\u043d\u0430)", "value": 85500}, {"name": "\u0414\u043e\u043b\u044f \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0431\u0435\u0437 \u043e\u0446\u0435\u043d\u043a\u0438", "pct": true, "value": 31.8}], "logic": [{"a": 0, "o": ["\u041c\u0435\u0434\u0438\u0430\u043d\u0443 \u2248 85 500: \u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043e\u0447\u0435\u043d\u044c \u043a\u0440\u0443\u043f\u043d\u044b\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0437\u0430\u0432\u044b\u0448\u0430\u044e\u0442 \u0441\u0440\u0435\u0434\u043d\u0435\u0435", "\u0421\u0440\u0435\u0434\u043d\u0435\u0435 \u2248 107 698: \u043e\u043d\u043e \u0447\u0435\u0441\u0442\u043d\u0435\u0435, \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0443\u0447\u0438\u0442\u044b\u0432\u0430\u0435\u0442 \u0432\u0441\u0435 \u0437\u0430\u043a\u0430\u0437\u044b", "\u0421\u0430\u043c\u044b\u0439 \u043a\u0440\u0443\u043f\u043d\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 \u2014 2 073 000"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u00ab\u0442\u0438\u043f\u0438\u0447\u043d\u044b\u043c\u00bb \u0447\u0435\u043a\u043e\u043c?", "why": "\u0421\u0440\u0435\u0434\u043d\u0435\u0435 \u0442\u044f\u043d\u0443\u0442 \u0432\u0432\u0435\u0440\u0445 13 \u043a\u043e\u0440\u043f\u043e\u0440\u0430\u0442\u0438\u0432\u043d\u044b\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0434\u043e\u0440\u043e\u0436\u0435 500 000. \u041e\u0431\u044b\u0447\u043d\u044b\u0439 \u0437\u0430\u043a\u0430\u0437 \u043b\u0443\u0447\u0448\u0435 \u043e\u043f\u0438\u0441\u044b\u0432\u0430\u0435\u0442 \u043c\u0435\u0434\u0438\u0430\u043d\u0430 \u2014 \u0441\u0435\u0440\u0435\u0434\u0438\u043d\u0430 \u0432\u0441\u0435\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432."}, {"a": 1, "o": ["\u0415\u043c\u0443 \u043c\u043e\u0436\u043d\u043e \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e \u0434\u043e\u0432\u0435\u0440\u044f\u0442\u044c: \u044d\u0442\u043e \u043e\u0446\u0435\u043d\u043a\u0430 \u0432\u0441\u0435\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432", "\u0415\u0433\u043e \u043d\u0443\u0436\u043d\u043e \u0447\u0438\u0442\u0430\u0442\u044c \u043e\u0441\u0442\u043e\u0440\u043e\u0436\u043d\u043e: \u043e\u0446\u0435\u043d\u043a\u0443 \u043f\u043e\u0441\u0442\u0430\u0432\u0438\u043b\u0438 \u0442\u043e\u043b\u044c\u043a\u043e \u0443 \u0447\u0430\u0441\u0442\u0438 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 (\u2248 68%)", "\u0420\u0435\u0439\u0442\u0438\u043d\u0433 \u043d\u0438\u0437\u043a\u0438\u0439, \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u043d\u0435\u0434\u043e\u0432\u043e\u043b\u044c\u043d\u044b"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043f\u0440\u043e \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0440\u0435\u0439\u0442\u0438\u043d\u0433 4,06?", "why": "mean() \u043c\u043e\u043b\u0447\u0430 \u043f\u0440\u043e\u043f\u0443\u0441\u043a\u0430\u0435\u0442 \u043f\u0443\u0441\u0442\u044b\u0435 \u043a\u043b\u0435\u0442\u043a\u0438: 4,06 \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043d \u043f\u043e 818 \u043e\u0446\u0435\u043d\u0451\u043d\u043d\u044b\u043c \u0437\u0430\u043a\u0430\u0437\u0430\u043c, \u0430 31,8% \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0435 \u043e\u0446\u0435\u043d\u0435\u043d\u044b \u0432\u043e\u043e\u0431\u0449\u0435. \u042d\u0442\u043e \u0440\u0438\u0441\u043a \u0432 \u0434\u0430\u043d\u043d\u044b\u0445."}, {"a": 0, "o": ["\u0421 \u0433\u043b\u0430\u0432\u043d\u043e\u0433\u043e \u0432\u044b\u0432\u043e\u0434\u0430 \u0434\u043b\u044f \u041c\u0430\u043b\u0438\u043a\u0438", "\u0421 \u0440\u0430\u0441\u0441\u043a\u0430\u0437\u0430, \u043a\u0430\u043a\u0438\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u044b \u044f \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u043b", "\u0421\u0440\u0430\u0437\u0443 \u0441\u043e \u0441\u043f\u0438\u0441\u043a\u0430 \u0432\u0441\u0435\u0445 \u0446\u0438\u0444\u0440"], "q": "\u0421 \u0447\u0435\u0433\u043e \u043d\u0430\u0447\u0438\u043d\u0430\u0435\u0442\u0441\u044f \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442?", "why": "\u0420\u0443\u043a\u043e\u0432\u043e\u0434\u0438\u0442\u0435\u043b\u044e \u0432\u0430\u0436\u0435\u043d \u0432\u044b\u0432\u043e\u0434. \u041f\u0435\u0440\u0432\u043e\u0435 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u2014 \u0433\u043b\u0430\u0432\u043d\u0430\u044f \u043c\u044b\u0441\u043b\u044c, \u0446\u0438\u0444\u0440\u044b \u2014 \u043f\u043e\u0441\u043b\u0435 \u043d\u0435\u0451 \u043a\u0430\u043a \u0434\u043e\u043a\u0430\u0437\u0430\u0442\u0435\u043b\u044c\u0441\u0442\u0432\u043e."}]}, "case_model": "\u041c\u0430\u043b\u0438\u043a\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u041a\u043e\u0440\u043e\u0442\u043a\u043e: \u0434\u0430\u043d\u043d\u044b\u0445 \u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u0434\u043b\u044f \u0432\u044b\u0432\u043e\u0434\u043e\u0432, \u043d\u043e \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0440\u0435\u0439\u0442\u0438\u043d\u0433 \u0447\u0438\u0442\u0430\u0442\u044c \u043e\u0441\u0442\u043e\u0440\u043e\u0436\u043d\u043e. \u0421 1 \u043f\u043e 30 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044f 1 200 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043e\u0442 620 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 (1,94 \u0437\u0430\u043a\u0430\u0437\u0430 \u043d\u0430 \u043a\u043b\u0438\u0435\u043d\u0442\u0430), \u043f\u043e\u0447\u0442\u0438 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0430 \u2014 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 (49,9%). \u0422\u0438\u043f\u0438\u0447\u043d\u044b\u0439 \u0447\u0435\u043a \u2014 85 500 \u0441\u0443\u043c (\u043c\u0435\u0434\u0438\u0430\u043d\u0430); \u0441\u0440\u0435\u0434\u043d\u0435\u0435 107 698 \u0437\u0430\u0432\u044b\u0448\u0430\u044e\u0442 13 \u043a\u043e\u0440\u043f\u043e\u0440\u0430\u0442\u0438\u0432\u043d\u044b\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0434\u043e\u0440\u043e\u0436\u0435 500 000. \u0420\u0438\u0441\u043a\u0438: \u0443 31,8% \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0435\u0442 \u043e\u0446\u0435\u043d\u043a\u0438, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0440\u0435\u0439\u0442\u0438\u043d\u0433 4,06 \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043d \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e 818 \u0437\u0430\u043a\u0430\u0437\u0430\u043c, \u0430 \u0443 37 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 (3,1%) \u043d\u0435 \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u043e \u0432\u0440\u0435\u043c\u044f \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438. \u0412\u043e\u043f\u0440\u043e\u0441: \u043a\u043e\u0440\u043f\u043e\u0440\u0430\u0442\u0438\u0432\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u044b \u0432 \u043e\u0442\u0447\u0451\u0442\u0435 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u043c \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e \u0438\u043b\u0438 \u0432\u043c\u0435\u0441\u0442\u0435 \u0441\u043e \u0432\u0441\u0435\u043c\u0438?", "case_xp": 30, "cheat": [["pd.read_csv(\"file.csv\")", "\u043e\u0442\u043a\u0440\u044b\u0442\u044c \u0444\u0430\u0439\u043b"], ["df.shape", "(\u0441\u0442\u0440\u043e\u043a\u0438, \u043a\u043e\u043b\u043e\u043d\u043a\u0438), \u0431\u0435\u0437 \u0441\u043a\u043e\u0431\u043e\u043a"], ["df.sample(5, random_state=42)", "5 \u0441\u043b\u0443\u0447\u0430\u0439\u043d\u044b\u0445 \u0441\u0442\u0440\u043e\u043a, \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u043e \u043a\u0430\u0436\u0434\u044b\u0439 \u0440\u0430\u0437"], ["df.info()", "\u0442\u0438\u043f\u044b \u0438 \u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0437\u0430\u043f\u043e\u043b\u043d\u0435\u043d\u043e"], ["df.isna().sum()", "\u043f\u0443\u0441\u0442\u044b\u0435 \u043a\u043b\u0435\u0442\u043a\u0438 \u043f\u043e \u043a\u043e\u043b\u043e\u043d\u043a\u0430\u043c"], ["df[\"x\"].describe()", "8 \u0447\u0438\u0441\u0435\u043b \u043e \u043a\u043e\u043b\u043e\u043d\u043a\u0435"], ["df[\"x\"].median()", "\u00ab\u0442\u0438\u043f\u0438\u0447\u043d\u043e\u0435\u00bb \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0434\u043b\u044f \u0434\u0435\u043d\u0435\u0433"], ["df[\"x\"].value_counts(normalize=True)", "\u0434\u043e\u043b\u0438 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0439"]], "data": "../../data/", "datasets": ["tezfood_orders.csv"], "day": 1, "hint_cost": 5, "quiz": [0, 1, 2, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\ndf = pd.read_csv(\"tezfood_orders.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["\u0421\u0442\u0440\u043e\u043a: 1200", "\u043a\u043e\u043b\u043e\u043d\u043e\u043a: 11"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["101198", "101199", "101200"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["int64 4", "str 4", "float64 2", "bool 1"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["delivery_min 3.1", "rating 31.8"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["107697.5", "85500", "2073000", "13"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["5", "49.9", "620", "1.94"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["orders 1200", "users 620", "cities 5", "period_start 2026-09-01 01:17", "period_end 2026-09-30 23:35", "median_check 85500", "rating_coverage_% 68.2"], "setup": "", "xp": 25}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

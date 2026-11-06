@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Экзамен 30. Экзамен и защита проекта — Pandas Sprint</title>
+<meta name="description" content="Экзамен 30 курса Pandas Sprint — Экзамен и защита проекта. Итоговая проверка всего курса.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/30-ekzamen/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Экзамен 30. Экзамен и защита проекта — Pandas Sprint">
+<meta property="og:description" content="Экзамен 30 курса Pandas Sprint — Экзамен и защита проекта. Итоговая проверка всего курса.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/30-ekzamen/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="30">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#rules"><span class="dot">✓</span>Правила</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 400 XP</b>Задачи: <span id="tasksNow">0 из 10</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Экзамен: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если удобнее думать на SQL — переводи вопрос в запрос, а запрос в pandas.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>WHERE NOT cancelled</code></td><td><code>df[~df[&#34;cancelled&#34;]]</code></td><td>неотменённые брони</td></tr><tr><td><code>trip_start - created_at</code></td><td><code>(df[&#34;trip_start&#34;] - df[&#34;created_at&#34;]).dt.days</code></td><td>за сколько дней бронируют</td></tr><tr><td><code>GROUP BY destination</code></td><td><code>groupby(&#34;destination&#34;).agg(...)</code></td><td>итоги по направлениям</td></tr><tr><td><code>ROW_NUMBER() OVER (PARTITION BY channel ORDER BY revenue DESC)</code></td><td><code>groupby(&#34;channel&#34;)[&#34;revenue&#34;].rank(ascending=False, method=&#34;first&#34;)</code></td><td>топ в группе</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Экзамен 30 из 30 · Финиш</div>
+      <h1>Экзамен и <mark>защита проекта</mark></h1>
+      <p class="lead">Последний день курса. Новые данные, которых ты ещё не видел, и 10 задач на всё, чему научился: осмотр, очистка, даты, группировки, сводные, оконные функции, графики и вывод для бизнеса. Подсказки есть (5 XP каждая), но попробуй решить всё сам — это и есть проверка, что ты уже аналитик.</p>
+      <div class="chips"><span class="chip">10 задач + защита</span><span class="chip">pandas 3.0</span><span class="chip">400 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Самостоятельно разобрать бронирования турагентства Sayohat за 8 месяцев и защитить выводы перед руководителем: какие направления приносят деньги, где отменяют и как планировать следующий сезон.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Самостоятельно пройти путь от сырого файла до вывода</li><li>Выбирать нужный приём под вопрос без подсказки</li><li>Защищать вывод цифрами и честными оговорками</li><li>Показать работу как портфолио на собеседовании</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Новая компания, новые данные</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Н</span>Нигина <small>директор турагентства Sayohat · 11:00</small></div>
+          <p>Здравствуйте! Мы небольшое турагентство, работаем онлайн, в офисе и через партнёров. Хочу понять, какие направления нам выгоднее всего, почему отменяют брони и как заранее люди бронируют поездки. Вот все бронирования с января.</p>
+<div class="file">▤ sayohat_bookings.csv · бронирования за 8 месяцев</div>        </div>
+      </div>
+      <p class="note">Sayohat — учебное турагентство, данные сгенерированы. В файле: даты создания брони и начала поездки (текстом), направление, число ночей и человек, цена (у части броней пустая), канал продажи и отмена. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/sayohat_bookings.csv" download>Скачать sayohat_bookings.csv</a><span class="note">2 400 строк · 175 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+df = pd.read_csv(&#34;sayohat_bookings.csv&#34;, parse_dates=[&#34;created_at&#34;, &#34;trip_start&#34;])</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="rules">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Как устроен экзамен</h2>
+      <div class="simple"><span class="tag">Правила</span>
+  <ul>
+    <li><b>10 задач</b> от простой к сложной — 310 XP, <b>квиз из 8 вопросов</b> — 40 XP, <b>защита</b> (письмо руководителю) — 50 XP.</li>
+    <li>Подсказка одна на задачу и снимает 5 XP. Попробуй обойтись без них: это честная проверка.</li>
+    <li>Перед каждой задачей таблица <code class="i">df</code> загружена заново, даты уже прочитаны как даты.</li>
+    <li>Сохрани решения в свой ноутбук — это готовый проект для портфолио.</li>
+  </ul>
+</div>
+<div class="scroll"><table class="map">
+  <thead><tr><th>Вопрос</th><th>Приём (урок)</th></tr></thead>
+  <tbody>
+    <tr><td>Что в данных, где пропуски</td><td><code>shape, dtypes, isna().sum()</code> (1)</td></tr>
+    <tr><td>Фильтр по условию</td><td><code>df[маска]</code>, <code>~</code>, <code>query</code> (2)</td></tr>
+    <tr><td>Разница дат</td><td><code>(b - a).dt.days</code> (15)</td></tr>
+    <tr><td>Итоги по группам</td><td><code>groupby().agg()</code> (8)</td></tr>
+    <tr><td>Сводная таблица</td><td><code>pivot_table</code> (10)</td></tr>
+    <tr><td>Топ-N в группе</td><td><code>rank()</code> внутри groupby (17, 27)</td></tr>
+    <tr><td>По месяцам</td><td><code>resample</code> / <code>to_period("M")</code> (16)</td></tr>
+    <tr><td>График-вывод</td><td><code>.plot()</code> + заголовок (20)</td></tr>
+  </tbody>
+</table></div>
+<div class="callout"><b>Совет.</b> Перед каждой задачей скажи себе план в одну строку: «отфильтрую неотменённые → сгруппирую по направлению → посчитаю долю». Так решения получаются короткими и без ошибок.</div>
+    </section>
+
+
+
+    <section id="quiz">
+      <div class="eyebrow">03 · Самопроверка · 40 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что вернёт <code>df[["price"]]</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Series</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>DataFrame</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Число</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Список</span></button></div>
+          <div class="why" hidden>Двойные скобки — список колонок, результат всегда DataFrame.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Как правильно отфильтровать неотменённые брони дороже 10 млн?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>df[~df["cancelled"] and df["price"] > 1e7]</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>df[~df["cancelled"] & (df["price"] > 1e7)]</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df[df["cancelled"] == False or df["price"] > 1e7]</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df.loc["cancelled", "price"]</code></span></button></div>
+          <div class="why" hidden>Для колонок — & и скобки вокруг сравнения.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Средняя цена считается по 2 355 броням из 2 400. Почему?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ошибка pandas</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>mean пропускает пустые цены</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Удалены дубли</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Отменённые не считаются</span></button></div>
+          <div class="why" hidden>У 45 броней цена пустая, mean их пропускает. Это надо писать в выводе.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Чем <code>transform("sum")</code> отличается от <code>agg("sum")</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>transform раздаёт итог группы каждой строке, agg сжимает группу в строку</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>agg работает быстрее</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>transform только для дат</span></button></div>
+          <div class="why" hidden>transform сохраняет число строк, agg оставляет одну строку на группу.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. После merge строк стало больше. Первое, что проверить?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Пустые значения</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Повторы ключа в правой таблице</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Типы колонок</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Сортировку</span></button></div>
+          <div class="why" hidden>Повторяющийся ключ размножает строки левой таблицы.</div>
+        </div>
+        <div class="qz" data-q="5" data-a="1">
+          <p>6. Какой график для «как менялись брони по месяцам»?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Круговая</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Линия или столбцы по месяцам</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Гистограмма цен</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Точечный</span></button></div>
+          <div class="why" hidden>Изменение во времени — линия или столбцы по порядку месяцев.</div>
+        </div>
+        <div class="qz" data-q="6" data-a="1">
+          <p>7. Отмены онлайн 14%, в офисе 8%. Можно ли сказать «онлайн-продажи приводят к отменам»?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Да</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Нет, это связь; причина может быть в других различиях клиентов</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Да, если разница больше 5%</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нельзя ничего сказать</span></button></div>
+          <div class="why" hidden>Наблюдаемые данные показывают связь, а не причину.</div>
+        </div>
+        <div class="qz" data-q="7" data-a="1">
+          <p>8. Что должно быть в первом предложении отчёта руководителю?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Описание данных</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Главный вывод</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Список функций pandas</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Оговорки</span></button></div>
+          <div class="why" hidden>Главный вывод — первым, доказательства — потом.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">04 · Практика · 310 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Паспорт данных</h3>
+            <ol class='steps-t'><li>Напечатай shape.</li> <li>Выведи пропуски только в колонках, где они есть.</li> <li>Напечатай долю отменённых броней в %, 1 знак.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(2400, 10)
+price    45
+dtype: int64
+10.7</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Паспорт данных из урока 1: размер, пропуски (только где есть) и доля отмен. Колонка cancelled уже True/False.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.shape</code>, <code class="i">na[na > 0]</code>, доля True — <code class="i">.mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df.___)
+na = df.isna().sum()
+print(na[na &gt; 0])
+print(round(df[&#34;cancelled&#34;].___() * 100, 1))</pre></div>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>За сколько дней бронируют</h3>
+            <ol class='steps-t'><li>Колонка <code class='i'>lead_days</code> — дней от создания брони до начала поездки.</li> <li>Выведи медиану lead_days по каналу продаж (целые).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">df[&#34;lead_days&#34;] =
+
+# медиана по каналу
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">channel
+office     25.0
+online     27.0
+partner    25.0
+Name: lead_days, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;lead_days&#34;] =
+
+# медиана по каналу
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> За сколько дней до поездки бронируют — разница двух дат в днях. Потом медиана по каналу.</p>
+<p><b>Чем это сделать.</b> <code class="i">(конец - начало).dt.days</code>, <code class="i">groupby("channel")["lead_days"].median()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;lead_days&#34;] = (df[&#34;___&#34;] - df[&#34;___&#34;]).dt.days
+df.groupby(&#34;___&#34;)[&#34;lead_days&#34;].median().round(0)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Поездка позже брони, поэтому вычитаем created_at из trip_start, а не наоборот.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="30">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">30 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Деньги по направлениям</h3>
+            <ol class='steps-t'><li>Возьми неотменённые брони.</li> <li>По направлению: <code class='i'>bookings</code>, <code class='i'>revenue_mln</code> (1 знак), <code class='i'>share_%</code> — доля выручки (1 знак).</li> <li>Отсортируй по выручке.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">ok = df[~df[&#34;cancelled&#34;]]
+by_dest = (
+    ok
+    # твой код
+)
+by_dest
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">              bookings  revenue_mln  share_pct
+destination
+Дубай              462       5687.3       31.9
+Стамбул            508       3683.7       20.7
+Анталья            376       3633.6       20.4
+Шарм-эш-Шейх       213       2460.4       13.8
+Тбилиси            253       1552.2        8.7
+Самарканд          331        804.0        4.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ok = df[~df[&#34;cancelled&#34;]]
+by_dest = (
+    ok
+    # твой код
+)
+by_dest
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Неотменённые брони по направлению: сколько броней и сколько денег, потом миллионы и доля от итога таблицы.</p>
+<p><b>Чем это сделать.</b> <code class="i">.agg(bookings=("booking_id", "count"), revenue=("price", "sum"))</code> и assign с lambda.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>by_dest = (
+    ok
+    .groupby(&#34;___&#34;)
+    .agg(bookings=(___), revenue=(___))
+    .assign(revenue_mln=___, share_pct=___)
+    [[&#34;bookings&#34;, &#34;revenue_mln&#34;, &#34;share_pct&#34;]]
+    .sort_values(&#34;revenue_mln&#34;, ascending=False)
+)</pre></div>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="30">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">30 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Цена ночи на человека</h3>
+            <ol class='steps-t'><li>Для неотменённых броней: <code class='i'>price / nights / persons</code> — цена одной ночи на человека.</li> <li>Выведи медиану по направлению (целые), от дорогого к дешёвому.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">ok = df[~df[&#34;cancelled&#34;]]
+# твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">destination
+Дубай           1018250.0
+Шарм-эш-Шейх    1014867.0
+Анталья          881750.0
+Стамбул          618462.0
+Тбилиси          511200.0
+Самарканд        215064.0
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ok = df[~df[&#34;cancelled&#34;]]
+# твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Цена одной ночи на одного человека — цена брони, делённая на ночи и на людей. Потом медиана по направлению.</p>
+<p><b>Чем это сделать.</b> Деление колонок целиком: <code class="i">ok["price"] / ok["nights"] / ok["persons"]</code>. Series можно группировать по колонке другой таблицы с теми же строками.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>ppn = ok[&#34;price&#34;] / ok[&#34;___&#34;] / ok[&#34;___&#34;]
+ppn.groupby(ok[&#34;___&#34;]).median().round(0).sort_values(ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Медиана, а не среднее: несколько люксовых броней сильно завышают среднее.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="30">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">30 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Брони и отмены по месяцам</h3>
+            <ol class='steps-t'><li>По месяцу создания брони (<code class='i'>to_period("M")</code>): <code class='i'>bookings</code> и <code class='i'>cancel_%</code> (1 знак).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">            bookings  cancel_pct
+created_at
+2026-01          305        10.8
+2026-02          287         9.1
+2026-03          316        13.0
+2026-04          279        11.1
+2026-05          346         8.7
+2026-06          305         9.5
+2026-07          298        11.4
+2026-08          264        12.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Группировка по месяцу создания брони: число броней и доля отмен (среднее True/False), затем проценты.</p>
+<p><b>Чем это сделать.</b> Группировать можно прямо по выражению: <code class="i">df.groupby(df["created_at"].dt.to_period("M"))</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>(df.groupby(df[&#34;created_at&#34;].dt.to_period(&#34;___&#34;))
+   .agg(bookings=(&#34;booking_id&#34;, &#34;___&#34;), cancel_pct=(&#34;cancelled&#34;, &#34;___&#34;))
+   .assign(cancel_pct=lambda d: (d[&#34;cancel_pct&#34;] * 100).round(1)))</pre></div>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="30">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">30 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Повторные клиенты</h3>
+            <ol class='steps-t'><li>Напечатай число клиентов и % клиентов с 2+ бронями (1 знак).</li> <li>Напечатай среднее число броней на клиента (2 знака).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1244 55.7
+1.93</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Брони на клиента → сколько клиентов, какая доля бронировала 2+ раза и сколько броней в среднем на клиента.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby("client_id").size()</code>, <code class="i">(per >= 2).mean()</code>, <code class="i">per.mean()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>per = df.groupby(&#34;___&#34;).size()
+print(len(per), round((per &gt;= ___).mean() * 100, 1))
+print(round(per.___(), 2))</pre></div>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="35">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl m">Средне</span><span class="xp">35 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Где отменяют</h3>
+            <ol class='steps-t'><li>Сводная: строки — канал, столбцы — направление, значения — доля отмен в % (1 знак).</li> <li>Добавь колонку <code class='i'>all</code> — доля отмен по каналу в целом (1 знак).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">pv =
+
+pv
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">destination  Анталья  Дубай  Самарканд  Стамбул  Тбилиси  Шарм-эш-Шейх   all
+channel
+office           6.1    5.5        8.3     10.8      7.5           2.4   7.3
+online          16.0   10.9       14.8     14.2     15.2          16.8  14.2
+partner          3.7    2.9       15.5      6.5      3.0          13.5   7.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>pv =
+
+pv
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сводная: каналы в строках, направления в столбцах, доля отмен в клетках. Колонка all — доля отмен канала в целом (отдельная группировка, которую добавляешь как новую колонку).</p>
+<p><b>Чем это сделать.</b> <code class="i">pivot_table(..., values="cancelled", aggfunc="mean")</code>, <code class="i">pv["all"] = df.groupby("channel")["cancelled"].mean() * 100</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>pv = (pd.pivot_table(df, index=&#34;___&#34;, columns=&#34;___&#34;, values=&#34;cancelled&#34;, aggfunc=&#34;___&#34;) * 100).round(1)
+pv[&#34;all&#34;] = (df.groupby(&#34;___&#34;)[&#34;cancelled&#34;].mean() * 100).round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> all — это не среднее по строке сводной: у направлений разное число броней. Считай по исходной таблице.</p>          </div>
+        </article>
+        <article class="task" id="task-t8" data-task="t8" data-xp="35">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 8</span><span class="lvl h">Сложно</span><span class="xp">35 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Топ-2 направления в каждом канале</h3>
+            <ol class='steps-t'><li>Неотменённые брони: выручка по паре канал × направление, млн (1 знак).</li> <li>Оставь по 2 направления с наибольшей выручкой в каждом канале.</li> <li>Выведи таблицу channel, destination, revenue_mln, отсортированную по каналу и выручке.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 8</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 8">ok = df[~df[&#34;cancelled&#34;]]
+pairs =
+
+# топ-2 в каждом канале
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">   channel destination  revenue_mln
+0   office       Дубай       1907.7
+1   office     Стамбул       1258.9
+2   online       Дубай       2972.2
+3   online     Стамбул       1813.7
+4  partner       Дубай        807.5
+5  partner     Анталья        780.9</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ok = df[~df[&#34;cancelled&#34;]]
+pairs =
+
+# топ-2 в каждом канале
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Как задача про топ-2 заказа на день 27: выручка по паре «канал × направление», затем место внутри канала и фильтр «место ≤ 2».</p>
+<p><b>Чем это сделать.</b> <code class="i">.reset_index(name="revenue_mln")</code> — Series после groupby в таблицу. <code class="i">pairs.groupby("channel")["revenue_mln"].rank(ascending=False, method="first")</code>.</p><p class="hint-trap"><b>Частая ошибка.</b> После groupby по двум колонкам ключи сидят в индексе — без reset_index не получится взять колонку channel.</p>          </div>
+        </article>
+        <article class="task" id="task-t9" data-task="t9" data-xp="35">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 9</span><span class="lvl h">Сложно</span><span class="xp">35 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>График для руководителя</h3>
+            <ol class='steps-t'><li>Выручка неотменённых броней по месяцу создания, млн → <code class='i'>m</code>; напечатай месяц максимума и значение (1 знак).</li> <li>Нарисуй столбцы с заголовком-выводом, в котором есть месяц максимума.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 9</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 9">ok = df[~df[&#34;cancelled&#34;]]
+m =
+print(m.idxmax(), round(m.max(), 1))
+
+# график
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">2026-05 2433.7</pre><div class="figs"><img src="../../static/img/lessons/day30-t9.png" alt="Пример графика" loading="lazy"></div></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ok = df[~df[&#34;cancelled&#34;]]
+m =
+print(m.idxmax(), round(m.max(), 1))
+
+# график
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Выручка неотменённых броней по месяцу создания, месяц максимума и его значение. Заголовок должен говорить вывод и содержать месяц максимума.</p>
+<p><b>Чем это сделать.</b> <code class="i">ok.groupby(ok["created_at"].dt.to_period("M"))["price"].sum() / 1e6</code>, <code class="i">.idxmax()</code>, <code class="i">m.plot(kind="bar")</code>, <code class="i">ax.set_title(f"... {m.idxmax()}")</code>.</p><p class="hint-trap"><b>Частая ошибка.</b> Без вызова plot проверка не увидит график, даже если цифры верные.</p>          </div>
+        </article>
+        <article class="task" id="task-t10" data-task="t10" data-xp="35">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 10</span><span class="lvl h">Сложно</span><span class="xp">35 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Итоговая сводка</h3>
+            <p>Series <code class='i'>summary</code>:</p> <ol class='steps-t'><li><code class='i'>revenue_mln</code> — выручка неотменённых броней (1 знак); <code class='i'>bookings</code> — все брони;</li> <li><code class='i'>cancel_%</code> (1 знак); <code class='i'>top_destination</code> и его <code class='i'>top_share_%</code> (1 знак);</li> <li><code class='i'>worst_channel</code> — канал с самой высокой долей отмен; <code class='i'>lead_median</code> — медиана дней до поездки (целое).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 30 · задача 10</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 10">ok = df[~df[&#34;cancelled&#34;]]
+summary = pd.Series({
+    &#34;revenue_mln&#34;: ...,
+    # продолжи
+})
+summary
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">revenue_mln        17821.1
+bookings              2400
+cancel_%              10.7
+top_destination      Дубай
+top_share_%           31.9
+worst_channel       online
+lead_median             26
+dtype: object</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ok = df[~df[&#34;cancelled&#34;]]
+summary = pd.Series({
+    &#34;revenue_mln&#34;: ...,
+    # продолжи
+})
+summary
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Итоговая сводка из семи значений. Каждое ты уже считал в задачах 1–9 — собери их в одну Series.</p>
+<p><b>Чем это сделать.</b> Лидер и худший — <code class="i">.idxmax()</code> у нужной группировки. Медиана дней — целым: <code class="i">int(...)</code>.</p><p class="hint-trap"><b>Частая ошибка.</b> bookings и cancel_% считаются по всем броням (df), а выручка и топ-направление — по неотменённым (ok).</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">05 · Бизнес-кейс · 50 XP</div>
+      <h2>Защита: письмо Нигине</h2>
+      <div class="case">
+        <p>Напиши Нигине итоговое письмо — это твоя защита проекта. Не больше 8 предложений. Структура: <b>главный вывод → какие направления приносят деньги (с долями) → где и насколько чаще отменяют → когда бронируют (для планирования рекламы) → повторные клиенты → 2–3 рекомендации → оговорки</b>. Только цифры из твоих задач.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Доля Дубая в выручке</span><span class="fact-chip">Доля Стамбула в выручке</span><span class="fact-chip">Отмены в online</span><span class="fact-chip">Отмены в partner</span><span class="fact-chip">Дней до поездки (медиана)</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Нигина, здравствуйте! Главное: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Где, по твоему ответу, основной резерв роста?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Меньше отмен в онлайн-канале</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Открыть новые направления</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Поднять цены на всё</span></button></div>
+            <div class="why" hidden>В online отменяют вдвое чаще, чем у партнёров (14,2% против 7,0%).</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Как ты используешь «за сколько дней бронируют»?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Рекламу сезона запускать примерно за месяц–полтора до поездок</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Рекламу запускать в день поездки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Это не влияет на рекламу</span></button></div>
+            <div class="why" hidden>Медиана — 26 дней до поездки: реклама должна появиться раньше, чем люди начинают бронировать.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Какие оговорки ты делаешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Часть броней без цены и данные только за 8 месяцев</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Оговорок нет</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Данные полностью неверные</span></button></div>
+            <div class="why" hidden>45 броней без цены и нет конца года — выручка и сезонность могут быть неполными.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Нигина, здравствуйте! Главное: деньги агентству приносят два–три направления, а основной резерв роста — меньше отмен в онлайн-канале. Больше всего выручки даёт «Дубай» — 31,9%, затем «Стамбул» — 20,7%; всего за 8 месяцев 17 821,1 млн сум по неотменённым броням. Чаще всего отменяют в канале «online» — 14,2% против 7,0% в «partner». Клиенты бронируют в среднем за 26 дней до поездки — рекламу сезона стоит запускать примерно за месяц–полтора. Повторно бронируют 55,7% клиентов. Рекомендации: подтверждать онлайн-брони звонком или предоплатой, продвигать «Дубай» и «Стамбул» и запускать программу для повторных клиентов. Оговорки: у 45 броней нет цены, а данные только за 8 месяцев, без конца года.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Главный вывод в первом предложении</li><li>Направления с долями выручки</li><li>Сравнение отмен по каналам</li><li>Срок бронирования и что из него следует</li><li>Повторные клиенты</li><li>2–3 рекомендации, связанные с цифрами, и оговорки</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">06 · Завершить урок</div>
+        <h2>Закрыть экзамен 30</h2>
+        <p>Урок засчитывается, когда решены все 10 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/29-finalnyj-proekt-2/"><small>← Проект 29</small><b>Финальный проект, часть 2: метрики, выводы, графики</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0414\u043e\u043b\u044f \u0414\u0443\u0431\u0430\u044f \u0432 \u0432\u044b\u0440\u0443\u0447\u043a\u0435", "pct": true, "value": 31.9}, {"name": "\u0414\u043e\u043b\u044f \u0421\u0442\u0430\u043c\u0431\u0443\u043b\u0430 \u0432 \u0432\u044b\u0440\u0443\u0447\u043a\u0435", "pct": true, "value": 20.7}, {"name": "\u041e\u0442\u043c\u0435\u043d\u044b \u0432 online", "pct": true, "value": 14.2}, {"name": "\u041e\u0442\u043c\u0435\u043d\u044b \u0432 partner", "pct": true, "value": 7.0}, {"name": "\u0414\u043d\u0435\u0439 \u0434\u043e \u043f\u043e\u0435\u0437\u0434\u043a\u0438 (\u043c\u0435\u0434\u0438\u0430\u043d\u0430)", "value": 26}], "logic": [{"a": 0, "o": ["\u041c\u0435\u043d\u044c\u0448\u0435 \u043e\u0442\u043c\u0435\u043d \u0432 \u043e\u043d\u043b\u0430\u0439\u043d-\u043a\u0430\u043d\u0430\u043b\u0435", "\u041e\u0442\u043a\u0440\u044b\u0442\u044c \u043d\u043e\u0432\u044b\u0435 \u043d\u0430\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f", "\u041f\u043e\u0434\u043d\u044f\u0442\u044c \u0446\u0435\u043d\u044b \u043d\u0430 \u0432\u0441\u0451"], "q": "\u0413\u0434\u0435, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u043e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0440\u0435\u0437\u0435\u0440\u0432 \u0440\u043e\u0441\u0442\u0430?", "why": "\u0412 online \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 \u0432\u0434\u0432\u043e\u0435 \u0447\u0430\u0449\u0435, \u0447\u0435\u043c \u0443 \u043f\u0430\u0440\u0442\u043d\u0451\u0440\u043e\u0432 (14,2% \u043f\u0440\u043e\u0442\u0438\u0432 7,0%)."}, {"a": 0, "o": ["\u0420\u0435\u043a\u043b\u0430\u043c\u0443 \u0441\u0435\u0437\u043e\u043d\u0430 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0442\u044c \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u0437\u0430 \u043c\u0435\u0441\u044f\u0446\u2013\u043f\u043e\u043b\u0442\u043e\u0440\u0430 \u0434\u043e \u043f\u043e\u0435\u0437\u0434\u043e\u043a", "\u0420\u0435\u043a\u043b\u0430\u043c\u0443 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0442\u044c \u0432 \u0434\u0435\u043d\u044c \u043f\u043e\u0435\u0437\u0434\u043a\u0438", "\u042d\u0442\u043e \u043d\u0435 \u0432\u043b\u0438\u044f\u0435\u0442 \u043d\u0430 \u0440\u0435\u043a\u043b\u0430\u043c\u0443"], "q": "\u041a\u0430\u043a \u0442\u044b \u0438\u0441\u043f\u043e\u043b\u044c\u0437\u0443\u0435\u0448\u044c \u00ab\u0437\u0430 \u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0434\u043d\u0435\u0439 \u0431\u0440\u043e\u043d\u0438\u0440\u0443\u044e\u0442\u00bb?", "why": "\u041c\u0435\u0434\u0438\u0430\u043d\u0430 \u2014 26 \u0434\u043d\u0435\u0439 \u0434\u043e \u043f\u043e\u0435\u0437\u0434\u043a\u0438: \u0440\u0435\u043a\u043b\u0430\u043c\u0430 \u0434\u043e\u043b\u0436\u043d\u0430 \u043f\u043e\u044f\u0432\u0438\u0442\u044c\u0441\u044f \u0440\u0430\u043d\u044c\u0448\u0435, \u0447\u0435\u043c \u043b\u044e\u0434\u0438 \u043d\u0430\u0447\u0438\u043d\u0430\u044e\u0442 \u0431\u0440\u043e\u043d\u0438\u0440\u043e\u0432\u0430\u0442\u044c."}, {"a": 0, "o": ["\u0427\u0430\u0441\u0442\u044c \u0431\u0440\u043e\u043d\u0435\u0439 \u0431\u0435\u0437 \u0446\u0435\u043d\u044b \u0438 \u0434\u0430\u043d\u043d\u044b\u0435 \u0442\u043e\u043b\u044c\u043a\u043e \u0437\u0430 8 \u043c\u0435\u0441\u044f\u0446\u0435\u0432", "\u041e\u0433\u043e\u0432\u043e\u0440\u043e\u043a \u043d\u0435\u0442", "\u0414\u0430\u043d\u043d\u044b\u0435 \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0435"], "q": "\u041a\u0430\u043a\u0438\u0435 \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0438 \u0442\u044b \u0434\u0435\u043b\u0430\u0435\u0448\u044c?", "why": "45 \u0431\u0440\u043e\u043d\u0435\u0439 \u0431\u0435\u0437 \u0446\u0435\u043d\u044b \u0438 \u043d\u0435\u0442 \u043a\u043e\u043d\u0446\u0430 \u0433\u043e\u0434\u0430 \u2014 \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0438 \u0441\u0435\u0437\u043e\u043d\u043d\u043e\u0441\u0442\u044c \u043c\u043e\u0433\u0443\u0442 \u0431\u044b\u0442\u044c \u043d\u0435\u043f\u043e\u043b\u043d\u044b\u043c\u0438."}]}, "case_model": "\u041d\u0438\u0433\u0438\u043d\u0430, \u0437\u0434\u0440\u0430\u0432\u0441\u0442\u0432\u0443\u0439\u0442\u0435! \u0413\u043b\u0430\u0432\u043d\u043e\u0435: \u0434\u0435\u043d\u044c\u0433\u0438 \u0430\u0433\u0435\u043d\u0442\u0441\u0442\u0432\u0443 \u043f\u0440\u0438\u043d\u043e\u0441\u044f\u0442 \u0434\u0432\u0430\u2013\u0442\u0440\u0438 \u043d\u0430\u043f\u0440\u0430\u0432\u043b\u0435\u043d\u0438\u044f, \u0430 \u043e\u0441\u043d\u043e\u0432\u043d\u043e\u0439 \u0440\u0435\u0437\u0435\u0440\u0432 \u0440\u043e\u0441\u0442\u0430 \u2014 \u043c\u0435\u043d\u044c\u0448\u0435 \u043e\u0442\u043c\u0435\u043d \u0432 \u043e\u043d\u043b\u0430\u0439\u043d-\u043a\u0430\u043d\u0430\u043b\u0435. \u0411\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0438 \u0434\u0430\u0451\u0442 \u00ab\u0414\u0443\u0431\u0430\u0439\u00bb \u2014 31,9%, \u0437\u0430\u0442\u0435\u043c \u00ab\u0421\u0442\u0430\u043c\u0431\u0443\u043b\u00bb \u2014 20,7%; \u0432\u0441\u0435\u0433\u043e \u0437\u0430 8 \u043c\u0435\u0441\u044f\u0446\u0435\u0432 17 821,1 \u043c\u043b\u043d \u0441\u0443\u043c \u043f\u043e \u043d\u0435\u043e\u0442\u043c\u0435\u043d\u0451\u043d\u043d\u044b\u043c \u0431\u0440\u043e\u043d\u044f\u043c. \u0427\u0430\u0449\u0435 \u0432\u0441\u0435\u0433\u043e \u043e\u0442\u043c\u0435\u043d\u044f\u044e\u0442 \u0432 \u043a\u0430\u043d\u0430\u043b\u0435 \u00abonline\u00bb \u2014 14,2% \u043f\u0440\u043e\u0442\u0438\u0432 7,0% \u0432 \u00abpartner\u00bb. \u041a\u043b\u0438\u0435\u043d\u0442\u044b \u0431\u0440\u043e\u043d\u0438\u0440\u0443\u044e\u0442 \u0432 \u0441\u0440\u0435\u0434\u043d\u0435\u043c \u0437\u0430 26 \u0434\u043d\u0435\u0439 \u0434\u043e \u043f\u043e\u0435\u0437\u0434\u043a\u0438 \u2014 \u0440\u0435\u043a\u043b\u0430\u043c\u0443 \u0441\u0435\u0437\u043e\u043d\u0430 \u0441\u0442\u043e\u0438\u0442 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0442\u044c \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u0437\u0430 \u043c\u0435\u0441\u044f\u0446\u2013\u043f\u043e\u043b\u0442\u043e\u0440\u0430. \u041f\u043e\u0432\u0442\u043e\u0440\u043d\u043e \u0431\u0440\u043e\u043d\u0438\u0440\u0443\u044e\u0442 55,7% \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432. \u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u0438: \u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0430\u0442\u044c \u043e\u043d\u043b\u0430\u0439\u043d-\u0431\u0440\u043e\u043d\u0438 \u0437\u0432\u043e\u043d\u043a\u043e\u043c \u0438\u043b\u0438 \u043f\u0440\u0435\u0434\u043e\u043f\u043b\u0430\u0442\u043e\u0439, \u043f\u0440\u043e\u0434\u0432\u0438\u0433\u0430\u0442\u044c \u00ab\u0414\u0443\u0431\u0430\u0439\u00bb \u0438 \u00ab\u0421\u0442\u0430\u043c\u0431\u0443\u043b\u00bb \u0438 \u0437\u0430\u043f\u0443\u0441\u043a\u0430\u0442\u044c \u043f\u0440\u043e\u0433\u0440\u0430\u043c\u043c\u0443 \u0434\u043b\u044f \u043f\u043e\u0432\u0442\u043e\u0440\u043d\u044b\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0438: \u0443 45 \u0431\u0440\u043e\u043d\u0435\u0439 \u043d\u0435\u0442 \u0446\u0435\u043d\u044b, \u0430 \u0434\u0430\u043d\u043d\u044b\u0435 \u0442\u043e\u043b\u044c\u043a\u043e \u0437\u0430 8 \u043c\u0435\u0441\u044f\u0446\u0435\u0432, \u0431\u0435\u0437 \u043a\u043e\u043d\u0446\u0430 \u0433\u043e\u0434\u0430.", "case_xp": 50, "cheat": [], "data": "../../data/", "datasets": ["sayohat_bookings.csv"], "day": 30, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1, 1, 1, 1], "quiz_xp": 40, "setup": "import pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\ndf = pd.read_csv(\"sayohat_bookings.csv\", parse_dates=[\"created_at\", \"trip_start\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["(2400, 10)", "price 45", "10.7"], "setup": "", "xp": 25}, {"figure": false, "id": "t2", "keys": ["channel", "office 25.0", "online 27.0", "partner 25.0"], "setup": "", "xp": 25}, {"figure": false, "id": "t3", "keys": ["bookings revenue_mln share_pct", "destination", "\u0414\u0443\u0431\u0430\u0439 462 5687.3 31.9", "\u0421\u0442\u0430\u043c\u0431\u0443\u043b 508 3683.7 20.7", "\u0410\u043d\u0442\u0430\u043b\u044c\u044f 376 3633.6 20.4", "\u0428\u0430\u0440\u043c-\u044d\u0448-\u0428\u0435\u0439\u0445 213 2460.4 13.8", "\u0422\u0431\u0438\u043b\u0438\u0441\u0438 253 1552.2 8.7", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 331 804.0 4.5"], "setup": "", "xp": 30}, {"figure": false, "id": "t4", "keys": ["destination", "\u0414\u0443\u0431\u0430\u0439 1018250.0", "\u0428\u0430\u0440\u043c-\u044d\u0448-\u0428\u0435\u0439\u0445 1014867.0", "\u0410\u043d\u0442\u0430\u043b\u044c\u044f 881750.0", "\u0421\u0442\u0430\u043c\u0431\u0443\u043b 618462.0", "\u0422\u0431\u0438\u043b\u0438\u0441\u0438 511200.0", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 215064.0"], "setup": "", "xp": 30}, {"figure": false, "id": "t5", "keys": ["bookings cancel_pct", "created_at", "2026-01 305 10.8", "2026-02 287 9.1", "2026-05 346 8.7", "2026-06 305 9.5", "2026-07 298 11.4", "2026-08 264 12.5"], "setup": "", "xp": 30}, {"figure": false, "id": "t6", "keys": ["1244 55.7", "1.93"], "setup": "", "xp": 30}, {"figure": false, "id": "t7", "keys": ["destination \u0410\u043d\u0442\u0430\u043b\u044c\u044f \u0414\u0443\u0431\u0430\u0439 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u0421\u0442\u0430\u043c\u0431\u0443\u043b \u0422\u0431\u0438\u043b\u0438\u0441\u0438 \u0428\u0430\u0440\u043c-\u044d\u0448-\u0428\u0435\u0439\u0445 all", "channel", "office 6.1 5.5 8.3 10.8 7.5 2.4 7.3", "online 16.0 10.9 14.8 14.2 15.2 16.8 14.2", "partner 3.7 2.9 15.5 6.5 3.0 13.5 7.0"], "setup": "", "xp": 35}, {"figure": false, "id": "t8", "keys": ["channel destination revenue_mln", "0 office \u0414\u0443\u0431\u0430\u0439 1907.7", "1 office \u0421\u0442\u0430\u043c\u0431\u0443\u043b 1258.9", "2 online \u0414\u0443\u0431\u0430\u0439 2972.2", "3 online \u0421\u0442\u0430\u043c\u0431\u0443\u043b 1813.7", "4 partner \u0414\u0443\u0431\u0430\u0439 807.5", "5 partner \u0410\u043d\u0442\u0430\u043b\u044c\u044f 780.9"], "setup": "", "xp": 35}, {"figure": true, "id": "t9", "keys": ["2026-05 2433.7"], "setup": "", "xp": 35}, {"figure": false, "id": "t10", "keys": ["revenue_mln 17821.1", "bookings 2400", "cancel_% 10.7", "top_destination \u0414\u0443\u0431\u0430\u0439", "top_share_% 31.9", "worst_channel online", "lead_median 26"], "setup": "", "xp": 35}], "theory": ["brief", "rules"], "worker": "../../static/js/py-worker.js", "xp": 400}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

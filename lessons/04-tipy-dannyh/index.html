@@ -1,0 +1,772 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 4. Типы данных: числа, строки, категории, память — Pandas Sprint</title>
+<meta name="description" content="Урок 4 курса Pandas Sprint — Типы данных: числа, строки, категории, память. Понять, почему «число как текст» ломает расчёты, и привести колонки к правильным типам.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/04-tipy-dannyh/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 4. Типы данных: числа, строки, категории, память — Pandas Sprint">
+<meta property="og:description" content="Урок 4 курса Pandas Sprint — Типы данных: числа, строки, категории, память. Понять, почему «число как текст» ломает расчёты, и привести колонки к правильным типам.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/04-tipy-dannyh/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="4">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>Типы данных</a></li><li><a href="#tools"><span class="dot">✓</span>Починить типы</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">CAST, TRY_CAST и типы колонок</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В SQL тип задаётся в CREATE TABLE , и в колонку INT нельзя вставить слово «ошибка». В pandas наоборот: тип угадывается по содержимому. Поэтому первое, что делает аналитик с новым файлом, — смотрит dtypes.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>DESCRIBE payments / information_schema.columns</code></td><td><code>df.dtypes , df.info()</code></td><td>типы колонок</td></tr><tr><td><code>CAST(amount AS NUMERIC)</code></td><td><code>df[&#34;amount&#34;].astype(float)</code></td><td>падает на «ошибка»</td></tr><tr><td><code>TRY_CAST(amount AS NUMERIC)</code></td><td><code>pd.to_numeric(df[&#34;amount&#34;], errors=&#34;coerce&#34;)</code></td><td>мусор → NaN</td></tr><tr><td><code>CAST(age AS INT) при NULL → NULL</code></td><td><code>df[&#34;age&#34;].astype(&#34;Int64&#34;)</code></td><td>int64 упадёт на NaN</td></tr><tr><td><code>CAST(client_id AS VARCHAR)</code></td><td><code>df[&#34;client_id&#34;].astype(str)</code></td><td>ID — метка, не число</td></tr><tr><td><code>is_premium::BOOLEAN</code></td><td><code>df[&#34;is_premium&#34;].astype(bool)</code></td><td>0 → False, 1 → True</td></tr><tr><td><code>CREATE TYPE tier AS ENUM (&#39;silver&#39;,&#39;gold&#39;,&#39;platinum&#39;)</code></td><td><code>pd.CategoricalDtype([...], ordered=True)</code></td><td>порядок уровней</td></tr><tr><td><code>WHERE tier &gt;= &#39;gold&#39; (ENUM)</code></td><td><code>df[&#34;tier&#34;] &gt;= &#34;gold&#34; после astype(tier_type)</code></td><td>без категории сравнит по алфавиту</td></tr><tr><td><code>pg_column_size(...)</code></td><td><code>df.memory_usage(deep=True)</code></td><td>сколько байт занимает</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Ловушка из SQL.</b> В SQL <code class="i">SUM()</code> по колонке VARCHAR даст ошибку, и ты сразу увидишь проблему. pandas ошибку <b>не даст</b>: <code class="i">sum()</code> по колонке str молча склеит все строки в одну длинную «1019000171000198000…». Шерзод увидел именно это.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 4 из 30 · Неделя 1 · Фундамент</div>
+      <h1>Типы данных: <mark>числа, строки, категории</mark> и память</h1>
+      <p class="lead">pandas сам угадывает, что лежит в колонке: числа, текст или даты. И часто ошибается: одна строка «ошибка» в колонке суммы — и вся колонка становится текстом, а сумма «склеивается» вместо сложения. Сегодня учимся видеть такие ошибки и приводить колонки к правильным типам.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Выгрузку платежей финтеха Kapital Pay превратить в таблицу с правильными типами: суммы — числа, ID — текст, флаг премиума — True/False, уровни карт — упорядоченная категория. И ответить продакту, сколько денег прошло за сентябрь и насколько премиум-клиенты платят больше.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Найти «сломанные» колонки через <code class="i">dtypes</code> и <code class="i">info()</code></li><li>Превратить текст в числа через <code class="i">pd.to_numeric(errors="coerce")</code> и найти мусорные значения</li><li>Менять типы через <code class="i">astype</code>: <code class="i">"Int64"</code>, <code class="i">bool</code>, <code class="i">str</code></li><li>Экономить память через <code class="i">category</code> и сравнивать уровни через упорядоченную категорию</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Продакт Kapital Pay не может сложить суммы</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Ш</span>Шерзод <small>продакт-менеджер Kapital Pay · 09:12</small></div>
+          <p>Привет! Выгрузил платежи за сентябрь. Хотел посчитать оборот, а pandas выдал мне не сумму, а какую-то бесконечную склейку цифр. Что не так с файлом?</p>
+<div class="file">▤ kapital_payments.csv · 1 000 платежей</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">Ш</span>Шерзод <small>09:14</small></div>
+          <p>И второй вопрос к планёрке в понедельник: правда ли, что премиум-клиенты платят в разы больше обычных? Хочу решить, стоит ли продвигать премиум. Ещё дашборд в Power BI тормозит — говорят, файл «тяжёлый».</p>
+        </div>
+      </div>
+      <p class="note">Kapital Pay — учебный финтех. Данные сгенерированы, но грязные как настоящие: в сумме 32 «плохих» значения (9 пустых «n/a», 11 «-», 6 «нет», 6 «ошибка»), у 23 клиентов нет возраста, премиум записан как 0/1, ID клиента прочитан как число. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/kapital_payments.csv" download>Скачать kapital_payments.csv</a><span class="note">1 000 строк · 66 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;kapital_payments.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Тип колонки — это ярлык на коробке</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Представь склад с коробками. На каждой коробке ярлык: «гвозди», «шурупы», «краска». Работник читает ярлык и знает, что с коробкой делать. В pandas у каждой колонки тоже есть ярлык — <b>тип данных</b>, по-английски <b>dtype</b> (data type). Он говорит pandas, что можно делать со значениями: складывать, сравнивать, брать первые буквы.</p>
+<ul>
+<li><b>int64</b> — целые числа (1, 25, 500001). «64» — сколько места в памяти занимает одно число (64 бита). Пустую клетку NaN хранить <b>не умеет</b>.</li>
+<li><b>float64</b> — дробные числа (42.0, 3.14). Умеет хранить NaN — поэтому колонка возраста с пропусками стала float, хотя возраст целый.</li>
+<li><b>Int64</b> (с большой буквы) — целые числа, которые <b>умеют</b> хранить пропуск. Пропуск показывается как <code class="i">&lt;NA&gt;</code>.</li>
+<li><b>str</b> — текст. В pandas 3.0 это тип по умолчанию для строк. Плюс (+) для текста — это склейка: «12» + «3» = «123», а не 15.</li>
+<li><b>bool</b> — только True или False. Как галочка в анкете.</li>
+<li><b>category</b> — текст с маленьким набором повторяющихся значений (app, pos, web, atm). pandas хранит список вариантов один раз, а в строках — только номер варианта. Памяти нужно в десятки раз меньше.</li>
+</ul>
+<p>Главная ловушка дня: <b>одна плохая клетка портит тип всей колонки</b>. В колонке суммы 968 нормальных чисел и одна запись «ошибка» — и pandas честно читает всю колонку как текст. Теперь <code class="i">sum()</code> склеивает строки.</p>
+</div>
+<p>Настоящие строки файла. Розовые подписи — тип, который pandas угадал. Жёлтая колонка <b>amount</b> выглядит как числа, но это текст.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">Index</th><th>txn_id<span class="dt">int64</span></th><th>client_id<span class="dt">int64 → нужен str</span></th><th>tier<span class="dt">str → category</span></th><th class="ser">amount<span class="dt">str → нужен float</span></th><th>age<span class="dt">float64 → Int64</span></th><th>is_premium<span class="dt">int64 → bool</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">0</td><td>500001</td><td>8142</td><td>gold</td><td class="ser">1019000</td><td>62.0</td><td>0</td></tr>
+<tr><td class="idx">1</td><td>500002</td><td>5523</td><td>silver</td><td class="ser">171000</td><td>62.0</td><td>0</td></tr>
+<tr><td class="idx">2</td><td>500003</td><td>1276</td><td>silver</td><td class="ser">198000</td><td>31.0</td><td>0</td></tr>
+<tr style="background:var(--pink-soft)"><td class="idx">…</td><td>…</td><td>…</td><td>…</td><td class="ser nan">ошибка</td><td class="nan">NaN</td><td>…</td></tr>
+</tbody>
+</table>
+</div>
+<div class="legend">
+<div><b>df.dtypes / df.info()</b>Показывает ярлык каждой колонки. info() ещё говорит, сколько непустых значений и сколько памяти.</div>
+<div><b>pd.to_numeric(s, errors="coerce")</b>Текст → число. Что не получилось превратить, становится NaN (coerce — «заставить»).</div>
+<div><b>s.astype("тип")</b>Сменить ярлык: "Int64", bool, str, "category". Падает с ошибкой, если хоть одно значение не подходит.</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Семь приёмов: увидеть тип, починить тип, сэкономить память</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">df.info()</code> — метод без аргументов, пустые скобки обязательны. Печатает сам, поэтому <code class="i">print()</code> вокруг не нужен.</li>
+<li><code class="i">pd.to_numeric(df["amount"], errors="coerce")</code> — функция из <b>pd</b>, а не метод колонки. Внутрь передаём колонку и аргумент <code class="i">errors</code> («что делать с ошибками»). <code class="i">"coerce"</code> — превратить в NaN. Без него будет ошибка.</li>
+<li><code class="i">.astype("Int64")</code> — тип пишется строкой в кавычках. Большая буква I важна: <code class="i">"int64"</code> и <code class="i">"Int64"</code> — разные типы.</li>
+<li><code class="i">.astype(bool)</code>, <code class="i">.astype(str)</code> — можно без кавычек: это встроенные типы Python.</li>
+<li><code class="i">df.astype({"client_id": "str", "is_premium": "bool"})</code> — словарь: слева имя колонки, справа тип. Меняет несколько колонок за раз.</li>
+<li><code class="i">pd.CategoricalDtype(["silver", "gold", "platinum"], ordered=True)</code> — создаём свой тип: список вариантов <b>в нужном порядке</b> и флаг «порядок важен».</li>
+<li><code class="i">memory_usage(deep=True)</code> — сколько байт занимает колонка. <code class="i">deep=True</code> — «посчитай и сам текст, а не только ссылки на него».</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле Kapital Pay. Твои цифры должны совпасть (кроме байтов памяти — они зависят от того, установлен ли pyarrow).</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. info() — паспорт типов.</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+df = pd.read_csv("kapital_payments.csv")
+df.info()</pre><div class="out">&lt;class 'pandas.DataFrame'&gt;
+RangeIndex: 1000 entries, 0 to 999
+Data columns (total 10 columns):
+ #   Column      Non-Null Count  Dtype
+---  ------      --------------  -----
+ 0   txn_id      1000 non-null   int64
+ 1   txn_date    1000 non-null   str
+ 2   client_id   1000 non-null   int64
+ 3   channel     1000 non-null   str
+ 4   city        1000 non-null   str
+ 5   tier        1000 non-null   str
+ 6   amount      991 non-null    str
+ 7   age         977 non-null    float64
+ 8   is_premium  1000 non-null   int64
+ 9   status      1000 non-null   str
+dtypes: float64(1), int64(3), str(6)
+memory usage: 78.3 KB</div><p class="plain"><b>Простыми словами:</b> 6 колонок текстовые (str), 3 целые (int64), 1 дробная (float64). Подозрительно: <b>amount — str</b>, хотя это деньги. И <b>amount 991 non-null</b>: 9 пустых — это «n/a», read_csv сам считает такую запись пропуском.</p></div>
+<div class="card"><div class="q"><b>2. Почему сумма — «склейка».</b></div>
+<pre class="code" data-cm="">print(df["amount"].head(3))
+print(str(df["amount"].sum())[:40])</pre><div class="out">0    1019000
+1     171000
+2     198000
+Name: amount, dtype: str
+1019000171000198000267000149000164000590</div><p class="plain"><b>Простыми словами:</b> внизу написано <b>dtype: str</b> — это текст. Для текста «+» значит «приклеить»: «1019000» + «171000» = «1019000171000». Мы напечатали только первые 40 символов, а вся строка длиной в тысячи цифр.</p></div>
+<div class="card"><div class="q"><b>3. pd.to_numeric — TRY_CAST.</b></div>
+<pre class="code" data-cm="">amount_num = pd.to_numeric(df["amount"], errors="coerce")
+print(amount_num.dtype, amount_num.isna().sum())
+print(amount_num.sum())</pre><div class="out">float64 32
+346828000.0</div><p class="plain"><b>Простыми словами:</b> теперь тип float64 и сумма — настоящее число: <b>346 828 000</b> сум. Пустых стало <b>32</b>: 9 «n/a» были пустыми и раньше, а ещё 23 значения («-», «нет», «ошибка») не превратились в число и стали NaN. Их надо посчитать и показать стейкхолдеру, а не молча выбросить.</p></div>
+<div class="card"><div class="q"><b>4. Int64 — целые числа с пропусками.</b></div>
+<pre class="code" data-cm="">age = df["age"].astype("Int64")
+age.head(3)</pre><div class="out">0    62
+1    62
+2    31
+Name: age, dtype: Int64</div><p class="plain"><b>Простыми словами:</b> было 62.0, стало 62 — без лишней «.0». Тип <b>Int64</b> с большой буквы. Если написать <code class="i">astype(int)</code>, будет ошибка <b>IntCastingNaNError</b>: у 23 клиентов нет возраста, а обычный int64 не умеет хранить пустоту.</p></div>
+<div class="card"><div class="q"><b>5. bool — флаг вместо 0/1.</b></div>
+<pre class="code" data-cm="">df["is_premium"].astype(bool).value_counts()</pre><div class="out">is_premium
+False    771
+True     229
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> 0 стал False, 1 стал True. Премиум-платежей <b>229 из 1000</b>. Зачем менять? С bool можно сразу фильтровать: <code class="i">df.loc[df["is_premium"]]</code>, а <code class="i">~</code> (тильда) переворачивает: <code class="i">df.loc[~df["is_premium"]]</code> — не премиум.</p></div>
+<div class="card"><div class="q"><b>6. category — экономия памяти.</b></div>
+<pre class="code" data-cm="">before = df["channel"].memory_usage(deep=True)
+after = df["channel"].astype("category").memory_usage(deep=True)
+print(before, after, round(before / after))</pre><div class="out">52132 1340 39</div><p class="plain"><b>Простыми словами:</b> колонка channel занимала <b>52 132 байта</b>, после category — <b>1 340</b>, в 39 раз меньше. В колонке 1000 строк, но разных значений всего 4. Category хранит 4 слова один раз, а в строках — номера 0–3. На миллионе строк это разница между «тормозит» и «летает».</p></div>
+<div class="card"><div class="q"><b>7. Упорядоченная категория — ENUM.</b></div>
+<pre class="code" data-cm="">tier_type = pd.CategoricalDtype(["silver", "gold", "platinum"], ordered=True)
+print((df["tier"] &gt;= "gold").sum())
+tier = df["tier"].astype(tier_type)
+print((tier &gt;= "gold").sum())</pre><div class="out">1000
+400</div><p class="plain"><b>Простыми словами:</b> как текст, «silver» &gt;= «gold» — True, потому что по алфавиту s идёт после g. Поэтому первая строка насчитала <b>все 1000</b>. После упорядоченной категории pandas знает правильный порядок silver &lt; gold &lt; platinum, и ответ честный: <b>400</b> (gold 273 + platinum 127).</p></div>
+</div>
+<div class="simple"><span class="tag">История про копилку: числа и надписи</span>
+<p>Три друга записали на бумажках, сколько тысяч сум положили в копилку: <b>«5»</b>, <b>«12»</b>, <b>«ноль»</b>. Мама просит сложить. Если считать бумажки <b>надписями</b>, их можно только приклеить друг к другу: «5» + «12» = «512». Это не деньги, а надпись.</p>
+<div><div aria-label="Три столбика: 5, 12 и пустой — «ноль» не превратился в число" class="story" style="grid-template-columns:repeat(3,minmax(0,1fr))"><span style="height:42%"></span><span style="height:100%"></span><span class="rich" style="height:4%"></span></div>
+<div class="story-lab"><span>«5» → 5 · «12» → 12</span><span>«ноль» → NaN (розовый)</span></div></div>
+<p>Если сначала превратить надписи в <b>числа</b> (это и есть <code class="i">to_numeric</code>), получится 5 + 12 = <b>17</b>. Бумажка «ноль» написана словом — превратить её нельзя, она становится пустой (NaN). Сумма 17 верна для двух бумажек, а про третью надо спросить друга. Так и с 23 «мусорными» суммами у Шерзода: посчитать, сколько их, и сказать об этом.</p>
+</div>
+<div class="callout"><b>Правило аналитика.</b> Новый файл → сначала <code class="i">df.info()</code>. Если колонка с деньгами, количеством или датой имеет тип <b>str</b>, не считай по ней ничего, пока не найдёшь причину.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>sum() по тексту не падает</h3><div class="bad">df[&#34;amount&#34;].sum()   # &#39;1019000171000198000…&#39;</div><div class="good">pd.to_numeric(df[&#34;amount&#34;], errors=&#34;coerce&#34;).sum()   # 346828000.0</div><p>Нет ошибки — не значит верно. Перед суммой проверь dtype колонки.</p></div>
+        <div class="trap"><span class="n">2</span><h3>astype(float) на грязной колонке</h3><div class="bad">df[&#34;amount&#34;].astype(float)   # ValueError: could not convert string to float: &#39;-&#39;</div><div class="good">pd.to_numeric(df[&#34;amount&#34;], errors=&#34;coerce&#34;)</div><p>astype требует, чтобы подходило каждое значение. Для грязного текста — to_numeric с coerce.</p></div>
+        <div class="trap"><span class="n">3</span><h3>coerce молча прячет мусор</h3><div class="bad">amount = pd.to_numeric(df[&#34;amount&#34;], errors=&#34;coerce&#34;)   # и дальше считаем, как будто всё хорошо</div><div class="good">bad = df[&#34;amount&#34;].notna() &amp; amount.isna()
+print(bad.sum())   # 23 — сказать об этом стейкхолдеру</div><p>coerce превращает «ошибка» в NaN без предупреждения. Всегда считай, сколько значений потерял.</p></div>
+        <div class="trap"><span class="n">4</span><h3>int64 не хранит NaN</h3><div class="bad">df[&#34;age&#34;].astype(int)   # IntCastingNaNError</div><div class="good">df[&#34;age&#34;].astype(&#34;Int64&#34;)   # пропуски станут &lt;NA&gt;</div><p>Маленькая i — обычный int64, большая I — целые с пропусками. Одна буква меняет всё.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Сравнение уровней по алфавиту</h3><div class="bad">(df[&#34;tier&#34;] &gt;= &#34;gold&#34;).sum()   # 1000: «silver» &gt; «gold» по алфавиту</div><div class="good">tier_type = pd.CategoricalDtype([&#34;silver&#34;, &#34;gold&#34;, &#34;platinum&#34;], ordered=True)
+(df[&#34;tier&#34;].astype(tier_type) &gt;= &#34;gold&#34;).sum()   # 400</div><p>Текст сравнивается буква за буквой. Если у значений есть смысловой порядок, задай его через ordered=True.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>df.info() / df.dtypes <span>— первым делом: какие типы</span></li><li>pd.to_numeric(df[&#34;x&#34;], errors=&#34;coerce&#34;) <span>— текст → число, мусор → NaN</span></li><li>(df[&#34;x&#34;].notna() &amp; num.isna()).sum() <span>— сколько мусора потерял coerce</span></li><li>df[&#34;age&#34;].astype(&#34;Int64&#34;) <span>— целые с пропусками</span></li><li>df[&#34;flag&#34;].astype(bool) / df[&#34;id&#34;].astype(str) <span>— флаг и ID</span></li><li>df.astype({&#34;a&#34;: &#34;str&#34;, &#34;b&#34;: &#34;bool&#34;}) <span>— несколько колонок разом</span></li><li>df[&#34;c&#34;].astype(&#34;category&#34;) <span>— мало разных значений → меньше памяти</span></li><li>pd.CategoricalDtype([...], ordered=True) <span>— порядок уровней, как ENUM</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="2">
+          <p>1. Колонка amount имеет тип str. Что вернёт <code>df["amount"].sum()</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Сумму чисел</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ошибку TypeError</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Одну длинную склеенную строку</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>NaN</span></button></div>
+          <div class="why" hidden>Для текста «+» — это склейка. pandas не падает, поэтому ошибку легко не заметить.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Чем <code>pd.to_numeric(s, errors="coerce")</code> отличается от <code>s.astype(float)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>coerce превращает мусор в NaN, astype падает с ошибкой</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>astype превращает мусор в 0</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>coerce удаляет строки с мусором</span></button></div>
+          <div class="why" hidden>coerce — «заставить»: то, что нельзя превратить в число, становится NaN. Строки не удаляются.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Почему <code>df["age"].astype(int)</code> падает?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В age есть текст</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>int64 не умеет хранить NaN, а в age 23 пропуска</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>age уже int</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нужно писать astype("int")</span></button></div>
+          <div class="why" hidden>Нужен тип <code>"Int64"</code> с большой I — он хранит пропуск как &lt;NA&gt;.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Когда тип <code>category</code> экономит память сильнее всего?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Когда все значения разные</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Когда разных значений мало, а строк много</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Только для чисел</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Никогда, это только для красоты</span></button></div>
+          <div class="why" hidden>4 канала на 1000 строк: слова хранятся один раз, в строках — номера. channel: 52 132 → 1 340 байт.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="2">
+          <p>5. tier — str со значениями silver, gold, platinum. Сколько вернёт <code>(df["tier"] &gt;= "gold").sum()</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>400 — gold и platinum</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>127 — только platinum</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>1000 — по алфавиту все ≥ «gold»</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибку</span></button></div>
+          <div class="why" hidden>Текст сравнивается по алфавиту: «platinum» и «silver» оба после «gold». Нужна упорядоченная категория.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Паспорт типов</h3>
+            <ol class='steps-t'><li>Выведи типы всех колонок через <code class='i'>dtypes</code>.</li><li>Выведи, сколько колонок каждого типа (<code class='i'>value_counts</code> по dtypes).</li><li>Комментарием <code class='i'>#</code>: почему <b>amount</b> имеет тип str, хотя там деньги?</li></ol><p class='rule-t'>Без display(). Комментарий — только через #.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 04 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># 1. типы колонок
+
+# 2. сколько колонок каждого типа
+
+# 3. почему amount — str:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">txn_id          int64
+txn_date          str
+client_id       int64
+channel           str
+city              str
+tier              str
+amount            str
+age           float64
+is_premium      int64
+status            str
+dtype: object
+str        6
+int64      3
+float64    1
+Name: count, dtype: int64
+
++ комментарий: почему amount — str</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. типы колонок
+
+# 2. сколько колонок каждого типа
+
+# 3. почему amount — str:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>amount — str, потому что в колонке есть текст &#34;n/a&#34; и &#34;ошибка&#34;</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Типы колонок ты уже смотрел в уроке 1 — тут то же самое, плюс подсчёт. Для вопроса про amount открой несколько значений колонки (<code class="i">df["amount"].unique()</code>) и найди среди них то, что не похоже на число.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.dtypes</code> — тип каждой колонки, <code class="i">df.dtypes.value_counts()</code> — сколько колонок каждого типа. Если в колонке есть хоть одно слово, pandas читает всю колонку как текст (str).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df.___)
+print(df.dtypes.___())
+# amount — str, потому что в колонке есть ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без print Jupyter покажет только последний результат. Первую строку оберни в <code class="i">print()</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>TRY_CAST для суммы</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>amount_num</code> колонку amount, превращённую в числа (мусор → NaN).</li><li>Выведи тип amount_num.</li><li>В одну строку: <b>сколько NaN</b> в amount_num и <b>сумму</b> amount_num.</li></ol><p class='rule-t'>astype(float) здесь упадёт — проверь сам, почему.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 04 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">amount_num =
+
+# тип
+
+# число NaN и сумма
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">float64
+32 346828000.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>amount_num =
+
+# тип
+
+# число NaN и сумма
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Нужен «мягкий» перевод в числа: всё, что похоже на число, станет числом, а слова — пустой клеткой (NaN). Обычный <code class="i">astype(float)</code> так не умеет: на первом же слове он падает.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.to_numeric(колонка, errors="coerce")</code> — перевести в числа, мусор заменить на NaN. <code class="i">.dtype</code> — тип одной колонки, <code class="i">.isna().sum()</code> — сколько пустых.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>amount_num = pd.to_numeric(df[&#34;___&#34;], errors=&#34;___&#34;)
+print(amount_num.___)
+print(amount_num.isna().sum(), amount_num.___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> У одной колонки свойство называется <code class="i">dtype</code> (без s). <code class="i">dtypes</code> — у всей таблицы.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько мусора потерял coerce</h3>
+            <ol class='steps-t'><li>Снова сделай amount_num.</li><li>Создай маску <code class='i'>bad</code>: в исходной amount значение <b>было</b>, а в amount_num стало NaN.</li><li>Выведи <code class='i'>bad.sum()</code> и value_counts этих плохих значений через <code class='i'>loc</code>.</li></ol><p class='rule-t'>Число 23 руками не пиши. Повтор урока 2: loc[маска, колонка] и &amp;.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 04 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">amount_num = pd.to_numeric(df[&#34;amount&#34;], errors=&#34;coerce&#34;)
+
+bad =
+
+# сколько плохих и какие
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">23
+amount
+-         11
+ошибка     6
+нет        6
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>amount_num = pd.to_numeric(df[&#34;amount&#34;], errors=&#34;coerce&#34;)
+
+bad =
+
+# сколько плохих и какие
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Плохое» значение — то, что раньше было записано, а после перевода стало пустым. Значит, нужны два условия сразу: в старой колонке клетка не пустая И в новой колонке она пустая.</p>
+<p><b>Чем это сделать.</b> <code class="i">.notna()</code> — True, где клетка заполнена, <code class="i">.isna()</code> — где пусто. Соединяются через <code class="i">&</code>. <code class="i">df.loc[маска, "колонка"]</code> — значения колонки в нужных строках.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>bad = df[&#34;amount&#34;].___() &amp; amount_num.___()
+print(bad.sum())
+print(df.loc[___, &#34;amount&#34;].value_counts())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если взять просто <code class="i">amount_num.isna()</code>, в «мусор» попадут и клетки, которые были пустыми с самого начала.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Возраст без .0</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>age</code> колонку age как <b>целые числа с пропусками</b>.</li><li>Выведи тип age.</li><li>В одну строку: <b>сколько пропусков</b> и <b>средний возраст</b> (1 знак).</li><li>Комментарием: почему <code class='i'>astype(int)</code> здесь падает?</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 04 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">age =
+
+# тип
+
+# пропуски и средний возраст
+
+# почему astype(int) падает:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">Int64
+23 42.1
+
++ комментарий: почему astype(int) падает</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>age =
+
+# тип
+
+# пропуски и средний возраст
+
+# почему astype(int) падает:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>astype(int) падает: в целых числах int64 нет места для NaN</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Обычный целый тип не умеет хранить пустые клетки, поэтому возраст выглядит как 34.0. В pandas есть особый целый тип, который пустоту выдерживает. Его имя почти как обычное, но с большой буквы.</p>
+<p><b>Чем это сделать.</b> <code class="i">astype("Int64")</code> — целые числа с пропусками (большая I). <code class="i">round(x, 1)</code> — округлить среднее.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>age = df[&#34;age&#34;].astype(&#34;___&#34;)
+print(age.dtype)
+print(age.isna().___(), round(age.___(), 1))
+# astype(int) падает, потому что ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">"int64"</code> с маленькой буквы — обычный тип, он упадёт на NaN. Нужен именно <code class="i">"Int64"</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Категории и память</h3>
+            <ol class='steps-t'><li>Список <code class='i'>cols</code>: channel, city, tier, status.</li><li>Посчитай память этих колонок <b>до</b> (<code class='i'>memory_usage(deep=True).sum()</code>).</li><li>Сохрани в <code class='i'>cats</code> эти колонки в типе category и посчитай память <b>после</b>.</li><li>Выведи: <code class='i'>cats.dtypes</code>, <b>True/False</b> «после меньше, чем до», список категорий channel.</li></ol><p class='rule-t'>Байты памяти у тебя могут отличаться (pyarrow) — проверяется True и категории.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 04 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">cols = [&#34;channel&#34;, &#34;city&#34;, &#34;tier&#34;, &#34;status&#34;]
+before =
+
+cats =
+after =
+
+# dtypes, after &lt; before, категории channel
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">channel    category
+city       category
+tier       category
+status     category
+dtype: object
+True
+[&#39;app&#39;, &#39;atm&#39;, &#39;pos&#39;, &#39;web&#39;]
+
+(байты памяти не показываем: зависят от pyarrow)</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>cols = [&#34;channel&#34;, &#34;city&#34;, &#34;tier&#34;, &#34;status&#34;]
+before =
+
+cats =
+after =
+
+# dtypes, after &lt; before, категории channel
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Колонки с повторяющимися словами (город, канал) можно хранить экономнее: каждое слово записывается один раз, а в строках остаются короткие номера. Посчитай память до, переведи колонки в этот тип и посчитай память после.</p>
+<p><b>Чем это сделать.</b> <code class="i">df[cols].memory_usage(deep=True).sum()</code> — сколько байт занимают колонки. <code class="i">.astype("category")</code> — перевести в категории. Список категорий колонки: <code class="i">.cat.categories.tolist()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>before = df[cols].memory_usage(deep=True).___()
+cats = df[cols].astype(&#34;___&#34;)
+after = cats.memory_usage(deep=True).sum()
+print(cats.dtypes)
+print(after ___ before)
+print(cats[&#34;channel&#34;].cat.___.tolist())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">deep=True</code> pandas не считает память, занятую текстом, и сравнение «до/после» получится неверным.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Уровни карт: ENUM</h3>
+            <ol class='steps-t'><li>Выведи, сколько платежей с <code class='i'>tier &gt;= "gold"</code>, пока tier — str.</li><li>Создай <code class='i'>tier_type</code>: упорядоченная категория silver &lt; gold &lt; platinum, и переведи tier в этот тип.</li><li>Снова выведи число <code class='i'>tier &gt;= "gold"</code> и <code class='i'>value_counts(sort=False)</code>.</li></ol><p class='rule-t'>Подумай, почему в шаге 1 ответ неправдоподобный.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 04 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6"># 1. как текст
+
+# 2. упорядоченная категория
+tier_type =
+df[&#34;tier&#34;] =
+
+# 3. снова сравнение и value_counts
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1000
+400
+tier
+silver      600
+gold        273
+platinum    127
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. как текст
+
+# 2. упорядоченная категория
+tier_type =
+df[&#34;tier&#34;] =
+
+# 3. снова сравнение и value_counts
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Текст сравнивается по алфавиту: «platinum» < «silver», хотя по смыслу platinum — самый высокий уровень. Чтобы pandas знал правильный порядок уровней, его нужно задать явно — списком от младшего к старшему.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.CategoricalDtype([младший, …, старший], ordered=True)</code> — тип с порядком. Перевод колонки: <code class="i">.astype(тип)</code>. <code class="i">value_counts(sort=False)</code> — показать в порядке уровней.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>tier_type = pd.CategoricalDtype([___, ___, ___], ordered=___)
+print((df[&#34;tier&#34;] &gt;= &#34;gold&#34;).sum())
+df[&#34;tier&#34;] = df[&#34;tier&#34;].astype(___)
+print((df[&#34;tier&#34;] &gt;= &#34;gold&#34;).sum())
+print(df[&#34;tier&#34;].value_counts(sort=___))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Первое сравнение нужно сделать <b>до</b> перевода в категорию — иначе не увидишь, как ошибается текстовое сравнение.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт для Шерзода</h3>
+            <ol class='steps-t'><li>Создай <code class='i'>clean</code>: через <code class='i'>astype</code> со словарём client_id → str, is_premium → bool, tier → tier_type; затем через <code class='i'>assign</code> amount → число (coerce), age → Int64.</li><li>Сохрани в <code class='i'>ok</code> только успешные платежи (status == "ok") через <code class='i'>loc</code>.</li><li>Собери Series <code class='i'>report</code>: <code class='i'>rows</code>, <code class='i'>amount_nan</code> (NaN в clean.amount), <code class='i'>ok_total_mln</code> (сумма ok в млн, 1 знак), <code class='i'>avg_premium</code> и <code class='i'>avg_regular</code> (средний чек ok, целое), <code class='i'>platinum_share_%</code> (доля platinum в сумме ok, 1 знак).</li></ol><p class='rule-t'>Все числа из данных. Не премиум: ~ok["is_premium"] (работает, потому что тип bool).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 04 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">tier_type = pd.CategoricalDtype([&#34;silver&#34;, &#34;gold&#34;, &#34;platinum&#34;], ordered=True)
+clean = df.astype({
+    # колонка: тип
+})
+clean = clean.assign(
+    amount=,
+    age=,
+)
+ok =
+
+report = pd.Series({
+    &#34;rows&#34;: len(clean),
+    # продолжи
+})
+report
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">rows                  1000.0
+amount_nan              32.0
+ok_total_mln           301.8
+avg_premium         670656.0
+avg_regular         262971.0
+platinum_share_%        39.8
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>tier_type = pd.CategoricalDtype([&#34;silver&#34;, &#34;gold&#34;, &#34;platinum&#34;], ordered=True)
+clean = df.astype({
+    # колонка: тип
+})
+clean = clean.assign(
+    amount=,
+    age=,
+)
+ok =
+
+report = pd.Series({
+    &#34;rows&#34;: len(clean),
+    # продолжи
+})
+report
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Работай по шагам: 1) astype со словарём меняет типы трёх колонок; 2) assign чинит amount и age так же, как в задачах 2 и 4; 3) оставь успешные платежи; 4) посчитай 6 чисел. Каждое число — маленький фильтр и одна операция.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.astype({"колонка": "тип"})</code> — сменить типы нескольких колонок сразу. Средний чек премиум: <code class="i">ok.loc[ok["is_premium"], "amount"].mean()</code>, обычных — то же с <code class="i">~</code> («не»).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>clean = df.astype({&#34;client_id&#34;: &#34;___&#34;, &#34;is_premium&#34;: &#34;___&#34;, &#34;tier&#34;: tier_type})
+clean = clean.assign(amount=pd.to_numeric(clean[&#34;amount&#34;], errors=&#34;coerce&#34;), age=___)
+ok = clean.loc[clean[&#34;status&#34;] == &#34;___&#34;]
+&#34;ok_total_mln&#34;: round(ok[&#34;amount&#34;].sum() / ___, 1),
+&#34;avg_regular&#34;: round(ok.loc[~ok[&#34;___&#34;], &#34;amount&#34;].mean()),
+&#34;platinum_share_%&#34;: round(ok.loc[ok[&#34;tier&#34;] == &#34;platinum&#34;, &#34;amount&#34;].sum() / ___ * 100, 1),</pre></div><p class="hint-trap"><b>Частая ошибка.</b> В assign справа бери колонки из <code class="i">clean</code>, а не из <code class="i">df</code>: иначе пропадут изменения из astype.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Шерзоду</h2>
+      <div class="case">
+        <p>Напиши ответ Шерзоду в Telegram. Не больше 6 предложений. Структура: <b>почему была «склейка» (одной фразой, без терминов) → оборот успешных платежей → средний чек премиум против обычных → 1 риск в данных → 1 предложение к планёрке</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Оборот успешных платежей</span><span class="fact-chip">Средний чек премиум</span><span class="fact-chip">Средний чек обычных</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Шерзод, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Почему, по твоему ответу, суммы «склеивались»?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В колонке суммы были слова вместо чисел, и Python работал с ней как с текстом</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Кто-то ошибся в формуле Excel</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Платежей было слишком много, и Python не справился</span></button></div>
+            <div class="why" hidden>Из-за «n/a» и «ошибка» колонка amount прочиталась как str, а сложение текста — это склейка строк.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что твой ответ говорит о премиум-клиентах?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Их средний чек примерно в 2,5 раза больше, чем у обычных</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Их средний чек меньше, чем у обычных</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Премиум и обычные платят одинаково</span></button></div>
+            <div class="why" hidden>670 656 против 262 971 — в 2,55 раза больше.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Какую оговорку ты делаешь к этому сравнению?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Большой чек может объясняться уровнем карты (gold, platinum), а не самим премиумом</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Никакой: премиум точно заставляет людей тратить больше</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Данные полностью неверные, выводы делать нельзя</span></button></div>
+            <div class="why" hidden>Почти все премиум-клиенты — с картами gold и platinum. Разница может быть из-за карты, поэтому сравнивать честно — внутри одного уровня.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Шерзод, привет! «Склейка» случилась потому, что в колонке суммы кроме чисел были слова вроде «нет» и «ошибка», и Python складывал её как текст. После очистки оборот успешных платежей — 301,8 млн сум. Средний чек премиум-клиентов — 670 656 сум против 262 971 у обычных, в 2,55 раза больше; премиум — 22,9% платежей, но 42,7% оборота. Оговорка: почти все премиум-клиенты — с картами gold и platinum, поэтому большой чек может объясняться уровнем карты, а не премиумом. На планёрку предлагаю сравнить премиум и обычных внутри одного уровня карты.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Причина «склейки» объяснена без терминов</li><li>Оборот успешных — 301,8 млн</li><li>Средний чек: 670 656 против 262 971</li><li>Названа оговорка про уровень карты (корреляция ≠ причина)</li><li>Есть предложение к планёрке</li><li>Не больше 6 предложений</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 4</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/03-novye-kolonki-sortirovka/"><small>← Урок 3</small><b>Новые колонки, сортировка и частоты</b></a><a class="nx" href="../../lessons/05-propuski-i-dublikaty/"><small>Урок 5 →</small><b>Пропуски и дубликаты</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041e\u0431\u043e\u0440\u043e\u0442 \u0443\u0441\u043f\u0435\u0448\u043d\u044b\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439", "value": 301800000}, {"name": "\u0421\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u043f\u0440\u0435\u043c\u0438\u0443\u043c", "value": 670656}, {"name": "\u0421\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u043e\u0431\u044b\u0447\u043d\u044b\u0445", "value": 262971}], "logic": [{"a": 0, "o": ["\u0412 \u043a\u043e\u043b\u043e\u043d\u043a\u0435 \u0441\u0443\u043c\u043c\u044b \u0431\u044b\u043b\u0438 \u0441\u043b\u043e\u0432\u0430 \u0432\u043c\u0435\u0441\u0442\u043e \u0447\u0438\u0441\u0435\u043b, \u0438 Python \u0440\u0430\u0431\u043e\u0442\u0430\u043b \u0441 \u043d\u0435\u0439 \u043a\u0430\u043a \u0441 \u0442\u0435\u043a\u0441\u0442\u043e\u043c", "\u041a\u0442\u043e-\u0442\u043e \u043e\u0448\u0438\u0431\u0441\u044f \u0432 \u0444\u043e\u0440\u043c\u0443\u043b\u0435 Excel", "\u041f\u043b\u0430\u0442\u0435\u0436\u0435\u0439 \u0431\u044b\u043b\u043e \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e, \u0438 Python \u043d\u0435 \u0441\u043f\u0440\u0430\u0432\u0438\u043b\u0441\u044f"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0441\u0443\u043c\u043c\u044b \u00ab\u0441\u043a\u043b\u0435\u0438\u0432\u0430\u043b\u0438\u0441\u044c\u00bb?", "why": "\u0418\u0437-\u0437\u0430 \u00abn/a\u00bb \u0438 \u00ab\u043e\u0448\u0438\u0431\u043a\u0430\u00bb \u043a\u043e\u043b\u043e\u043d\u043a\u0430 amount \u043f\u0440\u043e\u0447\u0438\u0442\u0430\u043b\u0430\u0441\u044c \u043a\u0430\u043a str, \u0430 \u0441\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0442\u0435\u043a\u0441\u0442\u0430 \u2014 \u044d\u0442\u043e \u0441\u043a\u043b\u0435\u0439\u043a\u0430 \u0441\u0442\u0440\u043e\u043a."}, {"a": 0, "o": ["\u0418\u0445 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u0432 2,5 \u0440\u0430\u0437\u0430 \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u0443 \u043e\u0431\u044b\u0447\u043d\u044b\u0445", "\u0418\u0445 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u043c\u0435\u043d\u044c\u0448\u0435, \u0447\u0435\u043c \u0443 \u043e\u0431\u044b\u0447\u043d\u044b\u0445", "\u041f\u0440\u0435\u043c\u0438\u0443\u043c \u0438 \u043e\u0431\u044b\u0447\u043d\u044b\u0435 \u043f\u043b\u0430\u0442\u044f\u0442 \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u043e"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043e \u043f\u0440\u0435\u043c\u0438\u0443\u043c-\u043a\u043b\u0438\u0435\u043d\u0442\u0430\u0445?", "why": "670 656 \u043f\u0440\u043e\u0442\u0438\u0432 262 971 \u2014 \u0432 2,55 \u0440\u0430\u0437\u0430 \u0431\u043e\u043b\u044c\u0448\u0435."}, {"a": 0, "o": ["\u0411\u043e\u043b\u044c\u0448\u043e\u0439 \u0447\u0435\u043a \u043c\u043e\u0436\u0435\u0442 \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0442\u044c\u0441\u044f \u0443\u0440\u043e\u0432\u043d\u0435\u043c \u043a\u0430\u0440\u0442\u044b (gold, platinum), \u0430 \u043d\u0435 \u0441\u0430\u043c\u0438\u043c \u043f\u0440\u0435\u043c\u0438\u0443\u043c\u043e\u043c", "\u041d\u0438\u043a\u0430\u043a\u043e\u0439: \u043f\u0440\u0435\u043c\u0438\u0443\u043c \u0442\u043e\u0447\u043d\u043e \u0437\u0430\u0441\u0442\u0430\u0432\u043b\u044f\u0435\u0442 \u043b\u044e\u0434\u0435\u0439 \u0442\u0440\u0430\u0442\u0438\u0442\u044c \u0431\u043e\u043b\u044c\u0448\u0435", "\u0414\u0430\u043d\u043d\u044b\u0435 \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0435, \u0432\u044b\u0432\u043e\u0434\u044b \u0434\u0435\u043b\u0430\u0442\u044c \u043d\u0435\u043b\u044c\u0437\u044f"], "q": "\u041a\u0430\u043a\u0443\u044e \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0443 \u0442\u044b \u0434\u0435\u043b\u0430\u0435\u0448\u044c \u043a \u044d\u0442\u043e\u043c\u0443 \u0441\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u044e?", "why": "\u041f\u043e\u0447\u0442\u0438 \u0432\u0441\u0435 \u043f\u0440\u0435\u043c\u0438\u0443\u043c-\u043a\u043b\u0438\u0435\u043d\u0442\u044b \u2014 \u0441 \u043a\u0430\u0440\u0442\u0430\u043c\u0438 gold \u0438 platinum. \u0420\u0430\u0437\u043d\u0438\u0446\u0430 \u043c\u043e\u0436\u0435\u0442 \u0431\u044b\u0442\u044c \u0438\u0437-\u0437\u0430 \u043a\u0430\u0440\u0442\u044b, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0441\u0440\u0430\u0432\u043d\u0438\u0432\u0430\u0442\u044c \u0447\u0435\u0441\u0442\u043d\u043e \u2014 \u0432\u043d\u0443\u0442\u0440\u0438 \u043e\u0434\u043d\u043e\u0433\u043e \u0443\u0440\u043e\u0432\u043d\u044f."}]}, "case_model": "\u0428\u0435\u0440\u0437\u043e\u0434, \u043f\u0440\u0438\u0432\u0435\u0442! \u00ab\u0421\u043a\u043b\u0435\u0439\u043a\u0430\u00bb \u0441\u043b\u0443\u0447\u0438\u043b\u0430\u0441\u044c \u043f\u043e\u0442\u043e\u043c\u0443, \u0447\u0442\u043e \u0432 \u043a\u043e\u043b\u043e\u043d\u043a\u0435 \u0441\u0443\u043c\u043c\u044b \u043a\u0440\u043e\u043c\u0435 \u0447\u0438\u0441\u0435\u043b \u0431\u044b\u043b\u0438 \u0441\u043b\u043e\u0432\u0430 \u0432\u0440\u043e\u0434\u0435 \u00ab\u043d\u0435\u0442\u00bb \u0438 \u00ab\u043e\u0448\u0438\u0431\u043a\u0430\u00bb, \u0438 Python \u0441\u043a\u043b\u0430\u0434\u044b\u0432\u0430\u043b \u0435\u0451 \u043a\u0430\u043a \u0442\u0435\u043a\u0441\u0442. \u041f\u043e\u0441\u043b\u0435 \u043e\u0447\u0438\u0441\u0442\u043a\u0438 \u043e\u0431\u043e\u0440\u043e\u0442 \u0443\u0441\u043f\u0435\u0448\u043d\u044b\u0445 \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439 \u2014 301,8 \u043c\u043b\u043d \u0441\u0443\u043c. \u0421\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u043f\u0440\u0435\u043c\u0438\u0443\u043c-\u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u2014 670 656 \u0441\u0443\u043c \u043f\u0440\u043e\u0442\u0438\u0432 262 971 \u0443 \u043e\u0431\u044b\u0447\u043d\u044b\u0445, \u0432 2,55 \u0440\u0430\u0437\u0430 \u0431\u043e\u043b\u044c\u0448\u0435; \u043f\u0440\u0435\u043c\u0438\u0443\u043c \u2014 22,9% \u043f\u043b\u0430\u0442\u0435\u0436\u0435\u0439, \u043d\u043e 42,7% \u043e\u0431\u043e\u0440\u043e\u0442\u0430. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u043f\u043e\u0447\u0442\u0438 \u0432\u0441\u0435 \u043f\u0440\u0435\u043c\u0438\u0443\u043c-\u043a\u043b\u0438\u0435\u043d\u0442\u044b \u2014 \u0441 \u043a\u0430\u0440\u0442\u0430\u043c\u0438 gold \u0438 platinum, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u0447\u0435\u043a \u043c\u043e\u0436\u0435\u0442 \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0442\u044c\u0441\u044f \u0443\u0440\u043e\u0432\u043d\u0435\u043c \u043a\u0430\u0440\u0442\u044b, \u0430 \u043d\u0435 \u043f\u0440\u0435\u043c\u0438\u0443\u043c\u043e\u043c. \u041d\u0430 \u043f\u043b\u0430\u043d\u0451\u0440\u043a\u0443 \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0441\u0440\u0430\u0432\u043d\u0438\u0442\u044c \u043f\u0440\u0435\u043c\u0438\u0443\u043c \u0438 \u043e\u0431\u044b\u0447\u043d\u044b\u0445 \u0432\u043d\u0443\u0442\u0440\u0438 \u043e\u0434\u043d\u043e\u0433\u043e \u0443\u0440\u043e\u0432\u043d\u044f \u043a\u0430\u0440\u0442\u044b.", "case_xp": 30, "cheat": [["df.info() / df.dtypes", "\u043f\u0435\u0440\u0432\u044b\u043c \u0434\u0435\u043b\u043e\u043c: \u043a\u0430\u043a\u0438\u0435 \u0442\u0438\u043f\u044b"], ["pd.to_numeric(df[\"x\"], errors=\"coerce\")", "\u0442\u0435\u043a\u0441\u0442 \u2192 \u0447\u0438\u0441\u043b\u043e, \u043c\u0443\u0441\u043e\u0440 \u2192 NaN"], ["(df[\"x\"].notna() \u0026 num.isna()).sum()", "\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043c\u0443\u0441\u043e\u0440\u0430 \u043f\u043e\u0442\u0435\u0440\u044f\u043b coerce"], ["df[\"age\"].astype(\"Int64\")", "\u0446\u0435\u043b\u044b\u0435 \u0441 \u043f\u0440\u043e\u043f\u0443\u0441\u043a\u0430\u043c\u0438"], ["df[\"flag\"].astype(bool) / df[\"id\"].astype(str)", "\u0444\u043b\u0430\u0433 \u0438 ID"], ["df.astype({\"a\": \"str\", \"b\": \"bool\"})", "\u043d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u043a\u043e\u043b\u043e\u043d\u043e\u043a \u0440\u0430\u0437\u043e\u043c"], ["df[\"c\"].astype(\"category\")", "\u043c\u0430\u043b\u043e \u0440\u0430\u0437\u043d\u044b\u0445 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0439 \u2192 \u043c\u0435\u043d\u044c\u0448\u0435 \u043f\u0430\u043c\u044f\u0442\u0438"], ["pd.CategoricalDtype([...], ordered=True)", "\u043f\u043e\u0440\u044f\u0434\u043e\u043a \u0443\u0440\u043e\u0432\u043d\u0435\u0439, \u043a\u0430\u043a ENUM"]], "data": "../../data/", "datasets": ["kapital_payments.csv"], "day": 4, "hint_cost": 5, "quiz": [2, 1, 1, 1, 2], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"kapital_payments.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["amount str", "age float64", "str 6", "int64 3", "float64 1"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["float64", "32", "346828000"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["23", "- 11", "\u043e\u0448\u0438\u0431\u043a\u0430 6", "\u043d\u0435\u0442 6"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["Int64", "23", "42.1"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["category", "True", "app", "atm", "pos", "web"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["1000", "400", "silver 600", "gold 273", "platinum 127"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["rows 1000", "amount_nan 32", "ok_total_mln 301.8", "avg_premium 670656", "avg_regular 262971", "platinum_share_% 39.8"], "setup": "", "xp": 25}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

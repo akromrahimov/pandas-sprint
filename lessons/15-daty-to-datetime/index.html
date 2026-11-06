@@ -1,0 +1,714 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 15. Даты: to_datetime и .dt — Pandas Sprint</title>
+<meta name="description" content="Урок 15 курса Pandas Sprint — Даты: to_datetime и .dt. Превратить текст в даты и достать из них месяц, день недели, разницу в днях.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/15-daty-to-datetime/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 15. Даты: to_datetime и .dt — Pandas Sprint">
+<meta property="og:description" content="Урок 15 курса Pandas Sprint — Даты: to_datetime и .dt. Превратить текст в даты и достать из них месяц, день недели, разницу в днях.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/15-daty-to-datetime/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="15">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#text-to-date"><span class="dot">✓</span>Текст → дата</a></li><li><a href="#dt"><span class="dot">✓</span>.dt и разница</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Даты в SQL и в pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты работал с датами в SQL, вот соответствия.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>CAST(created_at AS TIMESTAMP)</code></td><td><code>pd.to_datetime(df[&#34;created_at&#34;])</code></td><td>текст → дата</td></tr><tr><td><code>EXTRACT(MONTH FROM created)</code></td><td><code>df[&#34;created&#34;].dt.month</code></td><td>номер месяца</td></tr><tr><td><code>EXTRACT(DOW FROM created)</code></td><td><code>df[&#34;created&#34;].dt.dayofweek</code></td><td>день недели (в pandas 0 = понедельник)</td></tr><tr><td><code>DATE_TRUNC(&#39;month&#39;, created)</code></td><td><code>df[&#34;created&#34;].dt.to_period(&#34;M&#34;)</code></td><td>округлить до месяца</td></tr><tr><td><code>delivered - created</code></td><td><code>df[&#34;delivered&#34;] - df[&#34;created&#34;]</code></td><td>промежуток времени</td></tr><tr><td><code>EXTRACT(EPOCH FROM …) / 3600</code></td><td><code>.dt.total_seconds() / 3600</code></td><td>в часах</td></tr><tr><td><code>WHERE created &gt;= &#39;2026-09-01&#39;</code></td><td><code>df[df[&#34;created&#34;] &gt;= &#34;2026-09-01&#34;]</code></td><td>фильтр по дате</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 15 из 30 · Неделя 3 · Время и метрики</div>
+      <h1>Даты: <mark>to_datetime</mark> и .dt</h1>
+      <p class="lead">Почти в любой выгрузке есть даты: когда создан заказ, когда доставлен, когда клиент зарегистрировался. Но pandas читает их как обычный текст, и с текстом нельзя посчитать «сколько часов шла доставка» или «сколько заказов в выходные». Сегодня учимся превращать текст в настоящие даты и доставать из них месяц, день недели и разницу во времени.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Разобраться, почему клиенты службы доставки TezPochta жалуются на сроки: посчитать время доставки в часах по городам, долю нарушений обещанного срока и проверить, правда ли в выходные посылки едут дольше.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Превращать текст в даты через <code class="i">pd.to_datetime</code>, в том числе с <code class="i">format</code> и <code class="i">errors="coerce"</code></li><li>Доставать месяц, час и день недели через <code class="i">.dt</code></li><li>Считать разницу между датами в часах и днях</li><li>Группировать по месяцам через <code class="i">.dt.to_period("M")</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Жалобы на сроки доставки</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">А</span>Азиз <small>операционный директор TezPochta · 11:20</small></div>
+          <p>Привет! За лето выросли жалобы на сроки. Мы обещаем: обычная доставка — за 48 часов, экспресс — за 24 часа. Выгрузил все посылки за июль–сентябрь. Скажи, сколько мы реально везём, где медленнее всего и правда ли, что в выходные всё встаёт.</p>
+<div class="file">▤ tezpochta_parcels.csv · 1 800 посылок</div>        </div>
+      </div>
+      <p class="note">TezPochta — учебная служба доставки, данные сгенерированы. Подвохи: даты записаны как текст, 60 дат доставки записаны в другом формате (день.месяц.год), а 90 посылок ещё в пути — у них нет даты доставки. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/tezpochta_parcels.csv" download>Скачать tezpochta_parcels.csv</a><span class="note">1 800 строк · 122 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;tezpochta_parcels.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="text-to-date">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Почему дата из файла — это ещё не дата</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Для pandas строка «2026-07-03 14:22» — просто набор символов, как «привет». Её нельзя сравнить с другой датой по смыслу, из неё нельзя достать месяц, а «минус» между двумя такими строками даёт ошибку.</p>
+  <ul>
+    <li><b>pd.to_datetime(колонка)</b> — «прочитай этот текст как дату и время». Тип колонки станет <code class="i">datetime64</code>.</li>
+    <li><b>format</b> — подсказка, как записана дата: <code class="i">"%Y-%m-%d %H:%M"</code> значит «год-месяц-день часы:минуты». <code class="i">%d.%m.%Y</code> — «день.месяц.год».</li>
+    <li><b>errors="coerce"</b> — «если не получилось прочитать — поставь пустую дату (NaT), а не падай с ошибкой».</li>
+    <li><b>NaT</b> (Not a Time) — пустая клетка для дат, как NaN для чисел.</li>
+    <li><b>Разница двух дат</b> — это промежуток времени (Timedelta): «2 дня 3 часа». Перевести в часы: <code class="i">.dt.total_seconds() / 3600</code>.</li>
+  </ul>
+  <p>Пример из жизни: «03.07» для человека — третье июля, а для компьютера это может быть и 7 марта. Поэтому дату нужно один раз «объяснить» pandas, и дальше он будет понимать её правильно.</p>
+</div>
+<div class="simple"><span class="tag">Шпаргалка по format: как описать запись даты</span>
+  <p>Каждый кусочек даты обозначается знаком % и буквой. Между ними пишешь те же разделители, что в файле (дефис, точку, пробел, двоеточие).</p>
+  <div class="scroll"><table class="mini">
+    <tr><th>Знак</th><th>Что значит</th><th>Пример</th></tr>
+    <tr><td>%Y</td><td>год, 4 цифры</td><td>2026</td></tr>
+    <tr><td>%m</td><td>месяц, 2 цифры</td><td>07</td></tr>
+    <tr><td>%d</td><td>день, 2 цифры</td><td>03</td></tr>
+    <tr><td>%H</td><td>часы (0–23)</td><td>14</td></tr>
+    <tr><td>%M</td><td>минуты</td><td>22</td></tr>
+  </table></div>
+  <p>«2026-07-03 14:22» → <code class="i">"%Y-%m-%d %H:%M"</code>, а «03.07.2026 14:22» → <code class="i">"%d.%m.%Y %H:%M"</code>. Внимание: маленькая <b>m</b> — месяц, большая <b>M</b> — минуты.</p>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Какой тип у даты после чтения файла?</b></div><pre class="code" data-cm>print(df[&quot;created_at&quot;].dtype)
+df[&quot;created&quot;] = pd.to_datetime(df[&quot;created_at&quot;])
+print(df[&quot;created&quot;].dtype)
+print(df[&quot;created&quot;].min(), &quot;→&quot;, df[&quot;created&quot;].max())</pre><div class="out">str
+datetime64[us]
+2026-07-01 00:11:00 → 2026-09-30 23:43:00</div><p class="plain"><b>Простыми словами:</b> до to_datetime колонка — текст (str), после — настоящие даты. Теперь можно найти самую раннюю и самую позднюю посылку.</p></div>
+<div class="card"><div class="q"><b>2. Два формата в одной колонке.</b> Читаем первым форматом и смотрим, что не прочиталось.</div><pre class="code" data-cm>d1 = pd.to_datetime(df[&quot;delivered_at&quot;], format=&quot;%Y-%m-%d %H:%M&quot;, errors=&quot;coerce&quot;)
+print(d1.isna().sum())
+df.loc[d1.isna() &amp; df[&quot;delivered_at&quot;].notna(), &quot;delivered_at&quot;].head(3)</pre><div class="out">150
+79     17.07.2026 02:05
+129    18.09.2026 07:34
+168    03.08.2026 08:09
+Name: delivered_at, dtype: str</div><p class="plain"><b>Простыми словами:</b> 150 пустых: 90 посылок ещё в пути, а ещё 60 дат записаны как «день.месяц.год». errors="coerce" не уронил код, а показал проблему.</p></div>
+<div class="card"><div class="q"><b>3. Склеиваем два формата.</b> fillna берёт значение из второй попытки там, где первая пустая.</div><pre class="code" data-cm>d2 = pd.to_datetime(df[&quot;delivered_at&quot;], format=&quot;%d.%m.%Y %H:%M&quot;, errors=&quot;coerce&quot;)
+df[&quot;delivered&quot;] = d1.fillna(d2)
+df[&quot;delivered&quot;].isna().sum()</pre><div class="out">90</div><p class="plain"><b>Простыми словами:</b> осталось 90 пустых — это честные «ещё в пути». Все даты доставки прочитаны.</p></div></div>
+    </section>
+    <section id="dt">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Части даты и время между событиями</h2>
+      <div class="simple"><span class="tag">Как читать код с .dt</span>
+  <ul>
+    <li><code class="i">.dt</code> — «у колонки с датами достань…»: <code class="i">.dt.month</code> — месяц (1–12), <code class="i">.dt.hour</code> — час, <code class="i">.dt.dayofweek</code> — день недели (0 = понедельник, 6 = воскресенье).</li>
+    <li><code class="i">.dt.to_period("M")</code> — «округли до месяца»: 2026-07-03 → 2026-07. Удобно для отчётов по месяцам.</li>
+    <li>Даты можно сравнивать с текстом-датой: <code class="i">df[df["created"] &gt;= "2026-09-01"]</code>.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>4. Анатомия одной даты.</b> Что можно достать из даты первой посылки.</div><pre class="code" data-cm>t = df[&quot;created&quot;].iloc[0]
+pd.Series({
+    &quot;дата целиком&quot;: t,
+    &quot;год&quot;: t.year,
+    &quot;месяц&quot;: t.month,
+    &quot;день&quot;: t.day,
+    &quot;час&quot;: t.hour,
+    &quot;день недели (0 = пн)&quot;: t.dayofweek,
+    &quot;название дня&quot;: t.day_name(),
+    &quot;месяц-период&quot;: t.to_period(&quot;M&quot;),
+})</pre><div class="out">дата целиком            2026-08-28 03:52:00
+год                                    2026
+месяц                                     8
+день                                     28
+час                                       3
+день недели (0 = пн)                      4
+название дня                         Friday
+месяц-период                        2026-08
+dtype: object</div><p class="plain"><b>Простыми словами:</b> у одной даты эти части достаются через точку: <code class="i">t.month</code>. У целой колонки — через <code class="i">.dt</code>: <code class="i">df["created"].dt.month</code> даёт месяц для каждой строки сразу.</p></div>
+<div class="card"><div class="q"><b>5. Разница дат по шагам.</b> Три посылки: когда создали, когда доставили, сколько прошло.</div><pre class="code" data-cm>(
+    df[df[&quot;delivered&quot;].notna()]
+    .assign(разница=lambda d: d[&quot;delivered&quot;] - d[&quot;created&quot;],
+            часов=lambda d: ((d[&quot;delivered&quot;] - d[&quot;created&quot;]).dt.total_seconds() / 3600).round(1))
+    [[&quot;created&quot;, &quot;delivered&quot;, &quot;разница&quot;, &quot;часов&quot;]]
+    .head(3)
+)</pre><div class="out">              created           delivered         разница  часов
+0 2026-08-28 03:52:00 2026-08-29 00:06:00 0 days 20:14:00   20.2
+1 2026-07-01 17:40:00 2026-07-02 03:01:00 0 days 09:21:00    9.4
+2 2026-07-14 15:52:00 2026-07-15 03:26:00 0 days 11:34:00   11.6</div><p class="plain"><b>Простыми словами:</b> вычитание дат даёт промежуток: «0 days 20:14:00» значит 0 дней 20 часов 14 минут. Считать с таким видом неудобно, поэтому переводим его в одно число: всего секунд / 3 600 = часы (20,2).</p></div>
+<div class="card"><div class="q"><b>6. Сколько часов идёт посылка.</b></div><pre class="code" data-cm>df[&quot;hours&quot;] = (df[&quot;delivered&quot;] - df[&quot;created&quot;]).dt.total_seconds() / 3600
+df[&quot;hours&quot;].describe().round(1)</pre><div class="out">count    1710.0
+mean       27.9
+std        19.2
+min         1.8
+25%        14.9
+50%        23.5
+75%        36.2
+max       182.7
+Name: hours, dtype: float64</div><p class="plain"><b>Простыми словами:</b> разница дат — промежуток времени; делим секунды на 3 600 и получаем часы. Медиана (50%) — типичное время доставки, max показывает самые долгие случаи.</p></div>
+<div class="card"><div class="q"><b>7. Посылки по месяцам.</b></div><pre class="code" data-cm>df[&quot;created&quot;].dt.to_period(&quot;M&quot;).value_counts().sort_index()</pre><div class="out">created
+2026-07    581
+2026-08    619
+2026-09    600
+Freq: M, Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> to_period("M") превращает каждую дату в «год-месяц». sort_index() ставит месяцы по порядку, а не по количеству.</p></div>
+<div class="card"><div class="q"><b>8. Будни или выходные.</b></div><pre class="code" data-cm>weekend = df[&quot;created&quot;].dt.dayofweek &gt;= 5
+print(weekend.mean().round(3))
+df.groupby(weekend)[&quot;hours&quot;].median().round(1)</pre><div class="out">0.272
+created
+False    21.1
+True     30.0
+Name: hours, dtype: float64</div><p class="plain"><b>Простыми словами:</b> dayofweek 5 и 6 — суббота и воскресенье. В группировке False — будни, True — выходные: видно, что в выходные медиана заметно больше.</p></div>
+<div class="card"><div class="q"><b>9. Свой срок для каждой строки.</b> Приём для задачи 5: лимит зависит от типа доставки.</div><pre class="code" data-cm>done = df[df[&quot;delivered&quot;].notna()].copy()
+done[&quot;limit&quot;] = np.where(done[&quot;service&quot;] == &quot;express&quot;, 24, 48)
+done[&quot;late&quot;] = done[&quot;hours&quot;] &gt; done[&quot;limit&quot;]
+done[[&quot;service&quot;, &quot;hours&quot;, &quot;limit&quot;, &quot;late&quot;]].head(4).round(1)</pre><div class="out">    service  hours  limit   late
+0   express   20.2     24  False
+1   express    9.4     24  False
+2  standard   11.6     48  False
+3  standard   19.2     48  False</div><p class="plain"><b>Простыми словами:</b> <code class="i">np.where</code> ставит 24 часа экспрессу и 48 остальным. Потом каждую посылку сравниваем с <b>её</b> лимитом. <code class="i">.copy()</code> делает отдельную таблицу: без него pandas предупредит, что ты меняешь «кусок» другой таблицы.</p></div></div>
+<div class="callout"><b>Правило аналитика.</b> После to_datetime всегда смотри на min, max и число пустых дат. Дата «1970-01-01» или «2099» — признак ошибки в данных, а большое число NaT — признак другого формата.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ловушек с датами</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Считать по тексту</h3><div class="bad">df[&#34;delivered_at&#34;] - df[&#34;created_at&#34;]   # TypeError: строки не вычитаются</div><div class="good">pd.to_datetime(df[&#34;delivered_at&#34;]) - pd.to_datetime(df[&#34;created_at&#34;])</div><p>Пока колонка — текст, никакой арифметики с датами нет.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Несколько форматов в одной колонке</h3><div class="bad">pd.to_datetime(df[&#34;delivered_at&#34;])   # ошибка или тихо перепутанные день и месяц</div><div class="good">d1 = pd.to_datetime(s, format=&#34;%Y-%m-%d %H:%M&#34;, errors=&#34;coerce&#34;)
+d2 = pd.to_datetime(s, format=&#34;%d.%m.%Y %H:%M&#34;, errors=&#34;coerce&#34;)
+d1.fillna(d2)</div><p>Явно указывай формат и проверяй, сколько не прочиталось. «03.08» может быть и 3 августа, и 8 марта.</p></div>
+        <div class="trap"><span class="n">3</span><h3>.dt.days теряет часы</h3><p><code class="i">(a - b).dt.days</code> отбрасывает часы: 1 день 23 часа превращается в 1. Для сроков доставки считай часы через <code class="i">.dt.total_seconds() / 3600</code>.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Пустые даты в среднем</h3><p>Посылки «в пути» (NaT) не попадают в среднее время доставки. Если их много, среднее получится слишком оптимистичным — пиши, сколько посылок ещё не доставлено.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Понедельник — это 0</h3><p><code class="i">dayofweek</code> считает с нуля: 0 — понедельник, 5 — суббота, 6 — воскресенье. Выходные — это <code class="i">&gt;= 5</code>, а не <code class="i">&gt;= 6</code>.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк про даты</h3>
+        <ol><li>pd.to_datetime(s) <span>— текст → дата</span></li><li>pd.to_datetime(s, format=&#34;%d.%m.%Y&#34;, errors=&#34;coerce&#34;) <span>— свой формат, ошибки → NaT</span></li><li>d1.fillna(d2) <span>— склеить две попытки чтения</span></li><li>s.dt.month / .dt.hour / .dt.dayofweek <span>— части даты</span></li><li>s.dt.to_period(&#34;M&#34;) <span>— округлить до месяца</span></li><li>(b - a).dt.total_seconds() / 3600 <span>— разница в часах</span></li><li>df[df[&#34;d&#34;] &gt;= &#34;2026-09-01&#34;] <span>— фильтр по дате</span></li><li>s.isna().sum() <span>— сколько дат не прочиталось</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Какой тип у колонки с датой сразу после <code>read_csv</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>datetime64</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>str (текст)</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>int64</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Timedelta</span></button></div>
+          <div class="why" hidden>read_csv сам не превращает текст в даты. Нужен pd.to_datetime или parse_dates при чтении.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Что делает <code>errors="coerce"</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удаляет строки с ошибкой</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ставит NaT там, где дату не удалось прочитать</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Исправляет формат сам</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Падает с ошибкой</span></button></div>
+          <div class="why" hidden>coerce = «заставь»: всё, что не читается, становится пустой датой NaT, и код не падает.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Какой номер у субботы в <code>.dt.dayofweek</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>6</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>5</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>0</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>7</span></button></div>
+          <div class="why" hidden>Счёт с понедельника = 0, значит суббота — 5, воскресенье — 6.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Как получить разницу двух дат в часах?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>(b - a).dt.hours</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>(b - a).dt.total_seconds() / 3600</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>(b - a) / 24</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>(b - a).dt.days * 60</code></span></button></div>
+          <div class="why" hidden>total_seconds() даёт весь промежуток в секундах, деление на 3 600 — часы. .dt.days отбросит часы.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="0">
+          <p>5. Что вернёт <code>.dt.to_period("M")</code> для 2026-07-03 14:22?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>2026-07</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>7</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>2026-07-01</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Июль</span></button></div>
+          <div class="why" hidden>Период «месяц»: только год и месяц, удобно для отчётов по месяцам.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Текст в дату</h3>
+            <ol class='steps-t'><li>Создай колонку <code class='i'>created</code> — <code class='i'>created_at</code>, превращённая в дату.</li> <li>Напечатай её тип (<code class='i'>dtype</code>).</li> <li>Напечатай самую раннюю и самую позднюю дату в одну строку.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 15 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">df[&#34;created&#34;] =
+
+# тип
+
+# min и max
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">datetime64[us]
+2026-07-01 00:11:00 2026-09-30 23:43:00</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;created&#34;] =
+
+# тип
+
+# min и max
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Дата в файле — это просто текст. Чтобы pandas понимал её как дату (мог вычитать, брать месяц, день недели), её нужно перевести в специальный тип.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.to_datetime(колонка)</code> — текст в дату. <code class="i">.dtype</code> — тип колонки. <code class="i">.min()</code> и <code class="i">.max()</code> у дат — самая ранняя и самая поздняя.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;created&#34;] = pd.___(df[&#34;created_at&#34;])
+print(df[&#34;created&#34;].___)
+print(df[&#34;created&#34;].___(), df[&#34;created&#34;].___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если сохранить результат в другую колонку, а min/max считать по created_at, получишь минимум текста, а не даты.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Посылки по месяцам</h3>
+            <ol class='steps-t'><li>Превращи <code class='i'>created_at</code> в дату.</li> <li>Посчитай, сколько посылок создано в каждом месяце (<code class='i'>to_period("M")</code>), месяцы по порядку.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 15 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">created_at
+2026-07    581
+2026-08    619
+2026-09    600
+Freq: M, Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Каждую дату можно «округлить» до месяца — тогда все посылки сентября получат одну метку. Потом посчитай, сколько посылок с каждой меткой, и расставь месяцы по порядку.</p>
+<p><b>Чем это сделать.</b> <code class="i">.dt.to_period("M")</code> — месяц даты. <code class="i">.value_counts()</code> — сколько в каждом. <code class="i">.sort_index()</code> — по порядку подписей (по месяцам), а не по количеству.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>pd.to_datetime(df[&#34;created_at&#34;]).dt.to_period(&#34;___&#34;).value_counts().___()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">value_counts()</code> сортирует по количеству. Чтобы месяцы шли по календарю, нужен <code class="i">sort_index()</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Два формата даты доставки</h3>
+            <ol class='steps-t'><li>Прочитай <code class='i'>delivered_at</code> форматом <code class='i'>"%Y-%m-%d %H:%M"</code> с <code class='i'>errors="coerce"</code> → <code class='i'>d1</code>.</li> <li>Ещё раз форматом <code class='i'>"%d.%m.%Y %H:%M"</code> → <code class='i'>d2</code>.</li> <li>Склей: <code class='i'>df["delivered"] = d1.fillna(d2)</code>.</li> <li>Напечатай в одну строку: сколько пустых в d1 и сколько пустых осталось в delivered.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 15 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">d1 =
+d2 =
+df[&#34;delivered&#34;] =
+
+# пустых в d1 и в delivered
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">150 90</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>d1 =
+d2 =
+df[&#34;delivered&#34;] =
+
+# пустых в d1 и в delivered
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Даты доставки записаны в двух форматах. Прочитай колонку два раза: первым форматом и вторым. Каждый раз «чужие» даты станут пустыми. Потом склей: где первая пустая — возьми вторую.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.to_datetime(col, format="%Y-%m-%d %H:%M", errors="coerce")</code> — строгий формат, непонятное → пусто. <code class="i">a.fillna(b)</code> — заполнить пустые клетки a значениями из b.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>d1 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;___&#34;, errors=&#34;coerce&#34;)
+d2 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;___&#34;, errors=&#34;coerce&#34;)
+df[&#34;delivered&#34;] = d1.___(d2)
+print(d1.isna().sum(), df[&#34;delivered&#34;].isna().sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> %m — месяц, %M — минуты. Если перепутать регистр, даты прочитаются неправильно или станут пустыми.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Время доставки по городам</h3>
+            <p>Колонки <code class='i'>created</code> и <code class='i'>delivered</code> уже готовы (код подготовки можно раскрыть ниже).</p> <ol class='steps-t'><li>Создай колонку <code class='i'>hours</code> — время доставки в часах.</li> <li>Выведи <b>медиану</b> часов по городам, 1 знак, от быстрого города к медленному.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>df[&#34;created&#34;] = pd.to_datetime(df[&#34;created_at&#34;])
+d1 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;%Y-%m-%d %H:%M&#34;, errors=&#34;coerce&#34;)
+d2 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;%d.%m.%Y %H:%M&#34;, errors=&#34;coerce&#34;)
+df[&#34;delivered&#34;] = d1.fillna(d2)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 15 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">df[&#34;hours&#34;] =
+
+# медиана по городам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">city
+Ташкент      17.6
+Самарканд    26.5
+Бухара       29.8
+Наманган     33.4
+Фергана      33.5
+Name: hours, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;hours&#34;] =
+
+# медиана по городам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Разница двух дат — это промежуток времени. Переведи его в часы: всего секунд / 3600. Потом медиана по городам.</p>
+<p><b>Чем это сделать.</b> <code class="i">(конец - начало).dt.total_seconds()</code> — длительность в секундах. <code class="i">groupby("city")["hours"].median()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;hours&#34;] = (df[&#34;___&#34;] - df[&#34;___&#34;]).dt.total_seconds() / ___
+df.groupby(&#34;city&#34;)[&#34;hours&#34;].___().round(1).sort_values()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Порядок важен: доставка минус создание. Наоборот получатся отрицательные часы.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Нарушения обещанного срока</h3>
+            <p>Обещание: <b>standard</b> — до 48 часов, <b>express</b> — до 24 часов. Колонка <code class='i'>hours</code> готова.</p> <ol class='steps-t'><li>Оставь только доставленные посылки (<code class='i'>delivered</code> не пустая) → <code class='i'>done</code>.</li> <li>Колонка <code class='i'>limit</code>: 24 для express, 48 для standard (<code class='i'>np.where</code>).</li> <li>Выведи % нарушений (hours &gt; limit) по типу доставки, 1 знак.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>df[&#34;created&#34;] = pd.to_datetime(df[&#34;created_at&#34;])
+d1 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;%Y-%m-%d %H:%M&#34;, errors=&#34;coerce&#34;)
+d2 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;%d.%m.%Y %H:%M&#34;, errors=&#34;coerce&#34;)
+df[&#34;delivered&#34;] = d1.fillna(d2)
+df[&#34;hours&#34;] = (df[&#34;delivered&#34;] - df[&#34;created&#34;]).dt.total_seconds() / 3600</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 15 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">done =
+done[&#34;limit&#34;] =
+
+# % нарушений по service
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">service
+express     22.8
+standard    15.8
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>done =
+done[&#34;limit&#34;] =
+
+# % нарушений по service
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> У каждой посылки свой лимит: 24 часа для express и 48 для standard. Сделай колонку с лимитом, сравни часы с лимитом — получится «нарушено да/нет», — и посчитай долю нарушений по типу доставки.</p>
+<p><b>Чем это сделать.</b> <code class="i">np.where(условие, 24, 48)</code> — лимит. <code class="i">.copy()</code> — отдельная таблица, чтобы спокойно добавлять колонки. <code class="i">(маска).groupby(колонка).mean() * 100</code> — доля по группам.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>done = df[df[&#34;delivered&#34;].___()].copy()
+done[&#34;limit&#34;] = np.where(done[&#34;service&#34;] == &#34;___&#34;, 24, 48)
+((done[&#34;hours&#34;] &gt; done[&#34;___&#34;]).groupby(done[&#34;___&#34;]).mean() * 100).round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Посылки в пути (delivered пустая) не нарушили срок и не уложились — их нужно убрать до расчёта.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Правда ли выходные медленнее</h3>
+            <ol class='steps-t'><li>Создай колонку <code class='i'>day_type</code>: «выходные», если посылка создана в субботу или воскресенье, иначе «будни».</li> <li>Выведи медиану часов доставки для будней и выходных, 1 знак.</li> <li>Комментарием: правда ли, что в выходные дольше? На сколько процентов?</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>df[&#34;created&#34;] = pd.to_datetime(df[&#34;created_at&#34;])
+d1 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;%Y-%m-%d %H:%M&#34;, errors=&#34;coerce&#34;)
+d2 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;%d.%m.%Y %H:%M&#34;, errors=&#34;coerce&#34;)
+df[&#34;delivered&#34;] = d1.fillna(d2)
+df[&#34;hours&#34;] = (df[&#34;delivered&#34;] - df[&#34;created&#34;]).dt.total_seconds() / 3600</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 15 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">df[&#34;day_type&#34;] =
+
+# медиана часов по day_type
+
+# вывод:
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">day_type
+будни       21.1
+выходные    30.0
+Name: hours, dtype: float64
+
++ комментарий: на сколько дольше в выходные</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;day_type&#34;] =
+
+# медиана часов по day_type
+
+# вывод:
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+<p class="hint-note">Вопрос в комментарии автоматически не проверяется. Когда задача будет засчитана, ниже откроется наш ответ — сравни по смыслу.</p><div class="answer-note" data-answer hidden><b>Наш ответ на вопрос из комментария</b> — сравни со своим по смыслу, слова могут быть другими:<pre>Да: посылки, созданные в выходные, идут дольше — 30.0 ч против 21.1 ч, примерно на 40%.</pre></div>          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> У даты можно спросить день недели: понедельник — 0, …, суббота — 5, воскресенье — 6. Выходные — номер 5 и больше. Потом сравни медианы часов для будней и выходных.</p>
+<p><b>Чем это сделать.</b> <code class="i">.dt.dayofweek</code> — номер дня недели. <code class="i">np.where(усл, "выходные", "будни")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;day_type&#34;] = np.where(df[&#34;created&#34;].dt.___ &gt;= ___, &#34;выходные&#34;, &#34;будни&#34;)
+df.groupby(&#34;day_type&#34;)[&#34;hours&#34;].___().round(1)
+# вывод: ___</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Дни считаются с нуля: суббота — 5, а не 6.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт по месяцам</h3>
+            <p>Готовы колонки <code class='i'>created</code>, <code class='i'>delivered</code>, <code class='i'>hours</code>, <code class='i'>limit</code>.</p> <p>Собери таблицу <code class='i'>monthly</code> по месяцу создания посылки:</p> <ol class='steps-t'><li><code class='i'>parcels</code> — всего посылок;</li> <li><code class='i'>in_transit</code> — сколько ещё в пути (delivered пустая);</li> <li><code class='i'>median_hours</code> — медиана часов доставки, 1 знак;</li> <li><code class='i'>breach_pct</code> — % нарушений срока среди доставленных, 1 знак.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>df[&#34;created&#34;] = pd.to_datetime(df[&#34;created_at&#34;])
+d1 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;%Y-%m-%d %H:%M&#34;, errors=&#34;coerce&#34;)
+d2 = pd.to_datetime(df[&#34;delivered_at&#34;], format=&#34;%d.%m.%Y %H:%M&#34;, errors=&#34;coerce&#34;)
+df[&#34;delivered&#34;] = d1.fillna(d2)
+df[&#34;hours&#34;] = (df[&#34;delivered&#34;] - df[&#34;created&#34;]).dt.total_seconds() / 3600
+df[&#34;limit&#34;] = np.where(df[&#34;service&#34;] == &#34;express&#34;, 24, 48)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 15 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">monthly = (
+    df
+    # твой код
+)
+monthly
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">         parcels  in_transit  median_hours breach_pct
+month
+2026-07      581          34          24.4       17.9
+2026-08      619          23          22.8       16.4
+2026-09      600          33          23.5       18.3</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>monthly = (
+    df
+    # твой код
+)
+monthly
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Таблица по месяцам: добавь колонку месяца, маску «в пути» и маску «нарушение» (только для доставленных). Потом одна группировка и перевод в проценты.</p>
+<p><b>Чем это сделать.</b> Маска только для доставленных: <code class="i">(d["hours"] > d["limit"]).where(d["delivered"].notna())</code> — у посылок в пути будет пусто, и mean их пропустит. Сколько в пути: <code class="i">("in_transit", "sum")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>monthly = (
+    df
+    .assign(month=lambda d: d[&#34;created&#34;].dt.to_period(&#34;___&#34;),
+            in_transit=lambda d: d[&#34;delivered&#34;].___(),
+            breach=lambda d: (d[&#34;hours&#34;] &gt; d[&#34;limit&#34;]).where(d[&#34;delivered&#34;].___()))
+    .groupby(&#34;month&#34;)
+    .agg(parcels=(&#34;parcel_id&#34;, &#34;count&#34;), in_transit=(&#34;in_transit&#34;, &#34;___&#34;),
+         median_hours=(&#34;hours&#34;, &#34;___&#34;), breach_pct=(&#34;breach&#34;, &#34;___&#34;))
+    .assign(median_hours=___, breach_pct=___)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если не убрать посылки в пути из breach, они посчитаются как «без нарушения» и занизят процент.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Азизу</h2>
+      <div class="case">
+        <p>Напиши ответ Азизу. Не больше 6 предложений. Структура: <b>главный вывод → типичное время доставки и самый медленный город → % нарушений срока для standard и express → выходные против будней → 1 риск в данных → 1 предложение</b>. Только цифры из задач.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Типичное время доставки</span><span class="fact-chip">Нарушения у standard</span><span class="fact-chip">Нарушения у express</span><span class="fact-chip">Часы в выходные</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Азиз, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Обоснованы ли жалобы, по твоему ответу?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Да, особенно на экспресс и на посылки, созданные в выходные</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Нет, всё доставляют вовремя</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Жалобы только на Ташкент</span></button></div>
+            <div class="why" hidden>Экспресс нарушает срок в 22,8% случаев — чаще, чем обычная доставка (15,8%).</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что твой ответ говорит про выходные?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В выходные посылки идут заметно дольше</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В выходные быстрее</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Разницы нет</span></button></div>
+            <div class="why" hidden>30,0 ч против 21,1 ч в будни — примерно на 40% дольше.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Какой риск в данных ты называешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Посылки в пути не попали в расчёт (и/или часть дат была в другом формате)</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Рисков нет</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Данные полностью неверные</span></button></div>
+            <div class="why" hidden>90 посылок ещё в пути, а 60 дат записаны в другом формате — это нужно оговорить.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Азиз, привет! Коротко: жалобы обоснованы, особенно на экспресс и на посылки, созданные в выходные. Типичная посылка едет 23,5 ч, быстрее всего Ташкент (17,6 ч), медленнее всего Фергана (33,5 ч). Обещанный срок нарушен у 15,8% обычных посылок и у 22,8% экспресс-посылок. Посылки, созданные в выходные, идут 30,0 ч против 21,1 ч в будни. Риск: 90 посылок ещё в пути и в расчёт не попали, а 60 дат записаны в другом формате — я их учёл. Предлагаю добавить курьерские смены в выходные и пересмотреть обещанный срок для дальних городов.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Главный вывод в первом предложении</li><li>Медианное время и самый медленный город</li><li>% нарушений отдельно для standard и express</li><li>Сравнение выходных и будней с цифрами</li><li>Назван риск: посылки в пути или разные форматы дат</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 15</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/14-mini-proekt-2/"><small>← Проект 14</small><b>Мини-проект 2: продуктовый отчёт по сегментам</b></a><a class="nx" href="../../lessons/16-resample-rolling-shift/"><small>Урок 16 →</small><b>resample, rolling, shift, pct_change</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0422\u0438\u043f\u0438\u0447\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438", "value": 23.5}, {"name": "\u041d\u0430\u0440\u0443\u0448\u0435\u043d\u0438\u044f \u0443 standard", "pct": true, "value": 15.8}, {"name": "\u041d\u0430\u0440\u0443\u0448\u0435\u043d\u0438\u044f \u0443 express", "pct": true, "value": 22.8}, {"name": "\u0427\u0430\u0441\u044b \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435", "value": 30.0}], "logic": [{"a": 0, "o": ["\u0414\u0430, \u043e\u0441\u043e\u0431\u0435\u043d\u043d\u043e \u043d\u0430 \u044d\u043a\u0441\u043f\u0440\u0435\u0441\u0441 \u0438 \u043d\u0430 \u043f\u043e\u0441\u044b\u043b\u043a\u0438, \u0441\u043e\u0437\u0434\u0430\u043d\u043d\u044b\u0435 \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435", "\u041d\u0435\u0442, \u0432\u0441\u0451 \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u044f\u044e\u0442 \u0432\u043e\u0432\u0440\u0435\u043c\u044f", "\u0416\u0430\u043b\u043e\u0431\u044b \u0442\u043e\u043b\u044c\u043a\u043e \u043d\u0430 \u0422\u0430\u0448\u043a\u0435\u043d\u0442"], "q": "\u041e\u0431\u043e\u0441\u043d\u043e\u0432\u0430\u043d\u044b \u043b\u0438 \u0436\u0430\u043b\u043e\u0431\u044b, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443?", "why": "\u042d\u043a\u0441\u043f\u0440\u0435\u0441\u0441 \u043d\u0430\u0440\u0443\u0448\u0430\u0435\u0442 \u0441\u0440\u043e\u043a \u0432 22,8% \u0441\u043b\u0443\u0447\u0430\u0435\u0432 \u2014 \u0447\u0430\u0449\u0435, \u0447\u0435\u043c \u043e\u0431\u044b\u0447\u043d\u0430\u044f \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0430 (15,8%)."}, {"a": 0, "o": ["\u0412 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u043f\u043e\u0441\u044b\u043b\u043a\u0438 \u0438\u0434\u0443\u0442 \u0437\u0430\u043c\u0435\u0442\u043d\u043e \u0434\u043e\u043b\u044c\u0448\u0435", "\u0412 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0431\u044b\u0441\u0442\u0440\u0435\u0435", "\u0420\u0430\u0437\u043d\u0438\u0446\u044b \u043d\u0435\u0442"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043f\u0440\u043e \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435?", "why": "30,0 \u0447 \u043f\u0440\u043e\u0442\u0438\u0432 21,1 \u0447 \u0432 \u0431\u0443\u0434\u043d\u0438 \u2014 \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u043d\u0430 40% \u0434\u043e\u043b\u044c\u0448\u0435."}, {"a": 0, "o": ["\u041f\u043e\u0441\u044b\u043b\u043a\u0438 \u0432 \u043f\u0443\u0442\u0438 \u043d\u0435 \u043f\u043e\u043f\u0430\u043b\u0438 \u0432 \u0440\u0430\u0441\u0447\u0451\u0442 (\u0438/\u0438\u043b\u0438 \u0447\u0430\u0441\u0442\u044c \u0434\u0430\u0442 \u0431\u044b\u043b\u0430 \u0432 \u0434\u0440\u0443\u0433\u043e\u043c \u0444\u043e\u0440\u043c\u0430\u0442\u0435)", "\u0420\u0438\u0441\u043a\u043e\u0432 \u043d\u0435\u0442", "\u0414\u0430\u043d\u043d\u044b\u0435 \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0435"], "q": "\u041a\u0430\u043a\u043e\u0439 \u0440\u0438\u0441\u043a \u0432 \u0434\u0430\u043d\u043d\u044b\u0445 \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "90 \u043f\u043e\u0441\u044b\u043b\u043e\u043a \u0435\u0449\u0451 \u0432 \u043f\u0443\u0442\u0438, \u0430 60 \u0434\u0430\u0442 \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u044b \u0432 \u0434\u0440\u0443\u0433\u043e\u043c \u0444\u043e\u0440\u043c\u0430\u0442\u0435 \u2014 \u044d\u0442\u043e \u043d\u0443\u0436\u043d\u043e \u043e\u0433\u043e\u0432\u043e\u0440\u0438\u0442\u044c."}]}, "case_model": "\u0410\u0437\u0438\u0437, \u043f\u0440\u0438\u0432\u0435\u0442! \u041a\u043e\u0440\u043e\u0442\u043a\u043e: \u0436\u0430\u043b\u043e\u0431\u044b \u043e\u0431\u043e\u0441\u043d\u043e\u0432\u0430\u043d\u044b, \u043e\u0441\u043e\u0431\u0435\u043d\u043d\u043e \u043d\u0430 \u044d\u043a\u0441\u043f\u0440\u0435\u0441\u0441 \u0438 \u043d\u0430 \u043f\u043e\u0441\u044b\u043b\u043a\u0438, \u0441\u043e\u0437\u0434\u0430\u043d\u043d\u044b\u0435 \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435. \u0422\u0438\u043f\u0438\u0447\u043d\u0430\u044f \u043f\u043e\u0441\u044b\u043b\u043a\u0430 \u0435\u0434\u0435\u0442 23,5 \u0447, \u0431\u044b\u0441\u0442\u0440\u0435\u0435 \u0432\u0441\u0435\u0433\u043e \u0422\u0430\u0448\u043a\u0435\u043d\u0442 (17,6 \u0447), \u043c\u0435\u0434\u043b\u0435\u043d\u043d\u0435\u0435 \u0432\u0441\u0435\u0433\u043e \u0424\u0435\u0440\u0433\u0430\u043d\u0430 (33,5 \u0447). \u041e\u0431\u0435\u0449\u0430\u043d\u043d\u044b\u0439 \u0441\u0440\u043e\u043a \u043d\u0430\u0440\u0443\u0448\u0435\u043d \u0443 15,8% \u043e\u0431\u044b\u0447\u043d\u044b\u0445 \u043f\u043e\u0441\u044b\u043b\u043e\u043a \u0438 \u0443 22,8% \u044d\u043a\u0441\u043f\u0440\u0435\u0441\u0441-\u043f\u043e\u0441\u044b\u043b\u043e\u043a. \u041f\u043e\u0441\u044b\u043b\u043a\u0438, \u0441\u043e\u0437\u0434\u0430\u043d\u043d\u044b\u0435 \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435, \u0438\u0434\u0443\u0442 30,0 \u0447 \u043f\u0440\u043e\u0442\u0438\u0432 21,1 \u0447 \u0432 \u0431\u0443\u0434\u043d\u0438. \u0420\u0438\u0441\u043a: 90 \u043f\u043e\u0441\u044b\u043b\u043e\u043a \u0435\u0449\u0451 \u0432 \u043f\u0443\u0442\u0438 \u0438 \u0432 \u0440\u0430\u0441\u0447\u0451\u0442 \u043d\u0435 \u043f\u043e\u043f\u0430\u043b\u0438, \u0430 60 \u0434\u0430\u0442 \u0437\u0430\u043f\u0438\u0441\u0430\u043d\u044b \u0432 \u0434\u0440\u0443\u0433\u043e\u043c \u0444\u043e\u0440\u043c\u0430\u0442\u0435 \u2014 \u044f \u0438\u0445 \u0443\u0447\u0451\u043b. \u041f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0434\u043e\u0431\u0430\u0432\u0438\u0442\u044c \u043a\u0443\u0440\u044c\u0435\u0440\u0441\u043a\u0438\u0435 \u0441\u043c\u0435\u043d\u044b \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0438 \u043f\u0435\u0440\u0435\u0441\u043c\u043e\u0442\u0440\u0435\u0442\u044c \u043e\u0431\u0435\u0449\u0430\u043d\u043d\u044b\u0439 \u0441\u0440\u043e\u043a \u0434\u043b\u044f \u0434\u0430\u043b\u044c\u043d\u0438\u0445 \u0433\u043e\u0440\u043e\u0434\u043e\u0432.", "case_xp": 30, "cheat": [["pd.to_datetime(s)", "\u0442\u0435\u043a\u0441\u0442 \u2192 \u0434\u0430\u0442\u0430"], ["pd.to_datetime(s, format=\"%d.%m.%Y\", errors=\"coerce\")", "\u0441\u0432\u043e\u0439 \u0444\u043e\u0440\u043c\u0430\u0442, \u043e\u0448\u0438\u0431\u043a\u0438 \u2192 NaT"], ["d1.fillna(d2)", "\u0441\u043a\u043b\u0435\u0438\u0442\u044c \u0434\u0432\u0435 \u043f\u043e\u043f\u044b\u0442\u043a\u0438 \u0447\u0442\u0435\u043d\u0438\u044f"], ["s.dt.month / .dt.hour / .dt.dayofweek", "\u0447\u0430\u0441\u0442\u0438 \u0434\u0430\u0442\u044b"], ["s.dt.to_period(\"M\")", "\u043e\u043a\u0440\u0443\u0433\u043b\u0438\u0442\u044c \u0434\u043e \u043c\u0435\u0441\u044f\u0446\u0430"], ["(b - a).dt.total_seconds() / 3600", "\u0440\u0430\u0437\u043d\u0438\u0446\u0430 \u0432 \u0447\u0430\u0441\u0430\u0445"], ["df[df[\"d\"] \u003e= \"2026-09-01\"]", "\u0444\u0438\u043b\u044c\u0442\u0440 \u043f\u043e \u0434\u0430\u0442\u0435"], ["s.isna().sum()", "\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0434\u0430\u0442 \u043d\u0435 \u043f\u0440\u043e\u0447\u0438\u0442\u0430\u043b\u043e\u0441\u044c"]], "data": "../../data/", "datasets": ["tezpochta_parcels.csv"], "day": 15, "hint_cost": 5, "quiz": [1, 1, 1, 1, 0], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"tezpochta_parcels.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["datetime64[us]", "2026-07-01 00:11:00 2026-09-30 23:43:00"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["created_at", "2026-07 581", "2026-08 619", "2026-09 600"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["150 90"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 17.6", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 26.5", "\u0411\u0443\u0445\u0430\u0440\u0430 29.8", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 33.4", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 33.5"], "setup": "df[\"created\"] = pd.to_datetime(df[\"created_at\"])\nd1 = pd.to_datetime(df[\"delivered_at\"], format=\"%Y-%m-%d %H:%M\", errors=\"coerce\")\nd2 = pd.to_datetime(df[\"delivered_at\"], format=\"%d.%m.%Y %H:%M\", errors=\"coerce\")\ndf[\"delivered\"] = d1.fillna(d2)", "xp": 15}, {"figure": false, "id": "t5", "keys": ["service", "express 22.8", "standard 15.8"], "setup": "df[\"created\"] = pd.to_datetime(df[\"created_at\"])\nd1 = pd.to_datetime(df[\"delivered_at\"], format=\"%Y-%m-%d %H:%M\", errors=\"coerce\")\nd2 = pd.to_datetime(df[\"delivered_at\"], format=\"%d.%m.%Y %H:%M\", errors=\"coerce\")\ndf[\"delivered\"] = d1.fillna(d2)\ndf[\"hours\"] = (df[\"delivered\"] - df[\"created\"]).dt.total_seconds() / 3600", "xp": 20}, {"figure": false, "id": "t6", "keys": ["day_type", "\u0431\u0443\u0434\u043d\u0438 21.1", "\u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 30.0"], "setup": "df[\"created\"] = pd.to_datetime(df[\"created_at\"])\nd1 = pd.to_datetime(df[\"delivered_at\"], format=\"%Y-%m-%d %H:%M\", errors=\"coerce\")\nd2 = pd.to_datetime(df[\"delivered_at\"], format=\"%d.%m.%Y %H:%M\", errors=\"coerce\")\ndf[\"delivered\"] = d1.fillna(d2)\ndf[\"hours\"] = (df[\"delivered\"] - df[\"created\"]).dt.total_seconds() / 3600", "xp": 15}, {"figure": false, "id": "t7", "keys": ["parcels in_transit median_hours breach_pct", "month", "2026-07 581 34 24.4 17.9", "2026-08 619 23 22.8 16.4", "2026-09 600 33 23.5 18.3"], "setup": "df[\"created\"] = pd.to_datetime(df[\"created_at\"])\nd1 = pd.to_datetime(df[\"delivered_at\"], format=\"%Y-%m-%d %H:%M\", errors=\"coerce\")\nd2 = pd.to_datetime(df[\"delivered_at\"], format=\"%d.%m.%Y %H:%M\", errors=\"coerce\")\ndf[\"delivered\"] = d1.fillna(d2)\ndf[\"hours\"] = (df[\"delivered\"] - df[\"created\"]).dt.total_seconds() / 3600\ndf[\"limit\"] = np.where(df[\"service\"] == \"express\", 24, 48)", "xp": 25}], "theory": ["brief", "text-to-date", "dt", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

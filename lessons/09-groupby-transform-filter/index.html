@@ -1,0 +1,786 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 9. groupby продвинутый: transform, filter, доли — Pandas Sprint</title>
+<meta name="description" content="Урок 9 курса Pandas Sprint — groupby продвинутый: transform, filter, доли. Сравнить каждую строку с её группой и оставить только нужные группы.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/09-groupby-transform-filter/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 9. groupby продвинутый: transform, filter, доли — Pandas Sprint">
+<meta property="og:description" content="Урок 9 курса Pandas Sprint — groupby продвинутый: transform, filter, доли. Сравнить каждую строку с её группой и оставить только нужные группы.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/09-groupby-transform-filter/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="9">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#anatomy"><span class="dot">✓</span>transform</a></li><li><a href="#tools"><span class="dot">✓</span>8 приёмов</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">OVER (PARTITION BY), HAVING, ROW_NUMBER</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Оконные функции ты пишешь в SQL каждый день. В pandas у каждой есть короткая пара.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SUM(cashback) OVER (PARTITION BY category)</code></td><td><code>df.groupby(&#34;category&#34;)[&#34;cashback&#34;].transform(&#34;sum&#34;)</code></td><td>итог группы в каждой строке</td></tr><tr><td><code>AVG(amount) OVER (PARTITION BY client_id)</code></td><td><code>df.groupby(&#34;client_id&#34;)[&#34;amount&#34;].transform(&#34;mean&#34;)</code></td><td>среднее клиента</td></tr><tr><td><code>COUNT(*) OVER (PARTITION BY merchant)</code></td><td><code>df.groupby(&#34;merchant&#34;)[&#34;tx_id&#34;].transform(&#34;size&#34;)</code></td><td>размер группы</td></tr><tr><td><code>cashback / SUM(cashback) OVER (PARTITION BY category)</code></td><td><code>df[&#34;cashback&#34;] / df.groupby(&#34;category&#34;)[&#34;cashback&#34;].transform(&#34;sum&#34;)</code></td><td>доля внутри группы</td></tr><tr><td><code>SUM(x) / (SELECT SUM(x) FROM t)</code></td><td><code>s / s.sum()</code></td><td>доля от общего итога</td></tr><tr><td><code>GROUP BY merchant HAVING COUNT(*) &gt;= 40</code></td><td><code>df.groupby(&#34;merchant&#34;).filter(lambda g: len(g) &gt;= 40)</code></td><td>строки «больших» групп</td></tr><tr><td><code>ROW_NUMBER() OVER (PARTITION BY category ORDER BY cashback DESC) &lt;= 2</code></td><td><code>df.sort_values(&#34;cashback&#34;, ascending=False).groupby(&#34;category&#34;).head(2)</code></td><td>топ-2 в каждой группе</td></tr><tr><td><code>COALESCE(amount, median по категории)</code></td><td><code>df[&#34;amount&#34;].fillna(df.groupby(&#34;category&#34;)[&#34;amount&#34;].transform(&#34;median&#34;))</code></td><td>заполнить пропуск по группе</td></tr></tbody>
+    </table></div>
+<div class="callout"><b>Отличие от SQL.</b> В SQL <code class="i">HAVING</code> возвращает одну строку на группу. В pandas <code class="i">filter</code> возвращает <b>все исходные строки</b> групп, которые прошли проверку: 1 653 операции у 14 партнёров, а не 14 строк. Если нужна одна строка на партнёра — сначала <code class="i">size()</code>, потом обычная маска.</div>    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 9 из 30 · Неделя 2 · Агрегации</div>
+      <h1>groupby продвинутый: <mark>доля внутри группы</mark>, transform и filter</h1>
+      <p class="lead">В уроке 8 groupby сжимал таблицу: одна строка на город. Сегодня два новых умения. transform — посчитать итог группы и приклеить его к каждой строке, чтобы сравнить строку с её группой. filter — оставить только те группы, которые прошли условие, например «партнёры, у которых хотя бы 40 операций».</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Банк Ishonch Pay тратит на кэшбэк 8 млн сум за 2 недели. Руководитель лояльности хочет урезать кэшбэк в кафе и отключить «мелких» партнёров. Посчитать, кто на самом деле съедает бюджет, что будет, если отключить мелких, и сказать, правильно ли она режет.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Считать долю группы от общего итога: <code class="i">s / s.sum() * 100</code></li><li>Приклеивать итог группы к каждой строке: <code class="i">groupby(...)[...].transform("sum")</code></li><li>Считать долю партнёра внутри своей категории и сравнивать покупку со средним клиента</li><li>Оставлять только «большие» группы: <code class="i">groupby(...).filter(lambda g: len(g) &gt;= 40)</code> и брать топ-N в каждой группе</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>«Кафе и продукты съедают кэшбэк — режем»</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">М</span>Мадина <small>руководитель лояльности Ishonch Pay · 09:40</small></div>
+          <p>Привет! Посмотрела в Excel операции с кэшбэком за 01–14.10: <b>Продукты и Кафе — 57% всех операций</b> (1 025 из 1 800). Хочу снизить кэшбэк в Кафе с 5% до 3%. И отключить <b>партнёров, у которых меньше 40 операций</b> за две недели — они мелкие, только место занимают.</p>
+<div class="file">▤ ishonch_tx.csv · 1 800 операций</div>        </div>
+        <div class="msg">
+          <div class="who"><span class="ava">М</span>Мадина <small>09:42</small></div>
+          <p>И ещё: Premium-клиенты — это больше половины оборота, хочу им поднять кэшбэк. Проверь цифры, пожалуйста, — в понедельник защищаю бюджет у правления.</p>
+        </div>
+      </div>
+      <p class="note">Ishonch Pay — учебный банк. Данные сгенерированы, но грязные как настоящие: сегмент клиента записан по-разному (<b>«Premium»</b>, <b>«premium»</b>, <b>«Premium »</b> с пробелом в конце), у 71 операции нет суммы и кэшбэка (<b>NaN</b>). Ставка кэшбэка зависит от категории: Кафе 5%, Такси и Одежда 3%, АЗС и Электроника 2%, Продукты 1%. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/ishonch_tx.csv" download>Скачать ishonch_tx.csv</a><span class="note">1 800 строк · 9 колонок · 110 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;ishonch_tx.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="anatomy">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>transform = посчитать по коробке и вернуть ответ каждому</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+<p>Вчера мы раскладывали конфеты по коробкам и писали один листочек: «в красной коробке 5». Таблица <b>сжималась</b>: было 1 800 строк — стало 6. Но иногда нужно другое: чтобы <b>каждая конфета</b> знала, сколько всего конфет в её коробке. Тогда можно сказать: «я — одна из 5 красных, то есть 20% красной коробки».</p>
+<ul>
+<li><b>agg / sum()</b> после groupby — <b>сжимает</b>: одна строка на группу. Как в уроке 8.</li>
+<li><b>transform("sum")</b> — считает то же самое, но <b>раздаёт ответ обратно каждой строке</b>. Длина не меняется: было 1 800 строк — осталось 1 800.</li>
+<li><b>Доля внутри группы</b> = значение строки / итог её группы. «Сколько процентов кэшбэка кафе забирает Coffee Lab».</li>
+<li><b>Доля от общего итога</b> = итог группы / итог всей таблицы: <code class="i">s / s.sum()</code>. «Сколько процентов всего кэшбэка забирает Электроника».</li>
+<li><b>filter(...)</b> — <b>выбрасывает целые коробки</b>, которые не прошли проверку, а строки из хороших коробок оставляет как есть.</li>
+<li><b>lambda g: len(g) &gt;= 40</b> — маленькая функция-проверка: «дай мне коробку <b>g</b>, я скажу да или нет». <b>lambda</b> — функция без имени, записанная в одну строку.</li>
+</ul>
+<p>Главная мысль дня: <b>доля по числу операций и доля по деньгам — разные вещи</b>. Мадина посчитала операции. Бюджет кэшбэка — это деньги.</p>
+</div>
+<p>Пять настоящих строк файла. Справа — колонка, которую сегодня добавит <code class="i">transform</code>: итог кэшбэка категории, приклеенный к каждой строке.</p>
+<div class="scroll">
+<table class="anat">
+<thead><tr><th class="idx">Index</th><th>segment<span class="dt">str · грязный</span></th><th>category<span class="dt">ключ группы</span></th><th>merchant<span class="dt">str</span></th><th>cashback<span class="dt">float64</span></th><th class="ser">cat_cb<span class="dt">transform("sum")</span></th></tr></thead>
+<tbody>
+<tr><td class="idx">0</td><td>Student</td><td>Такси</td><td>TezYol</td><td>390.0</td><td class="ser">255210.0</td></tr>
+<tr><td class="idx">1</td><td>Standard</td><td>Кафе</td><td>Choyxona Plus</td><td>3350.0</td><td class="ser">1502000.0</td></tr>
+<tr><td class="idx">2</td><td>Student</td><td>Такси</td><td>Yandex-lite</td><td>360.0</td><td class="ser">255210.0</td></tr>
+<tr><td class="idx">3</td><td>Standard</td><td>Продукты</td><td>Oila Market</td><td>1210.0</td><td class="ser">356280.0</td></tr>
+<tr><td class="idx">…</td><td class="nan">premium </td><td>Электроника</td><td>TechnoMart</td><td>…</td><td class="ser">3832900.0</td></tr>
+</tbody>
+</table>
+</div>
+<div class="legend">
+<div><b>agg · сжать</b>Одна строка на группу. 1 800 → 6 строк.</div>
+<div><b>transform · раздать</b>Ответ группы в каждой строке. 1 800 → 1 800. OVER (PARTITION BY).</div>
+<div><b>filter · выбросить группы</b>Только группы, прошедшие проверку. HAVING.</div>
+</div>
+    </section>
+    <section id="tools">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Восемь приёмов: доли, окна и фильтр групп</h2>
+      <div class="simple"><span class="tag">Как читать код</span>
+<ul>
+<li><code class="i">cb / cb.sum()</code> — cb это Series «категория → кэшбэк». <code class="i">cb.sum()</code> — одно число (весь кэшбэк). Деление Series на число делит <b>каждое</b> значение на это число.</li>
+<li><code class="i">.transform("sum")</code> — в кавычках имя функции, как в agg. Результат — Series <b>той же длины и с теми же бирками строк</b>, что df. Поэтому её можно сразу положить в новую колонку: <code class="i">df["cat_cb"] = …</code>.</li>
+<li><code class="i">a / b</code> двух Series — pandas делит строку на строку <b>по биркам (Index)</b>, не по месту. Бирки у df и transform совпадают — всё делится правильно.</li>
+<li><code class="i">.filter(lambda g: len(g) &gt;= 40)</code> — <b>lambda g:</b> «возьми коробку и назови её g». <b>len(g)</b> — сколько строк в коробке. <b>&gt;= 40</b> — ответ True/False. True — коробку оставить.</li>
+<li><code class="i">.groupby("category").head(2)</code> — «из каждой коробки возьми первые 2 строки». Поэтому сначала <code class="i">sort_values</code>: первые = самые большие.</li>
+<li><code class="i">sort_values(["category", "cashback"], ascending=[True, False])</code> — сортировка по двум колонкам: категория по алфавиту, внутри неё кэшбэк от большего (урок 3).</li>
+</ul>
+</div>
+<p>Каждый вывод ниже получен реальным запуском pandas 3.0 на файле Ishonch Pay. Карточки идут подряд: в карточке 2 мы почистили segment, дальше работаем с чистым.</p>
+<div class="cards">
+<div class="card"><div class="q"><b>1. Сначала посмотри на ключ: сегментов 3, вариантов 9.</b></div>
+<pre class="code" data-cm="">import pandas as pd
+
+df = pd.read_csv("ishonch_tx.csv")
+df["segment"].value_counts()</pre><div class="out">segment
+Standard     727
+Premium      404
+Student      332
+standard     114
+premium       61
+Standard      60
+Premium       37
+student       36
+Student       29
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> «Standard» видно дважды — у второго в конце пробел, глазом его не видно. Всего <b>9</b> написаний трёх сегментов. Без чистки groupby сделает 9 коробок. Чистка как в уроке 6: <code class="i">str.strip().str.lower()</code>.</p></div>
+<div class="card"><div class="q"><b>2. Доля от общего итога: s / s.sum().</b></div>
+<pre class="code" data-cm="">df["segment"] = df["segment"].str.strip().str.lower()
+cb = df.groupby("category")["cashback"].sum()
+(cb / cb.sum() * 100).round(1).sort_values(ascending=False)</pre><div class="out">category
+Электроника    47.5
+Кафе           18.6
+Одежда         18.5
+АЗС             7.9
+Продукты        4.4
+Такси           3.2
+Name: cashback, dtype: float64</div><p class="plain"><b>Простыми словами:</b> весь кэшбэк — 100%. Электроника забирает <b>47.5%</b> — почти половину бюджета. Кафе — 18.6%, Продукты — всего <b>4.4%</b>. А по числу операций Продукты и Кафе — 57%. Мадина смотрела не на деньги.</p></div>
+<div class="card"><div class="q"><b>3. transform: итог группы в каждой строке.</b></div>
+<pre class="code" data-cm="">df["cat_cb"] = df.groupby("category")["cashback"].transform("sum")
+print(df.groupby("category")["cashback"].sum().shape, df["cat_cb"].shape)
+df[["tx_id", "category", "cashback", "cat_cb"]].head(4)</pre><div class="out">(6,) (1800,)
+   tx_id  category  cashback     cat_cb
+0  90001     Такси     390.0   255210.0
+1  90002      Кафе    3350.0  1502000.0
+2  90003     Такси     360.0   255210.0
+3  90004  Продукты    1210.0   356280.0</div><p class="plain"><b>Простыми словами:</b> обычный sum дал <b>6</b> чисел (по одному на категорию). transform дал <b>1 800</b> — у каждой операции рядом записан итог её категории. Обе операции такси (строки 0 и 2) получили одно и то же число 255 210.</p></div>
+<div class="card"><div class="q"><b>4. Доля партнёра внутри своей категории.</b></div>
+<pre class="code" data-cm="">m = df.groupby(["category", "merchant"], as_index=False)["cashback"].sum()
+m["share_pct"] = (m["cashback"] / m.groupby("category")["cashback"].transform("sum") * 100).round(1)
+m[m["category"] == "Кафе"].sort_values("share_pct", ascending=False)</pre><div class="out">  category       merchant  cashback  share_pct
+3     Кафе  Choyxona Plus  636350.0       42.4
+4     Кафе     Coffee Lab  395150.0       26.3
+2     Кафе    Burger Town  234450.0       15.6
+5     Кафе   Lavash Point  160200.0       10.7
+6     Кафе       Sushi Go   75850.0        5.0</div><p class="plain"><b>Простыми словами:</b> сначала таблица «категория + партнёр» (урок 8). Потом transform внутри этой маленькой таблицы: итог кафе раздаётся каждому кафе. Choyxona Plus забирает <b>42.4%</b> кэшбэка всех кафе, Sushi Go — 5.0%. Сумма пяти долей = 100%.</p></div>
+<div class="card"><div class="q"><b>5. filter = HAVING: только партнёры с 40+ операциями.</b></div>
+<pre class="code" data-cm="">big = df.groupby("merchant").filter(lambda g: len(g) &gt;= 40)
+print(df["merchant"].nunique(), big["merchant"].nunique())
+print(len(df), len(big))</pre><div class="out">20 14
+1800 1653</div><p class="plain"><b>Простыми словами:</b> было <b>20</b> партнёров, осталось <b>14</b>. Выброшено 6 «мелких» коробок целиком — 147 операций. Строки больших партнёров остались как были: 1 653 операции. Что потеряли деньгами — посчитаешь в задаче 5 (сюрприз).</p></div>
+<div class="card"><div class="q"><b>6. Сравнить покупку со средним этого клиента.</b></div>
+<pre class="code" data-cm="">df["client_avg"] = df.groupby("client_id")["amount"].transform("mean").round(0)
+df["vs_avg"] = (df["amount"] / df["client_avg"]).round(2)
+df[["client_id", "amount", "client_avg", "vs_avg"]].head(4)</pre><div class="out">   client_id    amount  client_avg  vs_avg
+0        258   13000.0     21500.0    0.60
+1        260   67000.0    310778.0    0.22
+2         53   12000.0     20500.0    0.59
+3        224  121000.0     60714.0    1.99</div><p class="plain"><b>Простыми словами:</b> клиент 260 обычно тратит 310 778 сум за раз, а здесь купил на 67 000 — это <b>0.22</b> от его нормы. Клиент 224 потратил в <b>1.99</b> раза больше своего среднего. Так находят необычные покупки: «больше 3 своих средних».</p></div>
+<div class="card"><div class="q"><b>7. Топ-1 в каждой группе = ROW_NUMBER() = 1.</b></div>
+<pre class="code" data-cm="">(df.sort_values("cashback", ascending=False)
+   .groupby("category")
+   .head(1)[["category", "merchant", "cashback"]])</pre><div class="out">         category       merchant  cashback
+1643  Электроника     TechnoMart  424920.0
+1752       Одежда        Moda Uz   42150.0
+1085         Кафе  Choyxona Plus   10250.0
+1479          АЗС       Neft Oil    8580.0
+1267     Продукты      FreshMart    2960.0
+674         Такси         TezYol    2100.0</div><p class="plain"><b>Простыми словами:</b> отсортировали все операции от самого большого кэшбэка, потом из каждой категории взяли первую строку. Одна покупка электроники дала кэшбэк <b>424 920</b> сум — больше, чем все такси за 2 недели вместе (255 210).</p></div>
+<div class="card"><div class="q"><b>8. Заполнить пропуск медианой своей группы.</b></div>
+<pre class="code" data-cm="">med = df.groupby("category")["amount"].transform("median")
+df["amount"] = df["amount"].fillna(med)
+print(df["amount"].isna().sum())</pre><div class="out">0</div><p class="plain"><b>Простыми словами:</b> у 71 операции нет суммы. Если заполнить общей медианой, кофе получит сумму как телефон. transform даёт <b>медиану своей категории</b> каждой строке, и fillna берёт её только там, где NaN. Делай так только когда это оправдано, и всегда пиши, сколько строк заполнил.</p></div>
+</div>
+<div class="simple"><span class="tag">История про карманные деньги: доля внутри семьи</span>
+<p>Две семьи. В семье А двое детей: у Али <b>10</b>, у Вали <b>30</b> — всего 40. В семье Б трое: Сара <b>20</b>, Лола <b>20</b>, Тимур <b>60</b> — всего 100. Кто из детей получает «большую долю» в своей семье?</p>
+<div aria-label="Карманные деньги пяти детей в двух семьях" class="story">
+<span style="height:17%"></span><span style="height:50%"></span>
+<span style="height:0;background:none"></span>
+<span class="rich" style="height:33%"></span><span class="rich" style="height:33%"></span><span class="rich" style="height:100%"></span>
+<span style="height:0;background:none"></span><span style="height:0;background:none"></span><span style="height:0;background:none"></span><span style="height:0;background:none"></span>
+</div>
+<div class="story-lab"><span>семья А: 10, 30 → всего 40</span><span>семья Б: 20, 20, 60 → всего 100</span></div>
+<pre class="code" data-cm="">kids = pd.DataFrame({"family": ["А", "А", "Б", "Б", "Б"],
+                     "kid": ["Али", "Вали", "Сара", "Лола", "Тимур"],
+                     "money": [10, 30, 20, 20, 60]})
+kids["family_total"] = kids.groupby("family")["money"].transform("sum")
+kids["share"] = kids["money"] / kids["family_total"] * 100
+kids</pre><div class="out">  family    kid  money  family_total  share
+0      А    Али     10            40   25.0
+1      А   Вали     30            40   75.0
+2      Б   Сара     20           100   20.0
+3      Б   Лола     20           100   20.0
+4      Б  Тимур     60           100   60.0</div>
+<p>У Тимура денег больше всех (60), но доля в семье — <b>60%</b>. У Вали всего 30, а доля — <b>75%</b>: в своей семье он главный. Это и есть «доля внутри группы»: делим не на всё (140), а на итог <b>своей</b> семьи. transform приклеил итог семьи к каждому ребёнку.</p>
+</div>
+<div class="callout"><b>Правило аналитика.</b> Перед словами «X съедает бюджет» спроси: доля <b>чего</b> — штук или денег? И доля <b>от чего</b> — от всей таблицы или от своей группы? Сумма долей внутри каждой группы = 100%, проверь это.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ошибок, на которых спотыкается большинство</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Положить результат sum() в колонку</h3><div class="bad">df[&#34;x&#34;] = df.groupby(&#34;category&#34;)[&#34;cashback&#34;].sum()   # 1 800 NaN</div><div class="good">df[&#34;x&#34;] = df.groupby(&#34;category&#34;)[&#34;cashback&#34;].transform(&#34;sum&#34;)</div><p>sum() вернул 6 строк с бирками «Кафе», «Такси»… А у df бирки 0…1799. Совпадений нет — pandas молча пишет NaN во все 1 800 строк. Для колонки — только transform.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Доля операций вместо доли денег</h3><div class="bad">x = df.groupby(&#34;category&#34;).size(); x / x.sum()   # Продукты 29.2%</div><div class="good">cb = df.groupby(&#34;category&#34;)[&#34;cashback&#34;].sum(); cb / cb.sum()   # Продукты 4.4%</div><p>Вопрос про бюджет — считай деньги. 526 операций по 1% кэшбэка дешевле 81 покупки электроники.</p></div>
+        <div class="trap"><span class="n">3</span><h3>filter без lambda</h3><div class="bad">df.groupby(&#34;merchant&#34;).filter(len(df) &gt;= 40)   # TypeError: &#39;bool&#39; object is not callable</div><div class="good">df.groupby(&#34;merchant&#34;).filter(lambda g: len(g) &gt;= 40)</div><p>filter ждёт функцию, которую он сам вызовет для каждой коробки. <code class="i">len(df)</code> посчитался один раз для всей таблицы — получилось просто True.</p></div>
+        <div class="trap"><span class="n">4</span><h3>head(2) без сортировки</h3><div class="bad">df.groupby(&#34;category&#34;).head(2)   # первые 2 по порядку в файле</div><div class="good">df.sort_values(&#34;cashback&#34;, ascending=False).groupby(&#34;category&#34;).head(2)</div><p>head берёт первые строки так, как они лежат. «Топ» появляется только после sort_values — как ORDER BY внутри OVER.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Доля внутри группы, делённая на общий итог</h3><div class="bad">m[&#34;cashback&#34;] / m[&#34;cashback&#34;].sum()   # Choyxona Plus 7.9% — от всего банка</div><div class="good">m[&#34;cashback&#34;] / m.groupby(&#34;category&#34;)[&#34;cashback&#34;].transform(&#34;sum&#34;)   # 42.4% кафе</div><p>Оба числа правильные, но отвечают на разные вопросы. Перед делением скажи вслух: «доля от чего?».</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: 8 строк, которые надо помнить</h3>
+        <ol><li>df[&#34;segment&#34;] = df[&#34;segment&#34;].str.strip().str.lower() <span>— сначала чистый ключ</span></li><li>cb = df.groupby(&#34;category&#34;)[&#34;cashback&#34;].sum(); cb / cb.sum() * 100 <span>— доля от общего итога</span></li><li>df.groupby(&#34;category&#34;)[&#34;cashback&#34;].transform(&#34;sum&#34;) <span>— SUM() OVER (PARTITION BY)</span></li><li>df[&#34;cashback&#34;] / df.groupby(&#34;category&#34;)[&#34;cashback&#34;].transform(&#34;sum&#34;) <span>— доля внутри группы</span></li><li>df.groupby(&#34;client_id&#34;)[&#34;amount&#34;].transform(&#34;mean&#34;) <span>— среднее своей группы в каждой строке</span></li><li>df.groupby(&#34;merchant&#34;).filter(lambda g: len(g) &gt;= 40) <span>— HAVING</span></li><li>df.sort_values(&#34;x&#34;, ascending=False).groupby(&#34;category&#34;).head(2) <span>— топ-2 в группе</span></li><li>df[&#34;amount&#34;].fillna(df.groupby(&#34;category&#34;)[&#34;amount&#34;].transform(&#34;median&#34;)) <span>— пропуск по группе</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Чем <code>df.groupby("category")["cashback"].transform("sum")</code> отличается от <code>.sum()</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>transform возвращает итог группы в каждой из 1 800 строк, sum — одну строку на категорию</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>transform сортирует</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>transform убирает NaN</span></button></div>
+          <div class="why" hidden>sum сжимает (6 строк), transform раздаёт (1 800 строк, те же бирки, что у df). Поэтому transform можно класть в колонку.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="2">
+          <p>2. <code>df["x"] = df.groupby("category")["cashback"].sum()</code> — что окажется в колонке x?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Итог категории в каждой строке</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Ошибка</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>1 800 значений NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Первые 6 строк заполнены</span></button></div>
+          <div class="why" hidden>Бирки результата — названия категорий, у df — 0…1799. Не совпали ни одной — везде NaN. Нужно transform.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Мадина: «Продукты — 29% операций, значит они съедают кэшбэк». Что не так?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Всё верно</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Доля операций ≠ доля денег: по кэшбэку Продукты — 4.4%</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Нужно делить на 1 000</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Надо считать median</span></button></div>
+          <div class="why" hidden>Бюджет — это деньги. cb = groupby("category")["cashback"].sum(); cb / cb.sum().</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Что вернёт <code>df.groupby("merchant").filter(lambda g: len(g) &gt;= 40)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>14 строк — по одной на партнёра</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Все исходные строки партнёров, у которых 40+ операций (1 653 строки)</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>True/False для каждого партнёра</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Число партнёров</span></button></div>
+          <div class="why" hidden>filter выбрасывает целые группы, а строки хороших групп оставляет как есть. В отличие от SQL HAVING, одной строки на группу нет.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="2">
+          <p>5. Как взять 2 самые крупные операции в каждой категории?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span><code>df.groupby("category").head(2)</code></span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span><code>df.nlargest(2, "amount")</code></span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span><code>df.sort_values("amount", ascending=False).groupby("category").head(2)</code></span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span><code>df.groupby("category")["amount"].max()</code></span></button></div>
+          <div class="why" hidden>Сначала сортировка, потом head внутри групп = ROW_NUMBER() ≤ 2. Без сортировки head берёт первые по порядку в файле; nlargest — 2 на всю таблицу; max — одно число, без строки.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько операций в каждом сегменте</h3>
+            <ol class='steps-t'><li>Выведи, сколько разных написаний у сырого segment (<code class='i'>nunique</code>).</li><li>Почисти segment в df: strip + lower (урок 6).</li><li>Выведи число операций в каждом сегменте от большего к меньшему.</li></ol><p class='rule-t'>Число строк — size(). Сортировка — sort_values(ascending=False).</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 09 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1"># 1. сколько написаний
+
+# 2. чистый segment
+df[&#34;segment&#34;] =
+
+# 3. операции по сегментам, по убыванию
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">9
+segment
+standard    901
+premium     502
+student     397
+dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># 1. сколько написаний
+
+# 2. чистый segment
+df[&#34;segment&#34;] =
+
+# 3. операции по сегментам, по убыванию
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай, сколькими способами записан сегмент, почисти его так же, как город в уроке 6, и посчитай операции в каждом сегменте.</p>
+<p><b>Чем это сделать.</b> <code class="i">.nunique()</code> — сколько разных написаний. <code class="i">.str.strip().str.lower()</code> — чистка. <code class="i">df.groupby("segment").size()</code> — операций в каждом сегменте.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(df[&#34;segment&#34;].___())
+df[&#34;segment&#34;] = df[&#34;segment&#34;].str.___().str.___()
+print(df.groupby(&#34;segment&#34;).___().sort_values(ascending=___))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Чистку нужно сохранить в df (<code class="i">df["segment"] = ...</code>), иначе группировка пойдёт по грязным значениям.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Кто съедает бюджет кэшбэка</h3>
+            <ol class='steps-t'><li>Сохрани в <code class='i'>cb</code> сумму cashback по category.</li><li>Выведи долю каждой категории от всего кэшбэка в % (1 знак), от большей к меньшей.</li><li>Выведи весь кэшбэк в млн сум (2 знака).</li></ol><p class='rule-t'>Доля = cb / cb.sum() * 100. Никаких 8074810 руками.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 09 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">cb =
+
+# 2. доля, %
+
+# 3. всего, млн
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category
+Электроника    47.5
+Кафе           18.6
+Одежда         18.5
+АЗС             7.9
+Продукты        4.4
+Такси           3.2
+Name: cashback, dtype: float64
+8.07</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>cb =
+
+# 2. доля, %
+
+# 3. всего, млн
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала сложи кэшбэк по каждой категории. Доля категории — это её сумма, делённая на сумму всех категорий. Тогда видно, кто тратит бюджет, а не кто чаще покупает.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby("category")["cashback"].sum()</code> — кэшбэк по категориям. <code class="i">cb / cb.sum()</code> делит каждую строку на общий итог. Миллионы: <code class="i">/ 1_000_000</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>cb = df.groupby(&#34;___&#34;)[&#34;___&#34;].sum()
+share = (cb / cb.___() * 100).round(1).sort_values(ascending=False)
+print(share)
+print(round(cb.sum() / ___, 2))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Доля по числу операций (value_counts) и доля по деньгам — разные вещи. Здесь нужна доля денег.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>transform: итог категории в каждой строке</h3>
+            <ol class='steps-t'><li>Добавь колонку <code class='i'>cat_cb</code> — сумма cashback категории в каждой строке (transform).</li><li>Добавь <code class='i'>cat_tx</code> — число операций категории в каждой строке.</li><li>Выведи <code class='i'>df.shape</code> и для первой операции Электроники — cat_tx и cat_cb.</li></ol><p class='rule-t'>Длина df не должна измениться: 1 800 строк.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 09 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">df[&#34;cat_cb&#34;] =
+df[&#34;cat_tx&#34;] =
+
+print(df.shape)
+# первая строка Электроники: cat_tx и cat_cb
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">(1800, 11)
+cat_tx         81.0
+cat_cb    3832900.0
+Name: 44, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>df[&#34;cat_cb&#34;] =
+df[&#34;cat_tx&#34;] =
+
+print(df.shape)
+# первая строка Электроники: cat_tx и cat_cb
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Обычный groupby сжимает таблицу до одной строки на категорию. А тут нужно другое: итог категории записать <b>в каждую строку</b> этой категории, чтобы таблица осталась прежней длины.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby("category")["cashback"].transform("sum")</code> — сумма группы, повторённая в каждой строке. Так же с <code class="i">"size"</code> — число строк группы. Первая строка выборки — <code class="i">.iloc[0]</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df[&#34;cat_cb&#34;] = df.groupby(&#34;category&#34;)[&#34;cashback&#34;].___(&#34;sum&#34;)
+df[&#34;cat_tx&#34;] = df.groupby(&#34;category&#34;)[&#34;tx_id&#34;].transform(&#34;___&#34;)
+print(df.shape)
+print(df.loc[df[&#34;category&#34;] == &#34;___&#34;, [&#34;cat_tx&#34;, &#34;cat_cb&#34;]].iloc[___])</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если написать <code class="i">.sum()</code> вместо <code class="i">.transform("sum")</code>, получится короткая таблица, и её нельзя положить в колонку df.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Слабые партнёры внутри категории</h3>
+            <ol class='steps-t'><li>Сделай <code class='i'>m</code>: сумма cashback по category и merchant, <code class='i'>as_index=False</code>.</li><li>Добавь <code class='i'>share_pct</code> — доля партнёра в кэшбэке <b>своей</b> категории, % (1 знак).</li><li>Выведи партнёров с share_pct &lt; 10, по возрастанию share_pct.</li></ol><p class='rule-t'>Делить на итог своей категории (transform внутри m), не на весь кэшбэк.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 09 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">m =
+m[&#34;share_pct&#34;] =
+
+# 3. меньше 10%
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">    category   merchant  cashback  share_pct
+6       Кафе   Sushi Go   75850.0        5.0
+13  Продукты  Sabzi Box   21800.0        6.1
+14     Такси    CityCab   17580.0        6.9</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>m =
+m[&#34;share_pct&#34;] =
+
+# 3. меньше 10%
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Два шага. Сначала сложи кэшбэк по паре «категория + партнёр». Потом для каждой строки посчитай долю партнёра в его <b>собственной</b> категории: делить нужно на итог категории, а его даёт transform.</p>
+<p><b>Чем это сделать.</b> <code class="i">groupby(["category", "merchant"], as_index=False)["cashback"].sum()</code> — таблица m. <code class="i">m.groupby("category")["cashback"].transform("sum")</code> — итог категории в каждой строке m.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>m = df.groupby([___, ___], as_index=False)[&#34;cashback&#34;].sum()
+m[&#34;share_pct&#34;] = (m[&#34;cashback&#34;] / m.groupby(&#34;___&#34;)[&#34;cashback&#34;].transform(&#34;___&#34;) * 100).round(1)
+print(m[m[&#34;share_pct&#34;] &lt; ___].sort_values(&#34;share_pct&#34;))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если разделить на весь кэшбэк <code class="i">m["cashback"].sum()</code>, получится доля в общем бюджете, а не внутри категории.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>HAVING: что будет без «мелких» партнёров</h3>
+            <ol class='steps-t'><li>В <code class='i'>active</code> оставь операции партнёров с 40+ операциями (<code class='i'>filter</code>). Выведи число партнёров и операций в active.</li><li>В <code class='i'>small</code> — партнёры с &lt; 40 операциями. Выведи их число операций по партнёру, по возрастанию.</li><li>Выведи, какую долю всего кэшбэка (%) получают small (1 знак).</li></ol><p class='rule-t'>filter с lambda. Доля — сумма small / сумма df × 100.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 09 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">active =
+print(...)
+
+small =
+
+# 3. доля кэшбэка small, %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">14 1653
+merchant
+Mobile Point     8
+Gadget Uz       26
+Sushi Go        26
+CityCab         27
+Sport Line      28
+Sabzi Box       32
+dtype: int64
+26.6</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>active =
+print(...)
+
+small =
+
+# 3. доля кэшбэка small, %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> filter оставляет или выбрасывает <b>целые группы</b>: для каждого партнёра задаётся вопрос «у тебя 40+ операций?». Ответ «да» — все его строки остаются. «Мелкие» партнёры — обратное условие.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby("merchant").filter(lambda g: len(g) >= 40)</code> — g — это все строки одного партнёра. Партнёров — <code class="i">nunique()</code>, операций — <code class="i">len()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>active = df.groupby(&#34;merchant&#34;).filter(lambda g: len(g) ___ 40)
+small = df.groupby(&#34;merchant&#34;).filter(lambda g: len(g) ___ 40)
+print(active[&#34;merchant&#34;].___(), len(active))
+print(small.groupby(&#34;merchant&#34;).size().sort_values())
+print(round(small[&#34;cashback&#34;].sum() / df[&#34;___&#34;].sum() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> lambda получает таблицу группы, поэтому <code class="i">len(g)</code> — число её строк, а не число партнёров.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Топ-2 партнёра в каждой категории (повторение: сортировка)</h3>
+            <ol class='steps-t'><li>Сумма cashback по category и merchant (as_index=False).</li><li>Отсортируй: category по алфавиту, внутри — cashback по убыванию (урок 3).</li><li>Возьми по 2 первых в каждой категории (<code class='i'>groupby(...).head(2)</code>), выведи таблицу и её длину.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 09 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">top2 = (df.groupby(...)
+
+          )
+print(top2)
+print(len(top2))
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">       category       merchant   cashback
+0           АЗС       Neft Oil   425540.0
+1           АЗС        Uz Fuel   210740.0
+3          Кафе  Choyxona Plus   636350.0
+4          Кафе     Coffee Lab   395150.0
+8        Одежда        Moda Uz   804150.0
+7        Одежда     Kids Style   365820.0
+10     Продукты        Bozor24   143100.0
+11     Продукты      FreshMart   122990.0
+15        Такси         TezYol   149700.0
+16        Такси    Yandex-lite    87930.0
+19  Электроника     TechnoMart  2123340.0
+17  Электроника      Gadget Uz  1283460.0
+12</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>top2 = (df.groupby(...)
+
+          )
+print(top2)
+print(len(top2))
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала сумма кэшбэка по паре «категория + партнёр». Потом отсортируй так, чтобы внутри каждой категории самые большие были сверху. Тогда «по 2 первых в каждой категории» — это и есть топ-2.</p>
+<p><b>Чем это сделать.</b> <code class="i">sort_values(["category", "cashback"], ascending=[True, False])</code> — как в уроке 3. <code class="i">.groupby("category").head(2)</code> — первые 2 строки каждой группы.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>top2 = (df.groupby([___, ___], as_index=False)[&#34;cashback&#34;].sum()
+          .sort_values([___, ___], ascending=[___, ___])
+          .groupby(&#34;___&#34;)
+          .head(___))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без сортировки head(2) возьмёт первых двух партнёров по алфавиту, а не самых крупных.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Отчёт по сегментам для Мадины</h3>
+            <ol class='steps-t'><li>Собери <code class='i'>clean</code> через <code class='i'>df.assign(...)</code>: чистый segment; маска <code class='i'>big</code> — amount больше 3 средних <b>этого клиента</b> (transform).</li><li><code class='i'>report</code> по segment через agg: clients (nunique client_id), tx (size), spend (сумма amount), cashback (сумма), big_pct (mean маски).</li><li>Добавь spend_pct и cb_pct — доля сегмента от всего (1 знак), per_client_mln — оборот на клиента в млн (2 знака), big_pct в % (1 знак). Выведи clients, tx, spend_pct, cb_pct, per_client_mln, big_pct.</li></ol><p class='rule-t'>Ни одного числа руками. Доля маски — mean × 100.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 09 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">clean = df.assign(
+    segment=,
+    big=,
+)
+report = (clean.groupby(&#34;segment&#34;)
+          .agg(clients=(&#34;client_id&#34;, &#34;nunique&#34;),
+               # продолжи
+               ))
+# 3. доли, на клиента, %
+
+report[[&#34;clients&#34;, &#34;tx&#34;, &#34;spend_pct&#34;, &#34;cb_pct&#34;, &#34;per_client_mln&#34;, &#34;big_pct&#34;]]
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">          clients   tx  spend_pct  cb_pct  per_client_mln  big_pct
+segment
+premium        53  502       38.7    39.3            2.54      5.2
+standard      192  901       49.6    49.2            0.90      4.8
+student       103  397       11.7    11.6            0.40      3.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>clean = df.assign(
+    segment=,
+    big=,
+)
+report = (clean.groupby(&#34;segment&#34;)
+          .agg(clients=(&#34;client_id&#34;, &#34;nunique&#34;),
+               # продолжи
+               ))
+# 3. доли, на клиента, %
+
+report[[&#34;clients&#34;, &#34;tx&#34;, &#34;spend_pct&#34;, &#34;cb_pct&#34;, &#34;per_client_mln&#34;, &#34;big_pct&#34;]]
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Крупная» операция — больше трёх средних <b>этого же клиента</b>. Среднее клиента в каждой строке даёт transform. Дальше одна группировка по сегменту и после неё доли, миллионы и проценты — как в отчёте урока 8.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby("client_id")["amount"].transform("mean")</code> — среднее клиента в каждой строке. Доля сегмента: <code class="i">report["spend"] / report["spend"].sum() * 100</code>. На клиента: <code class="i">spend / clients</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>clean = df.assign(
+    segment=___,
+    big=df[&#34;amount&#34;] &gt; ___ * df.groupby(&#34;___&#34;)[&#34;amount&#34;].transform(&#34;mean&#34;),
+)
+report = (clean.groupby(&#34;segment&#34;)
+          .agg(clients=(&#34;client_id&#34;, &#34;nunique&#34;), tx=(___), spend=(___), cashback=(___), big_pct=(&#34;big&#34;, &#34;___&#34;)))
+report[&#34;spend_pct&#34;] = (report[&#34;spend&#34;] / report[&#34;spend&#34;].___() * 100).round(1)
+report[&#34;per_client_mln&#34;] = (report[&#34;spend&#34;] / report[&#34;___&#34;] / 1_000_000).round(2)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Клиентов считай как разных <code class="i">client_id</code> (<code class="i">"nunique"</code>), а не как число операций.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Мадине до защиты бюджета</h2>
+      <div class="case">
+        <p>Напиши ответ Мадине в Telegram. Не больше 6 предложений. Структура: <b>кто на самом деле съедает кэшбэк (доля денег, а не операций) → что даст урезание кафе с 5% до 3% (в сум и в % бюджета) → что будет, если отключить партнёров с &lt; 40 операциями → Premium: правда ли «больше половины оборота» и что на самом деле отличает Premium → 1 риск или оговорка → 1 следующий шаг</b>. Только цифры, которые ты сам получил в задачах.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Доля электроники в кэшбэке</span><span class="fact-chip">Экономия от урезания кафе</span><span class="fact-chip">Доля Premium в обороте</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Мадина, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Кто, по твоему ответу, на самом деле съедает кэшбэк?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Электроника: почти половина бюджета при малой доле операций</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Кафе и продукты, потому что там больше всего операций</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Все категории поровну</span></button></div>
+            <div class="why" hidden>Электроника — 47,5% кэшбэка при 4,5% операций. Частые мелкие покупки в кафе дают мало денег.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что даст урезание кафе с 5% до 3%?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Мало: экономия — небольшая доля бюджета (≈ 7%)</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Решит проблему бюджета полностью</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Урезание кафе увеличит расходы</span></button></div>
+            <div class="why" hidden>Экономия 600 800 сум — всего 7,4% бюджета.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Правда ли, что Premium — больше половины оборота?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Нет, меньше: Premium отличает то, что каждый клиент тратит намного больше</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Да, больше половины</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Premium почти ничего не тратит</span></button></div>
+            <div class="why" hidden>Premium — 38,7% оборота. Отличие в том, что клиент Premium тратит в 2,8 раза больше.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Мадина, привет! Кэшбэк съедают не кафе и продукты, а электроника: 47,5% всего бюджета при 4,5% операций. Если урезать кафе с 5% до 3%, сэкономим 600 800 сум — всего 7,4% бюджета. Отключение партнёров с меньше чем 40 операциями срежет 26,6% кэшбэка, в том числе у двух из трёх магазинов электроники — клиенты это заметят. Premium — 38,7% оборота, а не больше половины; отличает его то, что клиент тратит в 2,8 раза больше. Риск: у 71 операции нет суммы. Предлагаю вместо урезания кафе ввести потолок кэшбэка на одну покупку в электронике.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Электроника — 47,5% кэшбэка (доля денег, а не операций)</li><li>Кафе 5% → 3%: 600 800 сум = 7,4%</li><li>Последствия отключения мелких партнёров: 26,6%</li><li>Premium 38,7%, а не больше половины</li><li>Есть оговорка и следующий шаг</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 9</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/08-groupby/"><small>← Урок 8</small><b>groupby: агрегации по сегментам</b></a><a class="nx" href="../../lessons/10-pivot-table-crosstab/"><small>Урок 10 →</small><b>pivot_table и crosstab</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0414\u043e\u043b\u044f \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0438 \u0432 \u043a\u044d\u0448\u0431\u044d\u043a\u0435", "pct": true, "value": 47.5}, {"name": "\u042d\u043a\u043e\u043d\u043e\u043c\u0438\u044f \u043e\u0442 \u0443\u0440\u0435\u0437\u0430\u043d\u0438\u044f \u043a\u0430\u0444\u0435", "value": 600800}, {"name": "\u0414\u043e\u043b\u044f Premium \u0432 \u043e\u0431\u043e\u0440\u043e\u0442\u0435", "pct": true, "value": 38.7}], "logic": [{"a": 0, "o": ["\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430: \u043f\u043e\u0447\u0442\u0438 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0430 \u0431\u044e\u0434\u0436\u0435\u0442\u0430 \u043f\u0440\u0438 \u043c\u0430\u043b\u043e\u0439 \u0434\u043e\u043b\u0435 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0439", "\u041a\u0430\u0444\u0435 \u0438 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u044b, \u043f\u043e\u0442\u043e\u043c\u0443 \u0447\u0442\u043e \u0442\u0430\u043c \u0431\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0439", "\u0412\u0441\u0435 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438 \u043f\u043e\u0440\u043e\u0432\u043d\u0443"], "q": "\u041a\u0442\u043e, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u043d\u0430 \u0441\u0430\u043c\u043e\u043c \u0434\u0435\u043b\u0435 \u0441\u044a\u0435\u0434\u0430\u0435\u0442 \u043a\u044d\u0448\u0431\u044d\u043a?", "why": "\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430 \u2014 47,5% \u043a\u044d\u0448\u0431\u044d\u043a\u0430 \u043f\u0440\u0438 4,5% \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0439. \u0427\u0430\u0441\u0442\u044b\u0435 \u043c\u0435\u043b\u043a\u0438\u0435 \u043f\u043e\u043a\u0443\u043f\u043a\u0438 \u0432 \u043a\u0430\u0444\u0435 \u0434\u0430\u044e\u0442 \u043c\u0430\u043b\u043e \u0434\u0435\u043d\u0435\u0433."}, {"a": 0, "o": ["\u041c\u0430\u043b\u043e: \u044d\u043a\u043e\u043d\u043e\u043c\u0438\u044f \u2014 \u043d\u0435\u0431\u043e\u043b\u044c\u0448\u0430\u044f \u0434\u043e\u043b\u044f \u0431\u044e\u0434\u0436\u0435\u0442\u0430 (\u2248 7%)", "\u0420\u0435\u0448\u0438\u0442 \u043f\u0440\u043e\u0431\u043b\u0435\u043c\u0443 \u0431\u044e\u0434\u0436\u0435\u0442\u0430 \u043f\u043e\u043b\u043d\u043e\u0441\u0442\u044c\u044e", "\u0423\u0440\u0435\u0437\u0430\u043d\u0438\u0435 \u043a\u0430\u0444\u0435 \u0443\u0432\u0435\u043b\u0438\u0447\u0438\u0442 \u0440\u0430\u0441\u0445\u043e\u0434\u044b"], "q": "\u0427\u0442\u043e \u0434\u0430\u0441\u0442 \u0443\u0440\u0435\u0437\u0430\u043d\u0438\u0435 \u043a\u0430\u0444\u0435 \u0441 5% \u0434\u043e 3%?", "why": "\u042d\u043a\u043e\u043d\u043e\u043c\u0438\u044f 600 800 \u0441\u0443\u043c \u2014 \u0432\u0441\u0435\u0433\u043e 7,4% \u0431\u044e\u0434\u0436\u0435\u0442\u0430."}, {"a": 0, "o": ["\u041d\u0435\u0442, \u043c\u0435\u043d\u044c\u0448\u0435: Premium \u043e\u0442\u043b\u0438\u0447\u0430\u0435\u0442 \u0442\u043e, \u0447\u0442\u043e \u043a\u0430\u0436\u0434\u044b\u0439 \u043a\u043b\u0438\u0435\u043d\u0442 \u0442\u0440\u0430\u0442\u0438\u0442 \u043d\u0430\u043c\u043d\u043e\u0433\u043e \u0431\u043e\u043b\u044c\u0448\u0435", "\u0414\u0430, \u0431\u043e\u043b\u044c\u0448\u0435 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u044b", "Premium \u043f\u043e\u0447\u0442\u0438 \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0442\u0440\u0430\u0442\u0438\u0442"], "q": "\u041f\u0440\u0430\u0432\u0434\u0430 \u043b\u0438, \u0447\u0442\u043e Premium \u2014 \u0431\u043e\u043b\u044c\u0448\u0435 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u044b \u043e\u0431\u043e\u0440\u043e\u0442\u0430?", "why": "Premium \u2014 38,7% \u043e\u0431\u043e\u0440\u043e\u0442\u0430. \u041e\u0442\u043b\u0438\u0447\u0438\u0435 \u0432 \u0442\u043e\u043c, \u0447\u0442\u043e \u043a\u043b\u0438\u0435\u043d\u0442 Premium \u0442\u0440\u0430\u0442\u0438\u0442 \u0432 2,8 \u0440\u0430\u0437\u0430 \u0431\u043e\u043b\u044c\u0448\u0435."}]}, "case_model": "\u041c\u0430\u0434\u0438\u043d\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u041a\u044d\u0448\u0431\u044d\u043a \u0441\u044a\u0435\u0434\u0430\u044e\u0442 \u043d\u0435 \u043a\u0430\u0444\u0435 \u0438 \u043f\u0440\u043e\u0434\u0443\u043a\u0442\u044b, \u0430 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430: 47,5% \u0432\u0441\u0435\u0433\u043e \u0431\u044e\u0434\u0436\u0435\u0442\u0430 \u043f\u0440\u0438 4,5% \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0439. \u0415\u0441\u043b\u0438 \u0443\u0440\u0435\u0437\u0430\u0442\u044c \u043a\u0430\u0444\u0435 \u0441 5% \u0434\u043e 3%, \u0441\u044d\u043a\u043e\u043d\u043e\u043c\u0438\u043c 600 800 \u0441\u0443\u043c \u2014 \u0432\u0441\u0435\u0433\u043e 7,4% \u0431\u044e\u0434\u0436\u0435\u0442\u0430. \u041e\u0442\u043a\u043b\u044e\u0447\u0435\u043d\u0438\u0435 \u043f\u0430\u0440\u0442\u043d\u0451\u0440\u043e\u0432 \u0441 \u043c\u0435\u043d\u044c\u0448\u0435 \u0447\u0435\u043c 40 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u044f\u043c\u0438 \u0441\u0440\u0435\u0436\u0435\u0442 26,6% \u043a\u044d\u0448\u0431\u044d\u043a\u0430, \u0432 \u0442\u043e\u043c \u0447\u0438\u0441\u043b\u0435 \u0443 \u0434\u0432\u0443\u0445 \u0438\u0437 \u0442\u0440\u0451\u0445 \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u043e\u0432 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0438 \u2014 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u044d\u0442\u043e \u0437\u0430\u043c\u0435\u0442\u044f\u0442. Premium \u2014 38,7% \u043e\u0431\u043e\u0440\u043e\u0442\u0430, \u0430 \u043d\u0435 \u0431\u043e\u043b\u044c\u0448\u0435 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u044b; \u043e\u0442\u043b\u0438\u0447\u0430\u0435\u0442 \u0435\u0433\u043e \u0442\u043e, \u0447\u0442\u043e \u043a\u043b\u0438\u0435\u043d\u0442 \u0442\u0440\u0430\u0442\u0438\u0442 \u0432 2,8 \u0440\u0430\u0437\u0430 \u0431\u043e\u043b\u044c\u0448\u0435. \u0420\u0438\u0441\u043a: \u0443 71 \u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438 \u043d\u0435\u0442 \u0441\u0443\u043c\u043c\u044b. \u041f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u044e \u0432\u043c\u0435\u0441\u0442\u043e \u0443\u0440\u0435\u0437\u0430\u043d\u0438\u044f \u043a\u0430\u0444\u0435 \u0432\u0432\u0435\u0441\u0442\u0438 \u043f\u043e\u0442\u043e\u043b\u043e\u043a \u043a\u044d\u0448\u0431\u044d\u043a\u0430 \u043d\u0430 \u043e\u0434\u043d\u0443 \u043f\u043e\u043a\u0443\u043f\u043a\u0443 \u0432 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0435.", "case_xp": 30, "cheat": [["df[\"segment\"] = df[\"segment\"].str.strip().str.lower()", "\u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0447\u0438\u0441\u0442\u044b\u0439 \u043a\u043b\u044e\u0447"], ["cb = df.groupby(\"category\")[\"cashback\"].sum(); cb / cb.sum() * 100", "\u0434\u043e\u043b\u044f \u043e\u0442 \u043e\u0431\u0449\u0435\u0433\u043e \u0438\u0442\u043e\u0433\u0430"], ["df.groupby(\"category\")[\"cashback\"].transform(\"sum\")", "SUM() OVER (PARTITION BY)"], ["df[\"cashback\"] / df.groupby(\"category\")[\"cashback\"].transform(\"sum\")", "\u0434\u043e\u043b\u044f \u0432\u043d\u0443\u0442\u0440\u0438 \u0433\u0440\u0443\u043f\u043f\u044b"], ["df.groupby(\"client_id\")[\"amount\"].transform(\"mean\")", "\u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u0441\u0432\u043e\u0435\u0439 \u0433\u0440\u0443\u043f\u043f\u044b \u0432 \u043a\u0430\u0436\u0434\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0435"], ["df.groupby(\"merchant\").filter(lambda g: len(g) \u003e= 40)", "HAVING"], ["df.sort_values(\"x\", ascending=False).groupby(\"category\").head(2)", "\u0442\u043e\u043f-2 \u0432 \u0433\u0440\u0443\u043f\u043f\u0435"], ["df[\"amount\"].fillna(df.groupby(\"category\")[\"amount\"].transform(\"median\"))", "\u043f\u0440\u043e\u043f\u0443\u0441\u043a \u043f\u043e \u0433\u0440\u0443\u043f\u043f\u0435"]], "data": "../../data/", "datasets": ["ishonch_tx.csv"], "day": 9, "hint_cost": 5, "quiz": [1, 2, 1, 1, 2], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"ishonch_tx.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["9", "standard 901", "premium 502", "student 397"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["47.5", "18.6", "18.5", "7.9", "4.4", "3.2", "8.07"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["(1800, 11)", "81", "3832900"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["Sushi Go 75850.0 5.0", "Sabzi Box 21800.0 6.1", "CityCab 17580.0 6.9"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["14 1653", "Mobile Point 8", "Gadget Uz 26", "Sabzi Box 32", "26.6"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["Neft Oil 425540", "Choyxona Plus 636350", "Coffee Lab 395150", "Moda Uz 804150", "TechnoMart 2123340", "Gadget Uz 1283460", "12"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["53", "502", "38.7", "39.3", "2.54", "0.90", "0.40", "5.2", "4.8", "3.5"], "setup": "", "xp": 25}], "theory": ["brief", "anatomy", "tools", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

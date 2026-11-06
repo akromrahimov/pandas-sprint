@@ -1,0 +1,740 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 23. RFM-сегментация и ABC-анализ — Pandas Sprint</title>
+<meta name="description" content="Урок 23 курса Pandas Sprint — RFM-сегментация и ABC-анализ. Разделить клиентов на сегменты по ценности.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/23-rfm-abc/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 23. RFM-сегментация и ABC-анализ — Pandas Sprint">
+<meta property="og:description" content="Урок 23 курса Pandas Sprint — RFM-сегментация и ABC-анализ. Разделить клиентов на сегменты по ценности.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/23-rfm-abc/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="23">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#rfm"><span class="dot">✓</span>RFM</a></li><li><a href="#abc"><span class="dot">✓</span>ABC</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">RFM и ABC: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты делал сегментацию в SQL, вот соответствия.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>MAX(order_date), COUNT(*), SUM(amount) … GROUP BY customer_id</code></td><td><code>df.groupby(&#34;customer_id&#34;).agg(...)</code></td><td>таблица RFM</td></tr><tr><td><code>NTILE(3) OVER (ORDER BY recency)</code></td><td><code>pd.qcut(rfm[&#34;recency&#34;], 3, labels=...)</code></td><td>трети по количеству</td></tr><tr><td><code>CASE WHEN frequency = 1 THEN 1 …</code></td><td><code>pd.cut(rfm[&#34;frequency&#34;], [0, 1, 2, np.inf], labels=...)</code></td><td>группы по границам</td></tr><tr><td><code>CASE WHEN R = 3 AND F = 3 THEN &#39;Чемпионы&#39; …</code></td><td><code>np.select([условия], [имена], default=...)</code></td><td>имена сегментов</td></tr><tr><td><code>SUM(revenue) OVER (ORDER BY revenue DESC) / SUM(revenue) OVER ()</code></td><td><code>prod.cumsum() / prod.sum()</code></td><td>накопленная доля для ABC</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 23 из 30 · Неделя 4 · Бизнес-кейсы</div>
+      <h1><mark>RFM-сегментация</mark> и ABC-анализ</h1>
+      <p class="lead">У магазина сотни клиентов и десятки товаров, а бюджет на внимание ограничен. Кому звонить в первую очередь? Какие товары держать в наличии всегда? Сегодня два классических метода: RFM делит клиентов по свежести, частоте и сумме покупок, а ABC делит товары по вкладу в выручку.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Разделить клиентов мебельного магазина Mebel Plus на понятные сегменты (чемпионы, лояльные, уходящие, новые) и найти товары группы A, которые дают основную выручку, чтобы маркетинг и склад знали, на что тратить силы.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Считать для клиента Recency, Frequency и Monetary</li><li>Делить значения на группы через <code class="i">qcut</code> (поровну) и <code class="i">cut</code> (по границам)</li><li>Называть сегменты по правилам через <code class="i">np.select</code></li><li>Делать ABC-анализ через накопленную долю <code class="i">cumsum</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Кому звонить и что держать на складе</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Р</span>Рустам <small>коммерческий директор Mebel Plus · 15:30</small></div>
+          <p>Привет! У нас один менеджер по работе с клиентами и ограниченный склад. Хочу понять: кого из клиентов удерживать в первую очередь и какие товары нам действительно важны. Выгрузил все заказы с начала года.</p>
+<div class="file">▤ mebel_orders.csv · заказы с января по сентябрь</div>        </div>
+      </div>
+      <p class="note">Mebel Plus — учебный мебельный магазин, данные сгенерированы. Каждая строка — заказ: клиент, дата, товар, сумма. Дата анализа — 1 октября 2026 года. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/mebel_orders.csv" download>Скачать mebel_orders.csv</a><span class="note">2 177 заказов · 75 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;mebel_orders.csv&#34;, parse_dates=[&#34;order_date&#34;])
+today = pd.Timestamp(&#34;2026-10-01&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="rfm">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>RFM: три вопроса о каждом клиенте</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь кофейню. Постоянный гость, который заходит каждый день, — самый ценный. Гость, который раньше ходил часто, а теперь пропал на два месяца, — тот, кого пора вернуть. RFM описывает каждого клиента тремя числами:</p>
+  <ul>
+    <li><b>R — Recency</b> (свежесть): сколько дней прошло с последней покупки. Меньше — лучше.</li>
+    <li><b>F — Frequency</b> (частота): сколько раз покупал.</li>
+    <li><b>M — Monetary</b> (деньги): сколько всего потратил.</li>
+    <li>Каждое число превращают в оценку 1–3, а потом по оценкам дают сегменту понятное имя: «Чемпионы», «Уходящие»…</li>
+    <li><b>qcut</b> делит клиентов на группы <b>поровну по количеству</b> (треть, треть, треть). <b>cut</b> делит по <b>границам</b>, которые задаёшь сам (1 покупка, 2 покупки, 3 и больше).</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Таблица RFM.</b></div><pre class="code" data-cm>rfm = df.groupby(&quot;customer_id&quot;).agg(last=(&quot;order_date&quot;, &quot;max&quot;),
+                                    frequency=(&quot;order_id&quot;, &quot;count&quot;),
+                                    monetary=(&quot;amount&quot;, &quot;sum&quot;))
+rfm[&quot;recency&quot;] = (today - rfm[&quot;last&quot;]).dt.days
+rfm[[&quot;recency&quot;, &quot;frequency&quot;, &quot;monetary&quot;]].head()</pre><div class="out">             recency  frequency  monetary
+customer_id
+20001            106          2   4283000
+20002             84          4  14219000
+20003             17          5   8364000
+20004             65          1   2011000
+20005            120          3   4521000</div><p class="plain"><b>Простыми словами:</b> одна строка — один клиент: сколько дней назад он покупал последний раз, сколько раз и на какую сумму.</p></div>
+<div class="card"><div class="q"><b>2. qcut и cut на игрушечном примере.</b> 9 клиентов, сколько дней назад покупали.</div><pre class="code" data-cm>days = pd.Series([3, 8, 15, 20, 40, 60, 90, 150, 300])
+pd.DataFrame({
+    &quot;дней_назад&quot;: days,
+    &quot;qcut_на_трети&quot;: pd.qcut(days, 3, labels=[&quot;свежие&quot;, &quot;средние&quot;, &quot;давние&quot;]),
+    &quot;cut_по_границам&quot;: pd.cut(days, [0, 30, 90, np.inf], labels=[&quot;до месяца&quot;, &quot;1–3 месяца&quot;, &quot;дольше&quot;]),
+})</pre><div class="out">   дней_назад qcut_на_трети cut_по_границам
+0           3        свежие       до месяца
+1           8        свежие       до месяца
+2          15        свежие       до месяца
+3          20       средние       до месяца
+4          40       средние      1–3 месяца
+5          60       средние      1–3 месяца
+6          90        давние      1–3 месяца
+7         150        давние          дольше
+8         300        давние          дольше</div><p class="plain"><b>Простыми словами:</b> qcut сам ищет границы так, чтобы в каждой группе было <b>поровну людей</b>: по 3 клиента. cut использует <b>твои границы</b> (30 и 90 дней), и людей в группах может быть сколько угодно: здесь 4, 3 и 2. Когда данные «перекошены» (как частота покупок: у большинства одна), поровну поделить нельзя — тогда берут cut.</p></div>
+<div class="card"><div class="q"><b>3. Оценки R и F на настоящих данных.</b></div><pre class="code" data-cm>rfm[&quot;R&quot;] = pd.qcut(rfm[&quot;recency&quot;], 3, labels=[3, 2, 1]).astype(int)
+rfm[&quot;F&quot;] = pd.cut(rfm[&quot;frequency&quot;], [0, 1, 2, np.inf], labels=[1, 2, 3]).astype(int)
+print(rfm[&quot;R&quot;].value_counts().sort_index())
+rfm[&quot;F&quot;].value_counts().sort_index()</pre><div class="out">R
+1    217
+2    213
+3    220
+Name: count, dtype: int64
+F
+1    166
+2    143
+3    341
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> R: самая свежая треть клиентов получила 3, самая давняя — 1. Метки идут наоборот (3, 2, 1), потому что меньше дней — лучше. F: у большинства одна покупка, поэтому частоту делим по границам, а не на трети.</p></div>
+<div class="card"><div class="q"><b>4. Имена сегментов: правила сверху вниз.</b> Приём для задачи 4.</div><pre class="code" data-cm>toy = pd.DataFrame({&quot;R&quot;: [3, 3, 1, 3, 2], &quot;F&quot;: [3, 1, 3, 2, 1]}, index=[&quot;Аня&quot;, &quot;Бобур&quot;, &quot;Вера&quot;, &quot;Гуля&quot;, &quot;Дима&quot;])
+rules = [(toy[&quot;R&quot;] == 3) &amp; (toy[&quot;F&quot;] == 3), toy[&quot;F&quot;] == 3, (toy[&quot;R&quot;] == 1) &amp; (toy[&quot;F&quot;] &gt;= 2), (toy[&quot;R&quot;] == 3) &amp; (toy[&quot;F&quot;] == 1)]
+toy[&quot;segment&quot;] = np.select(rules, [&quot;Чемпионы&quot;, &quot;Лояльные&quot;, &quot;Уходящие&quot;, &quot;Новые&quot;], default=&quot;Остальные&quot;)
+toy</pre><div class="out">       R  F    segment
+Аня    3  3   Чемпионы
+Бобур  3  1      Новые
+Вера   1  3   Лояльные
+Гуля   3  2  Остальные
+Дима   2  1  Остальные</div><p class="plain"><b>Простыми словами:</b> np.select проверяет правила по порядку и берёт <b>первое подходящее</b>. У Веры F = 3, поэтому она «Лояльная», хотя подходит и под «Уходящие» (R = 1): правило «Лояльные» стоит выше. У Ани подходят и «Чемпионы», и «Лояльные», но «Чемпионы» — первое правило. Гуля и Дима не подошли ни под одно правило и получили default — «Остальные».</p></div></div>
+    </section>
+    <section id="abc">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>ABC: какие товары дают выручку</h2>
+      <div class="simple"><span class="tag">Как устроен ABC-анализ</span>
+  <ul>
+    <li>Сортируем товары по выручке от большей к меньшей.</li>
+    <li>Считаем <b>накопленную долю</b>: первый товар — 15%, первые два — 27%, … последний — 100%. Это <code class="i">cumsum() / sum()</code>.</li>
+    <li><b>A</b> — товары, которые вместе дают первые 80% выручки, <b>B</b> — следующие 15%, <b>C</b> — оставшиеся 5%.</li>
+    <li>Обычно группа A — это меньшинство товаров. Их всегда держат в наличии.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>5. ABC на игрушечном примере.</b> 5 товаров.</div><pre class="code" data-cm>toy = pd.Series({&quot;диван&quot;: 500, &quot;шкаф&quot;: 300, &quot;стол&quot;: 120, &quot;стул&quot;: 50, &quot;полка&quot;: 30}, name=&quot;выручка&quot;)
+share = toy.cumsum() / toy.sum()
+pd.DataFrame({
+    &quot;выручка&quot;: toy,
+    &quot;накоплено&quot;: toy.cumsum(),
+    &quot;накопленная_доля_%&quot;: (share * 100).round(1),
+    &quot;класс&quot;: np.where(share &lt;= 0.8, &quot;A&quot;, np.where(share &lt;= 0.95, &quot;B&quot;, &quot;C&quot;)),
+})</pre><div class="out">       выручка  накоплено  накопленная_доля_% класс
+диван      500        500                50.0     A
+шкаф       300        800                80.0     A
+стол       120        920                92.0     B
+стул        50        970                97.0     C
+полка       30       1000               100.0     C</div><p class="plain"><b>Простыми словами:</b> всего 1 000. Диван один даёт 50%, диван + шкаф — 80%: это класс A, всего 2 товара из 5. Стол дотягивает до 92% — класс B. Стул и полка вместе — последние 8% денег, класс C. Товары уже стоят от дорогого к дешёвому; на настоящих данных это делает sort_values.</p></div>
+<div class="card"><div class="q"><b>6. Накопленная доля выручки.</b> Теперь по мебели.</div><pre class="code" data-cm>prod = df.groupby(&quot;product&quot;)[&quot;amount&quot;].sum().sort_values(ascending=False)
+cum = (prod.cumsum() / prod.sum() * 100).round(1)
+cum.head(8)</pre><div class="out">product
+P022    24.6
+P011    45.8
+P005    50.6
+P004    54.9
+P058    58.8
+P016    62.7
+P045    66.0
+P001    68.4
+Name: amount, dtype: float64</div><p class="plain"><b>Простыми словами:</b> первые несколько товаров уже дают большую часть денег. Там, где накопленная доля переходит 80%, заканчивается группа A.</p></div></div>
+<div class="callout"><b>Правило аналитика.</b> Сегменты нужны, чтобы действовать. Для каждого сегмента сразу пиши, что с ним делать: чемпионов — благодарить и просить отзывы, уходящих — возвращать персональным предложением, новых — довести до второй покупки.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Четыре ловушки сегментации</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>qcut на числах с повторами</h3><div class="bad">pd.qcut(rfm[&#34;frequency&#34;], 3)   # ValueError: Bin edges must be unique</div><div class="good">pd.cut(rfm[&#34;frequency&#34;], [0, 1, 2, np.inf], labels=[1, 2, 3])</div><p>Если у половины клиентов одна покупка, «трети» по частоте не получаются. Для таких колонок задавай границы сам через cut.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Перевёрнутая шкала Recency</h3><p>Для Recency меньше — лучше. Если дать самым свежим оценку 1, «Чемпионами» станут те, кто давно ушёл. Поэтому labels=[3, 2, 1].</p></div>
+        <div class="trap"><span class="n">3</span><h3>Порядок условий в np.select</h3><p>np.select берёт первое подходящее условие. Если «Лояльные» (F = 3) стоят раньше «Чемпионов» (R = 3 и F = 3), чемпионов не останется. Сначала самые узкие условия.</p></div>
+        <div class="trap"><span class="n">4</span><h3>ABC без сортировки</h3><p>Накопленная доля имеет смысл только после сортировки от большего к меньшему. Без сортировки в группу A попадут случайные товары.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: RFM и ABC</h3>
+        <ol><li>(today - rfm[&#34;last&#34;]).dt.days <span>— Recency в днях</span></li><li>pd.qcut(s, 3, labels=[3, 2, 1]) <span>— трети по количеству</span></li><li>pd.cut(s, [0, 1, 2, np.inf], labels=[1, 2, 3]) <span>— группы по своим границам</span></li><li>np.select([усл1, усл2], [&#34;имя1&#34;, &#34;имя2&#34;], default=&#34;прочие&#34;) <span>— имена сегментов</span></li><li>prod.sort_values(ascending=False).cumsum() / prod.sum() <span>— накопленная доля</span></li><li>np.where(cum &lt;= 0.8, &#34;A&#34;, np.where(cum &lt;= 0.95, &#34;B&#34;, &#34;C&#34;)) <span>— классы ABC</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что такое Recency?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Сумма покупок</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Сколько дней прошло с последней покупки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Число покупок</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Дата первой покупки</span></button></div>
+          <div class="why" hidden>Recency — свежесть: как давно клиент покупал последний раз.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Чем qcut отличается от cut?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>qcut делит поровну по количеству, cut — по заданным границам</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>cut работает только с датами</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>qcut удаляет выбросы</span></button></div>
+          <div class="why" hidden>qcut — квантили (трети, четверти), cut — интервалы, которые ты задаёшь.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Почему для Recency используют labels=[3, 2, 1]?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Так короче</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Меньше дней — лучше, поэтому самым свежим — высшая оценка</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Это ошибка</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>qcut требует обратный порядок</span></button></div>
+          <div class="why" hidden>Первая треть — самые маленькие значения (свежие клиенты), им даём оценку 3.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Что такое товары группы A?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Самые дешёвые</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Товары, которые вместе дают первые 80% выручки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Новые товары</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Товары на букву А</span></button></div>
+          <div class="why" hidden>ABC делит товары по накопленной доле выручки: A — первые 80%.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. В np.select условия «F == 3» и «R == 3 and F == 3». Какое ставить первым?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>F == 3</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>R == 3 and F == 3</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Неважно</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нужно объединить</span></button></div>
+          <div class="why" hidden>Сначала более узкое условие, иначе все чемпионы попадут в «Лояльных».</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Таблица RFM</h3>
+            <ol class='steps-t'><li>По каждому клиенту: <code class='i'>last</code> — дата последнего заказа, <code class='i'>frequency</code> — число заказов, <code class='i'>monetary</code> — сумма.</li> <li>Добавь <code class='i'>recency</code> — дней от last до <code class='i'>today</code> (1 октября).</li> <li>Выведи <code class='i'>describe()</code> для recency, frequency, monetary, округлив до целых.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">rfm =
+rfm[&#34;recency&#34;] =
+
+# describe трёх колонок
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">       recency  frequency    monetary
+count    650.0      650.0       650.0
+mean      81.0        3.0   7835345.0
+std       70.0        3.0   6887114.0
+min        1.0        1.0    412000.0
+25%       26.0        1.0   2780000.0
+50%       63.0        3.0   6178500.0
+75%      114.0        5.0  10603750.0
+max      273.0       18.0  50385000.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>rfm =
+rfm[&#34;recency&#34;] =
+
+# describe трёх колонок
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> RFM описывает клиента тремя числами: как давно покупал (Recency), как часто (Frequency) и на сколько (Monetary). Собери по каждому клиенту дату последнего заказа, число заказов и сумму, а потом переведи дату в «дней назад».</p>
+<p><b>Чем это сделать.</b> <code class="i">.agg(last=("order_date", "max"), frequency=("order_id", "count"), monetary=("amount", "sum"))</code>. <code class="i">(today - rfm["last"]).dt.days</code> — дней до сегодня.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>rfm = df.groupby(&#34;customer_id&#34;).agg(last=(&#34;order_date&#34;, &#34;___&#34;),
+                                    frequency=(&#34;order_id&#34;, &#34;___&#34;),
+                                    monetary=(&#34;amount&#34;, &#34;___&#34;))
+rfm[&#34;recency&#34;] = (___ - rfm[&#34;last&#34;]).dt.days
+rfm[[&#34;recency&#34;, &#34;frequency&#34;, &#34;monetary&#34;]].describe().round(0)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Recency — от последней покупки, поэтому "max", а не "min".</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько раз покупают</h3>
+            <ol class='steps-t'><li>Посчитай число заказов каждого клиента.</li> <li>Выведи распределение: сколько клиентов купили 1, 2, 3, 4 и 5+ раз (<code class='i'>clip(upper=5)</code>).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># твой код
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1    166
+2    143
+3     97
+4     77
+5    167
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># твой код
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай заказы каждого клиента и сгруппируй частых в одну корзину «5+», иначе хвост будет длинным.</p>
+<p><b>Чем это сделать.</b> <code class="i">.size()</code> — заказов на клиента, <code class="i">.clip(upper=5)</code>, <code class="i">.value_counts().sort_index()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>df.groupby(&#34;___&#34;).size().clip(upper=___).value_counts().___()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без sort_index строки встанут по количеству клиентов, а не по 1, 2, 3, 4, 5.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Оценки R и F</h3>
+            <p>Таблица <code class='i'>rfm</code> уже готова.</p> <ol class='steps-t'><li><code class='i'>R</code>: recency на трети через qcut, метки 3, 2, 1 (целые).</li> <li><code class='i'>F</code>: frequency через cut с границами 0, 1, 2, бесконечность, метки 1, 2, 3 (целые).</li> <li>Выведи таблицу «сколько клиентов» для каждой пары R × F: <code class='i'>pd.crosstab(rfm["R"], rfm["F"])</code>.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>rfm = df.groupby(&#34;customer_id&#34;).agg(last=(&#34;order_date&#34;, &#34;max&#34;), frequency=(&#34;order_id&#34;, &#34;count&#34;), monetary=(&#34;amount&#34;, &#34;sum&#34;))
+rfm[&#34;recency&#34;] = (today - rfm[&#34;last&#34;]).dt.days</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">rfm[&#34;R&#34;] =
+rfm[&#34;F&#34;] =
+
+pd.crosstab(rfm[&#34;R&#34;], rfm[&#34;F&#34;])
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">F   1   2    3
+R
+1  62  38  117
+2  54  47  112
+3  50  58  112</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>rfm[&#34;R&#34;] =
+rfm[&#34;F&#34;] =
+
+pd.crosstab(rfm[&#34;R&#34;], rfm[&#34;F&#34;])
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Оценки 1–3. Для R делим клиентов на три равные по размеру трети по давности: самые свежие — 3. Для F границы заданы вручную: 1 заказ, 2 заказа, 3 и больше.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.qcut(x, 3, labels=[...])</code> — на 3 равные по числу клиентов группы. <code class="i">pd.cut(x, [границы], labels=[...])</code> — по своим границам. <code class="i">.astype(int)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>rfm[&#34;R&#34;] = pd.qcut(rfm[&#34;recency&#34;], ___, labels=[3, 2, 1]).astype(int)
+rfm[&#34;F&#34;] = pd.cut(rfm[&#34;frequency&#34;], [0, 1, 2, np.inf], labels=[___, ___, ___]).astype(int)
+pd.crosstab(rfm[&#34;R&#34;], rfm[&#34;F&#34;])</pre></div><p class="hint-trap"><b>Частая ошибка.</b> У recency меньше — значит лучше, поэтому метки для R идут наоборот: [3, 2, 1].</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Имена сегментов</h3>
+            <p>Правила (в этом порядке):</p> <ol class='steps-t'><li>«Чемпионы»: R = 3 и F = 3;</li><li>«Лояльные»: F = 3;</li><li>«Уходящие»: R = 1 и F ≥ 2;</li> <li>«Новые»: R = 3 и F = 1;</li><li>все остальные — «Остальные».</li></ol> <p class='rule-t'>Создай колонку <code class='i'>segment</code> через np.select и выведи число клиентов в каждом сегменте.</p>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>rfm = df.groupby(&#34;customer_id&#34;).agg(last=(&#34;order_date&#34;, &#34;max&#34;), frequency=(&#34;order_id&#34;, &#34;count&#34;), monetary=(&#34;amount&#34;, &#34;sum&#34;))
+rfm[&#34;recency&#34;] = (today - rfm[&#34;last&#34;]).dt.days
+rfm[&#34;R&#34;] = pd.qcut(rfm[&#34;recency&#34;], 3, labels=[3, 2, 1]).astype(int)
+rfm[&#34;F&#34;] = pd.cut(rfm[&#34;frequency&#34;], [0, 1, 2, np.inf], labels=[1, 2, 3]).astype(int)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">conditions = [
+    # твой код
+]
+names = [&#34;Чемпионы&#34;, &#34;Лояльные&#34;, &#34;Уходящие&#34;, &#34;Новые&#34;]
+rfm[&#34;segment&#34;] =
+
+rfm[&#34;segment&#34;].value_counts()
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">segment
+Лояльные     229
+Остальные    221
+Чемпионы     112
+Новые         50
+Уходящие      38
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>conditions = [
+    # твой код
+]
+names = [&#34;Чемпионы&#34;, &#34;Лояльные&#34;, &#34;Уходящие&#34;, &#34;Новые&#34;]
+rfm[&#34;segment&#34;] =
+
+rfm[&#34;segment&#34;].value_counts()
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сегменты по правилам — это np.select: проверка сверху вниз, первое подходящее правило задаёт имя. Порядок условий как в задании, каждое условие — в своих скобках.</p>
+<p><b>Чем это сделать.</b> <code class="i">np.select(conditions, names, default="Остальные")</code>. «И» — <code class="i">&</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>conditions = [
+    (rfm[&#34;R&#34;] == ___) &amp; (rfm[&#34;F&#34;] == ___),
+    rfm[&#34;F&#34;] == ___,
+    (rfm[&#34;R&#34;] == ___) &amp; (rfm[&#34;F&#34;] &gt;= ___),
+    (rfm[&#34;R&#34;] == ___) &amp; (rfm[&#34;F&#34;] == ___),
+]
+rfm[&#34;segment&#34;] = np.select(conditions, names, default=&#34;___&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если поставить «Лояльные» (F = 3) первыми, чемпионы тоже станут лояльными — порядок решает.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Деньги сегментов</h3>
+            <ol class='steps-t'><li>По сегменту: <code class='i'>clients</code>, <code class='i'>clients_%</code> — доля клиентов, <code class='i'>revenue_%</code> — доля выручки, <code class='i'>avg_monetary</code> — средняя сумма клиента (целое). Проценты с 1 знаком.</li> <li>Отсортируй по revenue_%.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>rfm = df.groupby(&#34;customer_id&#34;).agg(last=(&#34;order_date&#34;, &#34;max&#34;), frequency=(&#34;order_id&#34;, &#34;count&#34;), monetary=(&#34;amount&#34;, &#34;sum&#34;))
+rfm[&#34;recency&#34;] = (today - rfm[&#34;last&#34;]).dt.days
+rfm[&#34;R&#34;] = pd.qcut(rfm[&#34;recency&#34;], 3, labels=[3, 2, 1]).astype(int)
+rfm[&#34;F&#34;] = pd.cut(rfm[&#34;frequency&#34;], [0, 1, 2, np.inf], labels=[1, 2, 3]).astype(int)
+rfm[&#34;segment&#34;] = np.select(
+    [(rfm[&#34;R&#34;] == 3) &amp; (rfm[&#34;F&#34;] == 3), rfm[&#34;F&#34;] == 3, (rfm[&#34;R&#34;] == 1) &amp; (rfm[&#34;F&#34;] &gt;= 2), (rfm[&#34;R&#34;] == 3) &amp; (rfm[&#34;F&#34;] == 1)],
+    [&#34;Чемпионы&#34;, &#34;Лояльные&#34;, &#34;Уходящие&#34;, &#34;Новые&#34;], default=&#34;Остальные&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">seg = (
+    rfm
+    # твой код
+)
+seg
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           clients  clients_%  revenue_%  avg_monetary
+segment
+Лояльные       229       35.2       52.4      11659415
+Чемпионы       112       17.2       26.9      12231902
+Остальные      221       34.0       15.3       3524285
+Уходящие        38        5.8        3.6       4765553
+Новые           50        7.7        1.8       1860740</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>seg = (
+    rfm
+    # твой код
+)
+seg
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> По сегменту: сколько клиентов, сколько денег и средняя сумма. Доли считаются от итога этой же таблицы.</p>
+<p><b>Чем это сделать.</b> <code class="i">.agg(clients=("monetary", "size"), revenue=("monetary", "sum"), avg_monetary=("monetary", "mean"))</code>. Имя колонки со знаком % задаётся так: <code class="i">.assign(**{"clients_%": lambda d: ...})</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>seg = (
+    rfm
+    .groupby(&#34;segment&#34;)
+    .agg(clients=(&#34;monetary&#34;, &#34;___&#34;), revenue=(&#34;monetary&#34;, &#34;___&#34;), avg_monetary=(&#34;monetary&#34;, &#34;___&#34;))
+    .assign(**{&#34;clients_%&#34;: lambda d: (d[&#34;clients&#34;] / d[&#34;clients&#34;].sum() * 100).round(1),
+               &#34;revenue_%&#34;: lambda d: (d[&#34;___&#34;] / d[&#34;___&#34;].sum() * 100).round(1),
+               &#34;avg_monetary&#34;: lambda d: d[&#34;avg_monetary&#34;].round(0).astype(int)})
+    [[&#34;clients&#34;, &#34;clients_%&#34;, &#34;revenue_%&#34;, &#34;avg_monetary&#34;]]
+    .sort_values(&#34;revenue_%&#34;, ascending=False)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">assign(clients_%=...)</code> не сработает: знак % нельзя писать в имени аргумента. Поэтому словарь со звёздочками.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>ABC-анализ товаров</h3>
+            <ol class='steps-t'><li>Выручка по товарам, от большей к меньшей → <code class='i'>prod</code>.</li> <li>Накопленная доля → <code class='i'>cum</code>; класс: A до 80% включительно, B до 95%, иначе C.</li> <li>По классу: число товаров и доля выручки в %, 1 знак.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">prod =
+cum =
+abc = pd.DataFrame({&#34;revenue&#34;: prod, &#34;cls&#34;: np.where(cum &lt;= 0.8, &#34;A&#34;, np.where(cum &lt;= 0.95, &#34;B&#34;, &#34;C&#34;))})
+
+# число товаров и доля выручки по классу
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">     products  revenue_pct
+cls
+A          14         79.7
+B          29         15.1
+C          37          5.2</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>prod =
+cum =
+abc = pd.DataFrame({&#34;revenue&#34;: prod, &#34;cls&#34;: np.where(cum &lt;= 0.8, &#34;A&#34;, np.where(cum &lt;= 0.95, &#34;B&#34;, &#34;C&#34;))})
+
+# число товаров и доля выручки по классу
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> ABC — товары по убыванию выручки и накопленная доля: первые товары, дающие 80% денег, — класс A, следующие до 95% — B, остальные — C. Таблица abc уже собирается в заготовке, тебе нужны prod, cum и итоговая сводка.</p>
+<p><b>Чем это сделать.</b> <code class="i">prod.cumsum() / prod.sum()</code> — накопленная доля. Сводка: <code class="i">abc.groupby("cls").agg(products=("revenue", "size"), revenue=("revenue", "sum"))</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>prod = df.groupby(&#34;___&#34;)[&#34;amount&#34;].sum().sort_values(ascending=___)
+cum = prod.___() / prod.sum()
+(abc.groupby(&#34;cls&#34;)
+    .agg(products=(&#34;revenue&#34;, &#34;___&#34;), revenue=(&#34;revenue&#34;, &#34;___&#34;))
+    .assign(revenue_pct=lambda d: (d[&#34;revenue&#34;] / d[&#34;revenue&#34;].sum() * 100).round(1))
+    [[&#34;products&#34;, &#34;revenue_pct&#34;]])</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без сортировки по убыванию накопленная доля не имеет смысла: класс A должен состоять из самых больших товаров.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сводка для коммерческого директора</h3>
+            <p>Series <code class='i'>summary</code>:</p> <ol class='steps-t'><li><code class='i'>champions</code> — число чемпионов, <code class='i'>champions_revenue_%</code> — их доля выручки (1 знак);</li> <li><code class='i'>leaving</code> — число уходящих, <code class='i'>leaving_revenue_mln</code> — сколько они принесли за год, млн (1 знак);</li> <li><code class='i'>a_products</code> — число товаров A, <code class='i'>a_products_%</code> — их доля от всех товаров (1 знак).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>rfm = df.groupby(&#34;customer_id&#34;).agg(last=(&#34;order_date&#34;, &#34;max&#34;), frequency=(&#34;order_id&#34;, &#34;count&#34;), monetary=(&#34;amount&#34;, &#34;sum&#34;))
+rfm[&#34;recency&#34;] = (today - rfm[&#34;last&#34;]).dt.days
+rfm[&#34;R&#34;] = pd.qcut(rfm[&#34;recency&#34;], 3, labels=[3, 2, 1]).astype(int)
+rfm[&#34;F&#34;] = pd.cut(rfm[&#34;frequency&#34;], [0, 1, 2, np.inf], labels=[1, 2, 3]).astype(int)
+rfm[&#34;segment&#34;] = np.select(
+    [(rfm[&#34;R&#34;] == 3) &amp; (rfm[&#34;F&#34;] == 3), rfm[&#34;F&#34;] == 3, (rfm[&#34;R&#34;] == 1) &amp; (rfm[&#34;F&#34;] &gt;= 2), (rfm[&#34;R&#34;] == 3) &amp; (rfm[&#34;F&#34;] == 1)],
+    [&#34;Чемпионы&#34;, &#34;Лояльные&#34;, &#34;Уходящие&#34;, &#34;Новые&#34;], default=&#34;Остальные&#34;)
+prod = df.groupby(&#34;product&#34;)[&#34;amount&#34;].sum().sort_values(ascending=False)
+cum = prod.cumsum() / prod.sum()</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">total = rfm[&#34;monetary&#34;].sum()
+summary = pd.Series({
+    &#34;champions&#34;: ...,
+    # продолжи
+})
+summary
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">champions              112.0
+champions_revenue_%     26.9
+leaving                 38.0
+leaving_revenue_mln    181.1
+a_products              14.0
+a_products_%            17.5
+dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>total = rfm[&#34;monetary&#34;].sum()
+summary = pd.Series({
+    &#34;champions&#34;: ...,
+    # продолжи
+})
+summary
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Шесть чисел из уже готовых таблиц: маски сегментов в rfm и накопленная доля cum. Количество — сумма маски, доля — сумма денег сегмента / общая сумма.</p>
+<p><b>Чем это сделать.</b> <code class="i">champ = rfm["segment"] == "Чемпионы"</code>, <code class="i">champ.sum()</code> — сколько. <code class="i">rfm.loc[champ, "monetary"].sum()</code> — их деньги. Товары A: <code class="i">(cum <= 0.8)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>champ = rfm[&#34;segment&#34;] == &#34;___&#34;
+leaving = rfm[&#34;segment&#34;] == &#34;___&#34;
+summary = pd.Series({
+    &#34;champions&#34;: champ.sum(),
+    &#34;champions_revenue_%&#34;: round(rfm.loc[champ, &#34;monetary&#34;].sum() / ___ * 100, 1),
+    &#34;leaving&#34;: ___,
+    &#34;leaving_revenue_mln&#34;: round(rfm.loc[leaving, &#34;monetary&#34;].sum() / ___, 1),
+    &#34;a_products&#34;: (cum &lt;= 0.8).___(),
+    &#34;a_products_%&#34;: round((cum &lt;= 0.8).___() * 100, 1),
+})</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Доля товаров A — это среднее маски (от числа товаров), а не доля выручки.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Рустаму</h2>
+      <div class="case">
+        <p>Напиши ответ Рустаму. Не больше 6 предложений. Структура: <b>кто самые ценные клиенты (доля клиентов и денег) → кого срочно возвращать и сколько они приносили → что делать менеджеру с каждым из этих сегментов → какие товары держать на складе всегда (ABC) → 1 оговорка</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Чемпионы: доля клиентов</span><span class="fact-chip">Чемпионы: доля выручки</span><span class="fact-chip">Уходящих клиентов</span><span class="fact-chip">Товаров класса A</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Рустам, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Кто, по твоему ответу, самые ценные клиенты?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Чемпионы: их немного, но они дают непропорционально большую долю денег</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Новые клиенты</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Все клиенты одинаково ценные</span></button></div>
+            <div class="why" hidden>17,2% клиентов дают 26,9% выручки.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что делать с «Уходящими»?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Срочно возвращать персональным предложением: они покупали не раз и принесли много денег</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Забыть: они уже ушли</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Звонить им первыми с благодарностью, как чемпионам</span></button></div>
+            <div class="why" hidden>38 клиентов, которые покупали больше одного раза, но давно пропали, принесли 181,1 млн сум.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Какие товары держать на складе всегда?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Товары группы A — небольшая часть ассортимента, которая даёт 80% выручки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Все товары поровну</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Товары группы C</span></button></div>
+            <div class="why" hidden>14 товаров из 80 дают 80% денег — их отсутствие на складе обходится дороже всего.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Рустам, привет! Самые ценные — «Чемпионы»: это 17,2% клиентов, но 26,9% выручки — им менеджер звонит первым: благодарит и предлагает новинки. Срочно возвращать нужно «Уходящих»: 38 клиентов покупали больше одного раза, но давно пропали, а принесли 181,1 млн сум — им нужно персональное предложение. «Новым» (50 клиентов) — довести до второй покупки. По складу: 14 товаров из 80 дают 80% выручки (группа A) — их держим в наличии всегда. Оговорка: мебель покупают редко, поэтому даже лучшие клиенты могут не покупать по полгода — сегменты стоит пересчитывать раз в квартал.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Чемпионы: доля клиентов и доля денег рядом</li><li>Уходящие: сколько их и сколько они приносили</li><li>Для каждого сегмента — конкретное действие</li><li>ABC: сколько товаров дают 80% выручки</li><li>Оговорка про редкие покупки мебели</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 23</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/22-ab-test/"><small>← Урок 22</small><b>A/B-тест в pandas: от сырых данных до решения</b></a><a class="nx" href="../../lessons/24-vektorizaciya/"><small>Урок 24 →</small><b>Скорость: векторизация вместо циклов и apply</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u044b: \u0434\u043e\u043b\u044f \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432", "pct": true, "value": 17.2}, {"name": "\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u044b: \u0434\u043e\u043b\u044f \u0432\u044b\u0440\u0443\u0447\u043a\u0438", "pct": true, "value": 26.9}, {"name": "\u0423\u0445\u043e\u0434\u044f\u0449\u0438\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432", "value": 38}, {"name": "\u0422\u043e\u0432\u0430\u0440\u043e\u0432 \u043a\u043b\u0430\u0441\u0441\u0430 A", "value": 14}], "logic": [{"a": 0, "o": ["\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u044b: \u0438\u0445 \u043d\u0435\u043c\u043d\u043e\u0433\u043e, \u043d\u043e \u043e\u043d\u0438 \u0434\u0430\u044e\u0442 \u043d\u0435\u043f\u0440\u043e\u043f\u043e\u0440\u0446\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u043e \u0431\u043e\u043b\u044c\u0448\u0443\u044e \u0434\u043e\u043b\u044e \u0434\u0435\u043d\u0435\u0433", "\u041d\u043e\u0432\u044b\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b", "\u0412\u0441\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u043e \u0446\u0435\u043d\u043d\u044b\u0435"], "q": "\u041a\u0442\u043e, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0441\u0430\u043c\u044b\u0435 \u0446\u0435\u043d\u043d\u044b\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b?", "why": "17,2% \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0434\u0430\u044e\u0442 26,9% \u0432\u044b\u0440\u0443\u0447\u043a\u0438."}, {"a": 0, "o": ["\u0421\u0440\u043e\u0447\u043d\u043e \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0442\u044c \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u043c \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435\u043c: \u043e\u043d\u0438 \u043f\u043e\u043a\u0443\u043f\u0430\u043b\u0438 \u043d\u0435 \u0440\u0430\u0437 \u0438 \u043f\u0440\u0438\u043d\u0435\u0441\u043b\u0438 \u043c\u043d\u043e\u0433\u043e \u0434\u0435\u043d\u0435\u0433", "\u0417\u0430\u0431\u044b\u0442\u044c: \u043e\u043d\u0438 \u0443\u0436\u0435 \u0443\u0448\u043b\u0438", "\u0417\u0432\u043e\u043d\u0438\u0442\u044c \u0438\u043c \u043f\u0435\u0440\u0432\u044b\u043c\u0438 \u0441 \u0431\u043b\u0430\u0433\u043e\u0434\u0430\u0440\u043d\u043e\u0441\u0442\u044c\u044e, \u043a\u0430\u043a \u0447\u0435\u043c\u043f\u0438\u043e\u043d\u0430\u043c"], "q": "\u0427\u0442\u043e \u0434\u0435\u043b\u0430\u0442\u044c \u0441 \u00ab\u0423\u0445\u043e\u0434\u044f\u0449\u0438\u043c\u0438\u00bb?", "why": "38 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432, \u043a\u043e\u0442\u043e\u0440\u044b\u0435 \u043f\u043e\u043a\u0443\u043f\u0430\u043b\u0438 \u0431\u043e\u043b\u044c\u0448\u0435 \u043e\u0434\u043d\u043e\u0433\u043e \u0440\u0430\u0437\u0430, \u043d\u043e \u0434\u0430\u0432\u043d\u043e \u043f\u0440\u043e\u043f\u0430\u043b\u0438, \u043f\u0440\u0438\u043d\u0435\u0441\u043b\u0438 181,1 \u043c\u043b\u043d \u0441\u0443\u043c."}, {"a": 0, "o": ["\u0422\u043e\u0432\u0430\u0440\u044b \u0433\u0440\u0443\u043f\u043f\u044b A \u2014 \u043d\u0435\u0431\u043e\u043b\u044c\u0448\u0430\u044f \u0447\u0430\u0441\u0442\u044c \u0430\u0441\u0441\u043e\u0440\u0442\u0438\u043c\u0435\u043d\u0442\u0430, \u043a\u043e\u0442\u043e\u0440\u0430\u044f \u0434\u0430\u0451\u0442 80% \u0432\u044b\u0440\u0443\u0447\u043a\u0438", "\u0412\u0441\u0435 \u0442\u043e\u0432\u0430\u0440\u044b \u043f\u043e\u0440\u043e\u0432\u043d\u0443", "\u0422\u043e\u0432\u0430\u0440\u044b \u0433\u0440\u0443\u043f\u043f\u044b C"], "q": "\u041a\u0430\u043a\u0438\u0435 \u0442\u043e\u0432\u0430\u0440\u044b \u0434\u0435\u0440\u0436\u0430\u0442\u044c \u043d\u0430 \u0441\u043a\u043b\u0430\u0434\u0435 \u0432\u0441\u0435\u0433\u0434\u0430?", "why": "14 \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u0438\u0437 80 \u0434\u0430\u044e\u0442 80% \u0434\u0435\u043d\u0435\u0433 \u2014 \u0438\u0445 \u043e\u0442\u0441\u0443\u0442\u0441\u0442\u0432\u0438\u0435 \u043d\u0430 \u0441\u043a\u043b\u0430\u0434\u0435 \u043e\u0431\u0445\u043e\u0434\u0438\u0442\u0441\u044f \u0434\u043e\u0440\u043e\u0436\u0435 \u0432\u0441\u0435\u0433\u043e."}]}, "case_model": "\u0420\u0443\u0441\u0442\u0430\u043c, \u043f\u0440\u0438\u0432\u0435\u0442! \u0421\u0430\u043c\u044b\u0435 \u0446\u0435\u043d\u043d\u044b\u0435 \u2014 \u00ab\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u044b\u00bb: \u044d\u0442\u043e 17,2% \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432, \u043d\u043e 26,9% \u0432\u044b\u0440\u0443\u0447\u043a\u0438 \u2014 \u0438\u043c \u043c\u0435\u043d\u0435\u0434\u0436\u0435\u0440 \u0437\u0432\u043e\u043d\u0438\u0442 \u043f\u0435\u0440\u0432\u044b\u043c: \u0431\u043b\u0430\u0433\u043e\u0434\u0430\u0440\u0438\u0442 \u0438 \u043f\u0440\u0435\u0434\u043b\u0430\u0433\u0430\u0435\u0442 \u043d\u043e\u0432\u0438\u043d\u043a\u0438. \u0421\u0440\u043e\u0447\u043d\u043e \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0442\u044c \u043d\u0443\u0436\u043d\u043e \u00ab\u0423\u0445\u043e\u0434\u044f\u0449\u0438\u0445\u00bb: 38 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043f\u043e\u043a\u0443\u043f\u0430\u043b\u0438 \u0431\u043e\u043b\u044c\u0448\u0435 \u043e\u0434\u043d\u043e\u0433\u043e \u0440\u0430\u0437\u0430, \u043d\u043e \u0434\u0430\u0432\u043d\u043e \u043f\u0440\u043e\u043f\u0430\u043b\u0438, \u0430 \u043f\u0440\u0438\u043d\u0435\u0441\u043b\u0438 181,1 \u043c\u043b\u043d \u0441\u0443\u043c \u2014 \u0438\u043c \u043d\u0443\u0436\u043d\u043e \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u044c\u043d\u043e\u0435 \u043f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435. \u00ab\u041d\u043e\u0432\u044b\u043c\u00bb (50 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432) \u2014 \u0434\u043e\u0432\u0435\u0441\u0442\u0438 \u0434\u043e \u0432\u0442\u043e\u0440\u043e\u0439 \u043f\u043e\u043a\u0443\u043f\u043a\u0438. \u041f\u043e \u0441\u043a\u043b\u0430\u0434\u0443: 14 \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u0438\u0437 80 \u0434\u0430\u044e\u0442 80% \u0432\u044b\u0440\u0443\u0447\u043a\u0438 (\u0433\u0440\u0443\u043f\u043f\u0430 A) \u2014 \u0438\u0445 \u0434\u0435\u0440\u0436\u0438\u043c \u0432 \u043d\u0430\u043b\u0438\u0447\u0438\u0438 \u0432\u0441\u0435\u0433\u0434\u0430. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u043c\u0435\u0431\u0435\u043b\u044c \u043f\u043e\u043a\u0443\u043f\u0430\u044e\u0442 \u0440\u0435\u0434\u043a\u043e, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0434\u0430\u0436\u0435 \u043b\u0443\u0447\u0448\u0438\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u043c\u043e\u0433\u0443\u0442 \u043d\u0435 \u043f\u043e\u043a\u0443\u043f\u0430\u0442\u044c \u043f\u043e \u043f\u043e\u043b\u0433\u043e\u0434\u0430 \u2014 \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u044b \u0441\u0442\u043e\u0438\u0442 \u043f\u0435\u0440\u0435\u0441\u0447\u0438\u0442\u044b\u0432\u0430\u0442\u044c \u0440\u0430\u0437 \u0432 \u043a\u0432\u0430\u0440\u0442\u0430\u043b.", "case_xp": 30, "cheat": [["(today - rfm[\"last\"]).dt.days", "Recency \u0432 \u0434\u043d\u044f\u0445"], ["pd.qcut(s, 3, labels=[3, 2, 1])", "\u0442\u0440\u0435\u0442\u0438 \u043f\u043e \u043a\u043e\u043b\u0438\u0447\u0435\u0441\u0442\u0432\u0443"], ["pd.cut(s, [0, 1, 2, np.inf], labels=[1, 2, 3])", "\u0433\u0440\u0443\u043f\u043f\u044b \u043f\u043e \u0441\u0432\u043e\u0438\u043c \u0433\u0440\u0430\u043d\u0438\u0446\u0430\u043c"], ["np.select([\u0443\u0441\u043b1, \u0443\u0441\u043b2], [\"\u0438\u043c\u044f1\", \"\u0438\u043c\u044f2\"], default=\"\u043f\u0440\u043e\u0447\u0438\u0435\")", "\u0438\u043c\u0435\u043d\u0430 \u0441\u0435\u0433\u043c\u0435\u043d\u0442\u043e\u0432"], ["prod.sort_values(ascending=False).cumsum() / prod.sum()", "\u043d\u0430\u043a\u043e\u043f\u043b\u0435\u043d\u043d\u0430\u044f \u0434\u043e\u043b\u044f"], ["np.where(cum \u003c= 0.8, \"A\", np.where(cum \u003c= 0.95, \"B\", \"C\"))", "\u043a\u043b\u0430\u0441\u0441\u044b ABC"]], "data": "../../data/", "datasets": ["mebel_orders.csv"], "day": 23, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"mebel_orders.csv\", parse_dates=[\"order_date\"])\ntoday = pd.Timestamp(\"2026-10-01\")", "tasks": [{"figure": false, "id": "t1", "keys": ["recency frequency monetary", "count 650.0 650.0 650.0", "mean 81.0 3.0 7835345.0", "std 70.0 3.0 6887114.0", "25% 26.0 1.0 2780000.0", "50% 63.0 3.0 6178500.0", "75% 114.0 5.0 10603750.0", "max 273.0 18.0 50385000.0"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["1 166", "2 143", "3 97", "4 77", "5 167"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["F 1 2 3", "R", "1 62 38 117", "2 54 47 112", "3 50 58 112"], "setup": "rfm = df.groupby(\"customer_id\").agg(last=(\"order_date\", \"max\"), frequency=(\"order_id\", \"count\"), monetary=(\"amount\", \"sum\"))\nrfm[\"recency\"] = (today - rfm[\"last\"]).dt.days", "xp": 15}, {"figure": false, "id": "t4", "keys": ["segment", "\u041b\u043e\u044f\u043b\u044c\u043d\u044b\u0435 229", "\u041e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0435 221", "\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u044b 112", "\u041d\u043e\u0432\u044b\u0435 50", "\u0423\u0445\u043e\u0434\u044f\u0449\u0438\u0435 38"], "setup": "rfm = df.groupby(\"customer_id\").agg(last=(\"order_date\", \"max\"), frequency=(\"order_id\", \"count\"), monetary=(\"amount\", \"sum\"))\nrfm[\"recency\"] = (today - rfm[\"last\"]).dt.days\nrfm[\"R\"] = pd.qcut(rfm[\"recency\"], 3, labels=[3, 2, 1]).astype(int)\nrfm[\"F\"] = pd.cut(rfm[\"frequency\"], [0, 1, 2, np.inf], labels=[1, 2, 3]).astype(int)", "xp": 15}, {"figure": false, "id": "t5", "keys": ["clients clients_% revenue_% avg_monetary", "segment", "\u041b\u043e\u044f\u043b\u044c\u043d\u044b\u0435 229 35.2 52.4 11659415", "\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u044b 112 17.2 26.9 12231902", "\u041e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0435 221 34.0 15.3 3524285", "\u0423\u0445\u043e\u0434\u044f\u0449\u0438\u0435 38 5.8 3.6 4765553", "\u041d\u043e\u0432\u044b\u0435 50 7.7 1.8 1860740"], "setup": "rfm = df.groupby(\"customer_id\").agg(last=(\"order_date\", \"max\"), frequency=(\"order_id\", \"count\"), monetary=(\"amount\", \"sum\"))\nrfm[\"recency\"] = (today - rfm[\"last\"]).dt.days\nrfm[\"R\"] = pd.qcut(rfm[\"recency\"], 3, labels=[3, 2, 1]).astype(int)\nrfm[\"F\"] = pd.cut(rfm[\"frequency\"], [0, 1, 2, np.inf], labels=[1, 2, 3]).astype(int)\nrfm[\"segment\"] = np.select(\n    [(rfm[\"R\"] == 3) \u0026 (rfm[\"F\"] == 3), rfm[\"F\"] == 3, (rfm[\"R\"] == 1) \u0026 (rfm[\"F\"] \u003e= 2), (rfm[\"R\"] == 3) \u0026 (rfm[\"F\"] == 1)],\n    [\"\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u044b\", \"\u041b\u043e\u044f\u043b\u044c\u043d\u044b\u0435\", \"\u0423\u0445\u043e\u0434\u044f\u0449\u0438\u0435\", \"\u041d\u043e\u0432\u044b\u0435\"], default=\"\u041e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0435\")", "xp": 20}, {"figure": false, "id": "t6", "keys": ["products revenue_pct", "cls", "A 14 79.7", "B 29 15.1", "C 37 5.2"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["champions 112.0", "champions_revenue_% 26.9", "leaving 38.0", "leaving_revenue_mln 181.1", "a_products 14.0", "a_products_% 17.5"], "setup": "rfm = df.groupby(\"customer_id\").agg(last=(\"order_date\", \"max\"), frequency=(\"order_id\", \"count\"), monetary=(\"amount\", \"sum\"))\nrfm[\"recency\"] = (today - rfm[\"last\"]).dt.days\nrfm[\"R\"] = pd.qcut(rfm[\"recency\"], 3, labels=[3, 2, 1]).astype(int)\nrfm[\"F\"] = pd.cut(rfm[\"frequency\"], [0, 1, 2, np.inf], labels=[1, 2, 3]).astype(int)\nrfm[\"segment\"] = np.select(\n    [(rfm[\"R\"] == 3) \u0026 (rfm[\"F\"] == 3), rfm[\"F\"] == 3, (rfm[\"R\"] == 1) \u0026 (rfm[\"F\"] \u003e= 2), (rfm[\"R\"] == 3) \u0026 (rfm[\"F\"] == 1)],\n    [\"\u0427\u0435\u043c\u043f\u0438\u043e\u043d\u044b\", \"\u041b\u043e\u044f\u043b\u044c\u043d\u044b\u0435\", \"\u0423\u0445\u043e\u0434\u044f\u0449\u0438\u0435\", \"\u041d\u043e\u0432\u044b\u0435\"], default=\"\u041e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0435\")\nprod = df.groupby(\"product\")[\"amount\"].sum().sort_values(ascending=False)\ncum = prod.cumsum() / prod.sum()", "xp": 25}], "theory": ["brief", "rfm", "abc", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 17. Оконные функции в pandas — Pandas Sprint</title>
+<meta name="description" content="Урок 17 курса Pandas Sprint — Оконные функции в pandas. Ранги, накопительные суммы и номер покупки клиента.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/17-okonnye-funkcii/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 17. Оконные функции в pandas — Pandas Sprint">
+<meta property="og:description" content="Урок 17 курса Pandas Sprint — Оконные функции в pandas. Ранги, накопительные суммы и номер покупки клиента.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/17-okonnye-funkcii/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/">Программа</a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="17">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#window"><span class="dot">✓</span>Окно</a></li><li><a href="#rank"><span class="dot">✓</span>rank</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Оконные функции: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты писал оконные функции в SQL, вот соответствия.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>ROW_NUMBER() OVER (PARTITION BY customer_id ORDER BY order_date)</code></td><td><code>d.groupby(&#34;customer_id&#34;).cumcount() + 1</code></td><td>номер покупки</td></tr><tr><td><code>SUM(amount) OVER (PARTITION BY customer_id ORDER BY order_date)</code></td><td><code>d.groupby(&#34;customer_id&#34;)[&#34;amount&#34;].cumsum()</code></td><td>накопленная сумма</td></tr><tr><td><code>LAG(order_date) OVER (PARTITION BY customer_id ORDER BY order_date)</code></td><td><code>d.groupby(&#34;customer_id&#34;)[&#34;order_date&#34;].shift(1)</code></td><td>прошлый заказ</td></tr><tr><td><code>RANK() OVER (ORDER BY total DESC)</code></td><td><code>total.rank(ascending=False, method=&#34;min&#34;)</code></td><td>место в рейтинге</td></tr><tr><td><code>MIN(order_date) OVER (PARTITION BY customer_id)</code></td><td><code>d.groupby(&#34;customer_id&#34;)[&#34;order_date&#34;].transform(&#34;min&#34;)</code></td><td>первая покупка в каждой строке</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 17 из 30 · Неделя 3 · Время и метрики</div>
+      <h1><mark>Оконные функции</mark> в pandas</h1>
+      <p class="lead">Иногда нужно посчитать что-то не для группы целиком, а для каждой строки с учётом её соседей: какая это по счёту покупка клиента, сколько он потратил к этому моменту, сколько дней прошло с прошлого заказа. Такие расчёты называют оконными. Сегодня учимся делать их в pandas через groupby с cumcount, cumsum, shift и rank.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Понять, как часто клиенты книжного магазина Kitobxon возвращаются: номер покупки, интервал между заказами, накопленная сумма и рейтинг клиентов — чтобы маркетинг знал, когда напоминать о себе.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Нумеровать покупки каждого клиента через <code class="i">groupby().cumcount()</code></li><li>Считать накопленную сумму <code class="i">cumsum</code> и место в рейтинге <code class="i">rank</code></li><li>Находить прошлый заказ клиента через <code class="i">groupby().shift()</code> и считать дни между заказами</li><li>Отличать «сжать группу» (agg) от «посчитать для каждой строки» (окно)</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Когда напоминать клиентам о себе</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Ш</span>Шахло <small>маркетолог Kitobxon · 14:10</small></div>
+          <p>Привет! Хотим запустить рассылку «вернись за новой книгой». Но не понимаем, когда её отправлять: через неделю после покупки, через месяц? И сколько клиентов вообще покупают больше одного раза?</p>
+<div class="file">▤ kitobxon_orders.csv · заказы с января</div>        </div>
+      </div>
+      <p class="note">Kitobxon — учебный книжный магазин, данные сгенерированы. В файле каждая строка — заказ: клиент, дата, категория книги, сумма. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/kitobxon_orders.csv" download>Скачать kitobxon_orders.csv</a><span class="note">2 072 заказа · 102 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;kitobxon_orders.csv&#34;, parse_dates=[&#34;order_date&#34;])</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="window">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Сжать группу или посчитать для каждой строки</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь очередь в кассу. Можно спросить «сколько всего человек в очереди» — это один ответ на всю группу (так работает <code class="i">agg</code>). А можно каждому раздать номерок: «ты первый, ты второй…». Номерок — это ответ <b>для каждой строки</b>, и он зависит от соседей. Так работают оконные функции.</p>
+  <ul>
+    <li><b>cumcount()</b> — «какой ты по счёту в своей группе», считает с 0, поэтому прибавляют 1.</li>
+    <li><b>cumsum()</b> — «сколько набежало к этому моменту»: накопленная сумма.</li>
+    <li><b>shift(1)</b> — «что было в предыдущей строке»: в группе клиента — его прошлый заказ.</li>
+    <li><b>rank()</b> — «какое у тебя место»: 1 — самый большой (если ascending=False).</li>
+    <li>Важно: перед окнами строки нужно <b>отсортировать</b>, иначе «прошлый заказ» окажется случайным.</li>
+  </ul>
+</div>
+<div class="simple"><span class="tag">Три способа посчитать по группам — в чём разница</span>
+  <div class="scroll"><table class="mini">
+    <tr><th>Приём</th><th>Сколько строк в ответе</th><th>Пример вопроса</th></tr>
+    <tr><td>agg (урок 8)</td><td>одна на группу</td><td>«сколько всего потратил клиент?»</td></tr>
+    <tr><td>transform (урок 9)</td><td>как в таблице; у всех строк группы одно и то же число</td><td>«какая средняя сумма у клиента этого заказа?»</td></tr>
+    <tr><td>оконные функции</td><td>как в таблице; у каждой строки своё число</td><td>«какой это заказ клиента по счёту?», «сколько дней прошло с прошлого?»</td></tr>
+  </table></div>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Все окна на игрушечном примере.</b> Два клиента, 5 заказов — смотри, как считается каждая колонка.</div><pre class="code" data-cm>toy = pd.DataFrame({
+    &quot;клиент&quot;: [&quot;Анвар&quot;, &quot;Анвар&quot;, &quot;Анвар&quot;, &quot;Лола&quot;, &quot;Лола&quot;],
+    &quot;дата&quot;: pd.to_datetime([&quot;2026-03-01&quot;, &quot;2026-03-10&quot;, &quot;2026-04-02&quot;, &quot;2026-03-05&quot;, &quot;2026-03-20&quot;]),
+    &quot;сумма&quot;: [100, 50, 200, 80, 80],
+})
+g = toy.groupby(&quot;клиент&quot;)
+toy.assign(
+    номер=g.cumcount() + 1,
+    накоплено=g[&quot;сумма&quot;].cumsum(),
+    прошлая_дата=g[&quot;дата&quot;].shift(1),
+    дней_с_прошлой=(toy[&quot;дата&quot;] - g[&quot;дата&quot;].shift(1)).dt.days,
+    место_по_сумме=g[&quot;сумма&quot;].rank(ascending=False, method=&quot;min&quot;).astype(int),
+)</pre><div class="out">  клиент       дата  сумма  номер  накоплено прошлая_дата  дней_с_прошлой  место_по_сумме
+0  Анвар 2026-03-01    100      1        100          NaT             NaN               2
+1  Анвар 2026-03-10     50      2        150   2026-03-01             9.0               3
+2  Анвар 2026-04-02    200      3        350   2026-03-10            23.0               1
+3   Лола 2026-03-05     80      1         80          NaT             NaN               1
+4   Лола 2026-03-20     80      2        160   2026-03-05            15.0               1</div><p class="plain"><b>Простыми словами:</b> у Анвара номера 1, 2, 3, у Лолы счёт начинается заново. «накоплено» растёт: 100 → 150 → 350. «прошлая_дата» — дата предыдущей строки того же клиента, у первой покупки её нет (NaT). «место_по_сумме»: у Анвара 200 — место 1. У Лолы обе суммы по 80, и с method="min" обе получают место 1.</p></div>
+<div class="card"><div class="q"><b>2. Номер покупки клиента.</b> То же самое на настоящих данных.</div><pre class="code" data-cm>d = df.sort_values([&quot;customer_id&quot;, &quot;order_date&quot;]).copy()
+d[&quot;order_n&quot;] = d.groupby(&quot;customer_id&quot;).cumcount() + 1
+d[[&quot;customer_id&quot;, &quot;order_date&quot;, &quot;amount&quot;, &quot;order_n&quot;]].head(6)</pre><div class="out">      customer_id order_date  amount  order_n
+25          10001 2026-01-06  122000        1
+463         10001 2026-03-16   73000        2
+525         10002 2026-03-25  142000        1
+1257        10003 2026-06-09  145000        1
+1687        10003 2026-07-22   53000        2
+696         10004 2026-04-15   98000        1</div><p class="plain"><b>Простыми словами:</b> у клиента 10001 два заказа — номерки 1 и 2. У клиента 10002 один заказ, у 10003 снова счёт с 1: для каждого клиента нумерация начинается заново.</p></div>
+<div class="card"><div class="q"><b>3. Накопленная сумма клиента.</b></div><pre class="code" data-cm>d[&quot;spent_so_far&quot;] = d.groupby(&quot;customer_id&quot;)[&quot;amount&quot;].cumsum()
+d[[&quot;customer_id&quot;, &quot;amount&quot;, &quot;spent_so_far&quot;]].head(6)</pre><div class="out">      customer_id  amount  spent_so_far
+25          10001  122000        122000
+463         10001   73000        195000
+525         10002  142000        142000
+1257        10003  145000        145000
+1687        10003   53000        198000
+696         10004   98000         98000</div><p class="plain"><b>Простыми словами:</b> в каждой строке — сколько клиент потратил к моменту этого заказа включительно.</p></div>
+<div class="card"><div class="q"><b>4. Дни с прошлого заказа.</b></div><pre class="code" data-cm>d[&quot;prev_date&quot;] = d.groupby(&quot;customer_id&quot;)[&quot;order_date&quot;].shift(1)
+d[&quot;gap&quot;] = (d[&quot;order_date&quot;] - d[&quot;prev_date&quot;]).dt.days
+d[[&quot;customer_id&quot;, &quot;order_date&quot;, &quot;prev_date&quot;, &quot;gap&quot;]].head(6)</pre><div class="out">      customer_id order_date  prev_date   gap
+25          10001 2026-01-06        NaT   NaN
+463         10001 2026-03-16 2026-01-06  69.0
+525         10002 2026-03-25        NaT   NaN
+1257        10003 2026-06-09        NaT   NaN
+1687        10003 2026-07-22 2026-06-09  43.0
+696         10004 2026-04-15        NaT   NaN</div><p class="plain"><b>Простыми словами:</b> у первого заказа клиента прошлого нет — там NaT и NaN. У остальных — сколько дней прошло с предыдущей покупки.</p></div>
+<div class="card"><div class="q"><b>5. Почему без сортировки нельзя.</b> Тот же расчёт, но строки перемешаны.</div><pre class="code" data-cm>mixed = df.sample(frac=1, random_state=1)
+wrong = (mixed[&quot;order_date&quot;] - mixed.groupby(&quot;customer_id&quot;)[&quot;order_date&quot;].shift(1)).dt.days
+print(&quot;отрицательных промежутков:&quot;, (wrong &lt; 0).sum())
+print(&quot;после сортировки:&quot;, (d[&quot;gap&quot;] &lt; 0).sum())</pre><div class="out">отрицательных промежутков: 665
+после сортировки: 0</div><p class="plain"><b>Простыми словами:</b> shift(1) берёт <b>строку выше</b>, а не «прошлую по дате». Если строки не отсортированы, выше может оказаться более поздний заказ — и получаются «минус 40 дней». Поэтому окна всегда начинаются с sort_values по клиенту и дате.</p></div></div>
+    </section>
+    <section id="rank">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Рейтинги и сравнение с собой</h2>
+      <div class="cards"><div class="card"><div class="q"><b>6. Место клиента по сумме покупок.</b></div><pre class="code" data-cm>total = d.groupby(&quot;customer_id&quot;)[&quot;amount&quot;].sum()
+top = total.to_frame(&quot;total&quot;).assign(place=total.rank(ascending=False, method=&quot;min&quot;).astype(int))
+top.sort_values(&quot;place&quot;).head(5)</pre><div class="out">               total  place
+customer_id
+10297        1170000      1
+10157        1162000      2
+10193        1154000      3
+10235        1139000      4
+10212        1134000      5</div><p class="plain"><b>Простыми словами:</b> rank(ascending=False) даёт место 1 самому большому. method="min" — при равных суммах у клиентов одинаковое место.</p></div>
+<div class="card"><div class="q"><b>7. Самый дорогой заказ внутри каждой категории.</b></div><pre class="code" data-cm>d[&quot;rank_in_cat&quot;] = d.groupby(&quot;category&quot;)[&quot;amount&quot;].rank(ascending=False, method=&quot;first&quot;)
+d[d[&quot;rank_in_cat&quot;] == 1][[&quot;category&quot;, &quot;order_id&quot;, &quot;amount&quot;]].sort_values(&quot;amount&quot;, ascending=False)</pre><div class="out">            category  order_id  amount
+640   Художественная     70641  646000
+1333         Детская     71334  573000
+464          Учебная     70465  455000
+2003          Бизнес     72004  431000</div><p class="plain"><b>Простыми словами:</b> rank внутри группы: в каждой категории своё место 1. Так находят «топ-N в каждой группе».</p></div>
+<div class="card"><div class="q"><b>8. Два приёма для задач: clip и first.</b></div><pre class="code" data-cm>print(d[&quot;order_n&quot;].clip(upper=3).value_counts().sort_index())
+first = d.groupby(&quot;customer_id&quot;).agg(first_cat=(&quot;category&quot;, &quot;first&quot;), orders=(&quot;order_id&quot;, &quot;count&quot;))
+first.head(3)</pre><div class="out">order_n
+1    700
+2    617
+3    755
+Name: count, dtype: int64
+                  first_cat  orders
+customer_id
+10001                Бизнес       2
+10002        Художественная       1
+10003        Художественная       2</div><p class="plain"><b>Простыми словами:</b> <code class="i">clip(upper=3)</code> превращает все номера больше 3 в 3: получается группа «3-я покупка и дальше», и редкие поздние покупки не дробят таблицу на много маленьких групп. <code class="i">("category", "first")</code> в agg берёт первое значение в группе — после сортировки по дате это категория <b>первой</b> покупки клиента.</p></div></div>
+<div class="callout"><b>Правило аналитика.</b> Интервалы между покупками смотри медианой и квартилями, а не средним: несколько клиентов, вернувшихся через полгода, сильно тянут среднее вверх.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Четыре ловушки окон</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Окно без сортировки</h3><div class="bad">df.groupby(&#34;customer_id&#34;).cumcount()   # порядок строк случайный</div><div class="good">df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;]).groupby(&#34;customer_id&#34;).cumcount()</div><p>cumcount, cumsum и shift идут по строкам в том порядке, в каком они лежат. Сначала сортируй по клиенту и дате.</p></div>
+        <div class="trap"><span class="n">2</span><h3>shift без groupby</h3><div class="bad">d[&#34;order_date&#34;].shift(1)   # «прошлый заказ» другого клиента</div><div class="good">d.groupby(&#34;customer_id&#34;)[&#34;order_date&#34;].shift(1)</div><p>Без groupby первая покупка клиента получит дату последнего заказа предыдущего клиента — интервал будет бессмысленным.</p></div>
+        <div class="trap"><span class="n">3</span><h3>cumcount с нуля</h3><p>cumcount считает 0, 1, 2… Чтобы первая покупка была «1», прибавь 1.</p></div>
+        <div class="trap"><span class="n">4</span><h3>rank по умолчанию — от меньшего</h3><p><code class="i">rank()</code> даёт место 1 самому маленькому значению. Для рейтинга «кто больше потратил» нужно <code class="i">ascending=False</code>.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: оконные функции</h3>
+        <ol><li>d = df.sort_values([&#34;id&#34;, &#34;date&#34;]) <span>— сначала сортировка</span></li><li>d.groupby(&#34;id&#34;).cumcount() + 1 <span>— номер строки в группе</span></li><li>d.groupby(&#34;id&#34;)[&#34;x&#34;].cumsum() <span>— накопленная сумма</span></li><li>d.groupby(&#34;id&#34;)[&#34;date&#34;].shift(1) <span>— прошлое значение в группе</span></li><li>(d[&#34;date&#34;] - d[&#34;prev&#34;]).dt.days <span>— дни между событиями</span></li><li>s.rank(ascending=False, method=&#34;min&#34;) <span>— место, 1 — самый большой</span></li><li>d.groupby(&#34;id&#34;)[&#34;date&#34;].transform(&#34;min&#34;) <span>— первая дата в каждой строке</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что вернёт <code>groupby("customer_id").cumcount()</code> для первого заказа клиента?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>1</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>0</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Число заказов клиента</span></button></div>
+          <div class="why" hidden>cumcount считает с нуля, поэтому номер покупки = cumcount() + 1.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Зачем сортировать строки перед <code>shift</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Чтобы было быстрее</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Чтобы «прошлая строка» была прошлым заказом по времени</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Без сортировки shift не работает</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Не нужно</span></button></div>
+          <div class="why" hidden>shift берёт предыдущую строку в текущем порядке. Без сортировки по дате это случайный заказ.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Чем окно отличается от <code>agg</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Окно оставляет все строки и считает значение для каждой</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Окно удаляет дубли</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Окно работает только с датами</span></button></div>
+          <div class="why" hidden>agg сжимает группу до одной строки, а окно добавляет к каждой строке значение, посчитанное с учётом соседей.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="0">
+          <p>4. Какое место получит самая большая сумма в <code>rank(ascending=False)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>1</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Последнее</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>0</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Зависит от числа строк</span></button></div>
+          <div class="why" hidden>ascending=False: сортировка от большего, самому большому — место 1.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Почему интервал между покупками лучше описывать медианой?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Медиану проще считать</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Редкие очень долгие перерывы сильно завышают среднее</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Среднее нельзя посчитать по дням</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Так принято в SQL</span></button></div>
+          <div class="why" hidden>Распределение интервалов скошено вправо: несколько возвратов через полгода тянут среднее вверх.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Номер покупки</h3>
+            <ol class='steps-t'><li>Отсортируй заказы по клиенту и дате → <code class='i'>d</code>.</li> <li>Добавь колонку <code class='i'>order_n</code> — номер покупки клиента (с 1).</li> <li>Выведи, сколько заказов было первыми, вторыми и третьими-и-дальше: <code class='i'>order_n.clip(upper=3).value_counts().sort_index()</code>.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 17 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">d =
+d[&#34;order_n&#34;] =
+
+# распределение номеров покупок
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">order_n
+1    700
+2    617
+3    755
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>d =
+d[&#34;order_n&#34;] =
+
+# распределение номеров покупок
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Чтобы пронумеровать покупки клиента, выстрой его заказы по времени и считай «первый, второй, третий…» отдельно для каждого клиента. Нумерация в pandas начинается с 0, поэтому прибавь 1.</p>
+<p><b>Чем это сделать.</b> <code class="i">sort_values(["customer_id", "order_date"])</code> — по клиенту и дате. <code class="i">d.groupby("customer_id").cumcount()</code> — номер строки внутри клиента: 0, 1, 2…</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>d = df.sort_values([___, ___])
+d[&#34;order_n&#34;] = d.groupby(&#34;___&#34;).cumcount() + ___
+d[&#34;order_n&#34;].clip(upper=3).value_counts().sort_index()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без сортировки по дате «первой» станет просто верхняя строка файла, а не самая ранняя покупка.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сколько покупают один раз</h3>
+            <ol class='steps-t'><li>Посчитай число заказов каждого клиента.</li> <li>Напечатай в одну строку: число клиентов и % клиентов, купивших ровно один раз (1 знак).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 17 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">per_client =
+
+# клиентов и % одноразовых
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">700 11.9</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>per_client =
+
+# клиентов и % одноразовых
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Посчитай, сколько заказов у каждого клиента. «Купил один раз» — число заказов равно 1. Доля таких — среднее этой маски.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby("customer_id").size()</code> — заказов на клиента. <code class="i">(s == 1).mean() * 100</code> — доля в %.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>per_client = df.groupby(&#34;___&#34;).___()
+print(len(per_client), round((per_client == ___).mean() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> len(df) — это число заказов, а не клиентов. Клиентов — это длина per_client.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Дни между покупками</h3>
+            <ol class='steps-t'><li>Отсортируй по клиенту и дате.</li> <li>Колонка <code class='i'>gap</code> — дни с прошлого заказа этого же клиента.</li> <li>Выведи 25-й, 50-й и 75-й перцентиль gap: <code class='i'>quantile([0.25, 0.5, 0.75])</code>.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 17 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">d = df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+d[&#34;gap&#34;] =
+
+# перцентили
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">0.25    17.0
+0.50    29.0
+0.75    46.0
+Name: gap, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>d = df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+d[&#34;gap&#34;] =
+
+# перцентили
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Дни между покупками = дата этого заказа минус дата прошлого заказа того же клиента. «Прошлый заказ клиента» — это та же колонка, сдвинутая на одну строку вниз внутри клиента.</p>
+<p><b>Чем это сделать.</b> <code class="i">d.groupby("customer_id")["order_date"].shift(1)</code> — дата прошлой покупки (у первой — пусто). <code class="i">.dt.days</code> — разница в днях. <code class="i">.quantile([0.25, 0.5, 0.75])</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>d[&#34;gap&#34;] = (d[&#34;order_date&#34;] - d.groupby(&#34;___&#34;)[&#34;order_date&#34;].shift(___)).dt.___
+d[&#34;gap&#34;].quantile([0.25, 0.5, 0.75])</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">d["order_date"].shift(1)</code> без groupby возьмёт дату чужого клиента из строки выше.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Накопленная сумма</h3>
+            <ol class='steps-t'><li>Отсортируй по клиенту и дате, добавь <code class='i'>spent</code> — накопленная сумма клиента.</li> <li>Напечатай, сколько клиентов в какой-то момент перешли порог 500 000 сум.</li> <li>Напечатай медианный номер заказа, на котором порог был перейдён впервые.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 17 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">d = df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+d[&#34;spent&#34;] =
+d[&#34;order_n&#34;] = d.groupby(&#34;customer_id&#34;).cumcount() + 1
+
+# клиентов за порогом
+
+# медианный номер заказа перехода
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">196
+4.0</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>d = df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+d[&#34;spent&#34;] =
+d[&#34;order_n&#34;] = d.groupby(&#34;customer_id&#34;).cumcount() + 1
+
+# клиентов за порогом
+
+# медианный номер заказа перехода
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Накопленная сумма — сколько клиент потратил к этому заказу включительно. Найди строки, где сумма ≥ 500 000, и у каждого клиента возьми самый маленький номер такой строки — это момент перехода порога.</p>
+<p><b>Чем это сделать.</b> <code class="i">d.groupby("customer_id")["amount"].cumsum()</code> — накопленная сумма внутри клиента. <code class="i">.groupby("customer_id")["order_n"].min()</code> — первый номер заказа за порогом.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>d[&#34;spent&#34;] = d.groupby(&#34;customer_id&#34;)[&#34;___&#34;].cumsum()
+crossed = d[d[&#34;spent&#34;] &gt;= ___].groupby(&#34;customer_id&#34;)[&#34;order_n&#34;].___()
+print(len(crossed))
+print(crossed.___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Каждый клиент за порогом даёт много строк — без groupby.min() ты посчитаешь строки, а не клиентов.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Рейтинг клиентов</h3>
+            <ol class='steps-t'><li>Посчитай общую сумму покупок каждого клиента → <code class='i'>total</code>.</li> <li>Место в рейтинге: <code class='i'>rank(ascending=False, method="min")</code>, целым числом.</li> <li>Выведи 5 лучших клиентов: колонки <code class='i'>total</code> и <code class='i'>place</code>, по месту.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 17 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">total =
+top =
+
+top
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">               total  place
+customer_id
+10297        1170000      1
+10157        1162000      2
+10193        1154000      3
+10235        1139000      4
+10212        1134000      5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>total =
+top =
+
+top
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала общая сумма каждого клиента. Потом место в рейтинге: самый большой — 1-е место. При равенстве сумм клиенты делят одно место (как в спорте).</p>
+<p><b>Чем это сделать.</b> <code class="i">total.rank(ascending=False, method="min")</code> — место, <code class="i">.astype(int)</code> — целым. <code class="i">total.to_frame("total")</code> — Series в таблицу, чтобы добавить колонку place.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>total = df.groupby(&#34;customer_id&#34;)[&#34;___&#34;].sum()
+top = (total.to_frame(&#34;total&#34;)
+       .assign(place=total.rank(ascending=___, method=&#34;___&#34;).astype(int))
+       .sort_values(&#34;___&#34;)
+       .head(5))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> С <code class="i">ascending=True</code> первое место получит клиент с самой маленькой суммой.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Чек растёт с каждой покупкой?</h3>
+            <ol class='steps-t'><li>Номер покупки <code class='i'>order_n</code> (с сортировкой по клиенту и дате).</li> <li>Объедини 4-ю и дальше покупки в группу 4 (<code class='i'>clip(upper=4)</code>).</li> <li>Выведи средний чек по номеру покупки, целым числом, и число заказов в каждой группе.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 17 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">d = df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+d[&#34;order_n&#34;] =
+
+# средний чек и число заказов по номеру покупки
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">             mean  count
+order_n
+1        132657.0    700
+2        139848.0    617
+3        134935.0    428
+4        131352.0    327</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>d = df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+d[&#34;order_n&#34;] =
+
+# средний чек и число заказов по номеру покупки
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Пронумеруй покупки как в задаче 1. Покупки с 4-й и дальше объедини в одну группу «4», иначе групп будет много и в них будет мало заказов. Потом средний чек и число заказов по номеру.</p>
+<p><b>Чем это сделать.</b> <code class="i">d["order_n"].clip(upper=4)</code> — всё больше 4 станет 4. Группировать можно прямо по этой Series. <code class="i">.agg(["mean", "count"])</code> — два числа сразу.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>d[&#34;order_n&#34;] = d.groupby(&#34;customer_id&#34;).___() + 1
+d.groupby(d[&#34;order_n&#34;].clip(upper=___))[&#34;amount&#34;].agg([&#34;___&#34;, &#34;___&#34;]).round(0)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если сохранить clip в саму колонку order_n, ты потеряешь настоящие номера покупок. Лучше группировать по выражению.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Какая первая книга приводит к возврату</h3>
+            <p>Возьми категорию <b>первой</b> покупки каждого клиента и посмотри, как часто такие клиенты возвращаются.</p> <ol class='steps-t'><li>Для каждого клиента: категория первой покупки и число заказов.</li> <li>По категории первой покупки: <code class='i'>clients</code> — сколько клиентов, <code class='i'>repeat_pct</code> — % купивших 2+ раз (1 знак), <code class='i'>avg_total</code> — средняя общая сумма клиента (целое).</li> <li>Отсортируй по repeat_pct.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 17 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">d = df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+clients = (
+    d
+    # твой код
+)
+clients
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">                clients  repeat_pct  avg_total
+first_cat
+Учебная             154        90.3     397545
+Художественная      254        88.6     383433
+Бизнес              108        87.0     409731
+Детская             184        86.4     418397</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>d = df.sort_values([&#34;customer_id&#34;, &#34;order_date&#34;])
+clients = (
+    d
+    # твой код
+)
+clients
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Два этажа группировки. Этаж 1 — по клиенту: категория первой покупки, число заказов, общая сумма. Этаж 2 — по категории первой покупки: сколько клиентов, какая доля вернулась (2+ заказа), средняя сумма.</p>
+<p><b>Чем это сделать.</b> <code class="i">("category", "first")</code> — первое значение в группе (поэтому нужна сортировка по дате). Маска «вернулся»: <code class="i">orders >= 2</code>, доля — <code class="i">"mean"</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>clients = (
+    d
+    .groupby(&#34;customer_id&#34;)
+    .agg(first_cat=(&#34;category&#34;, &#34;___&#34;), orders=(&#34;order_id&#34;, &#34;count&#34;), total=(&#34;amount&#34;, &#34;___&#34;))
+    .assign(repeat=lambda x: x[&#34;orders&#34;] &gt;= ___)
+    .groupby(&#34;___&#34;)
+    .agg(clients=(&#34;orders&#34;, &#34;size&#34;), repeat_pct=(&#34;repeat&#34;, &#34;___&#34;), avg_total=(&#34;total&#34;, &#34;mean&#34;))
+    .assign(repeat_pct=___, avg_total=___)
+    .sort_values(&#34;repeat_pct&#34;, ascending=False)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без сортировки d по дате "first" вернёт категорию случайного, а не первого заказа.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Шахло</h2>
+      <div class="case">
+        <p>Напиши ответ Шахло. Не больше 5 предложений. Структура: <b>сколько клиентов покупают один раз → через сколько дней обычно возвращаются (медиана и разброс) → когда отправлять рассылку → какая первая категория даёт больше возвратов → 1 оговорка</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Купили один раз</span><span class="fact-chip">Медиана дней до возврата</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Шахло, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Когда, по твоему ответу, лучше отправлять напоминание?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Примерно через месяц (≈ 29 дней) после покупки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Через неделю после покупки</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Через полгода</span></button></div>
+            <div class="why" hidden>Половина вернувшихся делает это через 29 дней (обычно от 17 до 46). Через неделю — слишком рано.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Влияет ли категория первой книги на возврат?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Почти нет: доля вернувшихся по категориям близкая, делить рассылку пока не нужно</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Сильно: одна категория даёт в 2 раза больше возвратов</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Возвращаются только покупатели учебной литературы</span></button></div>
+            <div class="why" hidden>От 86,4% до 90,3% — разница небольшая.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Какую оговорку ты делаешь?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Клиенты последнего месяца ещё не успели вернуться, поэтому доля «одноразовых» немного завышена</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Оговорок нет</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Данные за весь год потеряны</span></button></div>
+            <div class="why" hidden>Кто купил в сентябре, физически не мог вернуться через 29 дней внутри выгрузки.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Шахло, привет! Из 700 клиентов 11,9% купили только один раз — им рассылка нужнее всего. Те, кто возвращается, обычно делают это через 29 дней (половина — от 17 до 46 дней), поэтому напоминание лучше отправлять примерно через 29 дней после покупки, а не через неделю. От первой категории возврат почти не зависит: от 86,4% («Детская») до 90,3% («Учебная»), так что делить рассылку по категориям пока не нужно. Оговорка: клиенты, пришедшие в сентябре, ещё не успели вернуться, поэтому доля «одноразовых» немного завышена.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Доля клиентов с одной покупкой</li><li>Медианный интервал и разброс (квартили)</li><li>Конкретный срок для рассылки, основанный на интервале</li><li>Вывод по первой категории с цифрами (и честно: разница большая или нет)</li><li>Оговорка про недавних клиентов</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 17</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/16-resample-rolling-shift/"><small>← Урок 16</small><b>resample, rolling, shift, pct_change</b></a><a class="nx" href="../../lessons/18-produktovye-metriki/"><small>Урок 18 →</small><b>Продуктовые метрики: DAU/MAU, ARPU, воронка</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611061848"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041a\u0443\u043f\u0438\u043b\u0438 \u043e\u0434\u0438\u043d \u0440\u0430\u0437", "pct": true, "value": 11.9}, {"name": "\u041c\u0435\u0434\u0438\u0430\u043d\u0430 \u0434\u043d\u0435\u0439 \u0434\u043e \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u0430", "value": 29}], "logic": [{"a": 0, "o": ["\u041f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u0447\u0435\u0440\u0435\u0437 \u043c\u0435\u0441\u044f\u0446 (\u2248 29 \u0434\u043d\u0435\u0439) \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u043a\u0443\u043f\u043a\u0438", "\u0427\u0435\u0440\u0435\u0437 \u043d\u0435\u0434\u0435\u043b\u044e \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u043a\u0443\u043f\u043a\u0438", "\u0427\u0435\u0440\u0435\u0437 \u043f\u043e\u043b\u0433\u043e\u0434\u0430"], "q": "\u041a\u043e\u0433\u0434\u0430, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u043b\u0443\u0447\u0448\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0442\u044c \u043d\u0430\u043f\u043e\u043c\u0438\u043d\u0430\u043d\u0438\u0435?", "why": "\u041f\u043e\u043b\u043e\u0432\u0438\u043d\u0430 \u0432\u0435\u0440\u043d\u0443\u0432\u0448\u0438\u0445\u0441\u044f \u0434\u0435\u043b\u0430\u0435\u0442 \u044d\u0442\u043e \u0447\u0435\u0440\u0435\u0437 29 \u0434\u043d\u0435\u0439 (\u043e\u0431\u044b\u0447\u043d\u043e \u043e\u0442 17 \u0434\u043e 46). \u0427\u0435\u0440\u0435\u0437 \u043d\u0435\u0434\u0435\u043b\u044e \u2014 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u0440\u0430\u043d\u043e."}, {"a": 0, "o": ["\u041f\u043e\u0447\u0442\u0438 \u043d\u0435\u0442: \u0434\u043e\u043b\u044f \u0432\u0435\u0440\u043d\u0443\u0432\u0448\u0438\u0445\u0441\u044f \u043f\u043e \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u043c \u0431\u043b\u0438\u0437\u043a\u0430\u044f, \u0434\u0435\u043b\u0438\u0442\u044c \u0440\u0430\u0441\u0441\u044b\u043b\u043a\u0443 \u043f\u043e\u043a\u0430 \u043d\u0435 \u043d\u0443\u0436\u043d\u043e", "\u0421\u0438\u043b\u044c\u043d\u043e: \u043e\u0434\u043d\u0430 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u0434\u0430\u0451\u0442 \u0432 2 \u0440\u0430\u0437\u0430 \u0431\u043e\u043b\u044c\u0448\u0435 \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u043e\u0432", "\u0412\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u044e\u0442\u0441\u044f \u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u043a\u0443\u043f\u0430\u0442\u0435\u043b\u0438 \u0443\u0447\u0435\u0431\u043d\u043e\u0439 \u043b\u0438\u0442\u0435\u0440\u0430\u0442\u0443\u0440\u044b"], "q": "\u0412\u043b\u0438\u044f\u0435\u0442 \u043b\u0438 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u043f\u0435\u0440\u0432\u043e\u0439 \u043a\u043d\u0438\u0433\u0438 \u043d\u0430 \u0432\u043e\u0437\u0432\u0440\u0430\u0442?", "why": "\u041e\u0442 86,4% \u0434\u043e 90,3% \u2014 \u0440\u0430\u0437\u043d\u0438\u0446\u0430 \u043d\u0435\u0431\u043e\u043b\u044c\u0448\u0430\u044f."}, {"a": 0, "o": ["\u041a\u043b\u0438\u0435\u043d\u0442\u044b \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0433\u043e \u043c\u0435\u0441\u044f\u0446\u0430 \u0435\u0449\u0451 \u043d\u0435 \u0443\u0441\u043f\u0435\u043b\u0438 \u0432\u0435\u0440\u043d\u0443\u0442\u044c\u0441\u044f, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0434\u043e\u043b\u044f \u00ab\u043e\u0434\u043d\u043e\u0440\u0430\u0437\u043e\u0432\u044b\u0445\u00bb \u043d\u0435\u043c\u043d\u043e\u0433\u043e \u0437\u0430\u0432\u044b\u0448\u0435\u043d\u0430", "\u041e\u0433\u043e\u0432\u043e\u0440\u043e\u043a \u043d\u0435\u0442", "\u0414\u0430\u043d\u043d\u044b\u0435 \u0437\u0430 \u0432\u0435\u0441\u044c \u0433\u043e\u0434 \u043f\u043e\u0442\u0435\u0440\u044f\u043d\u044b"], "q": "\u041a\u0430\u043a\u0443\u044e \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0443 \u0442\u044b \u0434\u0435\u043b\u0430\u0435\u0448\u044c?", "why": "\u041a\u0442\u043e \u043a\u0443\u043f\u0438\u043b \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435, \u0444\u0438\u0437\u0438\u0447\u0435\u0441\u043a\u0438 \u043d\u0435 \u043c\u043e\u0433 \u0432\u0435\u0440\u043d\u0443\u0442\u044c\u0441\u044f \u0447\u0435\u0440\u0435\u0437 29 \u0434\u043d\u0435\u0439 \u0432\u043d\u0443\u0442\u0440\u0438 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0438."}]}, "case_model": "\u0428\u0430\u0445\u043b\u043e, \u043f\u0440\u0438\u0432\u0435\u0442! \u0418\u0437 700 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 11,9% \u043a\u0443\u043f\u0438\u043b\u0438 \u0442\u043e\u043b\u044c\u043a\u043e \u043e\u0434\u0438\u043d \u0440\u0430\u0437 \u2014 \u0438\u043c \u0440\u0430\u0441\u0441\u044b\u043b\u043a\u0430 \u043d\u0443\u0436\u043d\u0435\u0435 \u0432\u0441\u0435\u0433\u043e. \u0422\u0435, \u043a\u0442\u043e \u0432\u043e\u0437\u0432\u0440\u0430\u0449\u0430\u0435\u0442\u0441\u044f, \u043e\u0431\u044b\u0447\u043d\u043e \u0434\u0435\u043b\u0430\u044e\u0442 \u044d\u0442\u043e \u0447\u0435\u0440\u0435\u0437 29 \u0434\u043d\u0435\u0439 (\u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0430 \u2014 \u043e\u0442 17 \u0434\u043e 46 \u0434\u043d\u0435\u0439), \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u043d\u0430\u043f\u043e\u043c\u0438\u043d\u0430\u043d\u0438\u0435 \u043b\u0443\u0447\u0448\u0435 \u043e\u0442\u043f\u0440\u0430\u0432\u043b\u044f\u0442\u044c \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u0447\u0435\u0440\u0435\u0437 29 \u0434\u043d\u0435\u0439 \u043f\u043e\u0441\u043b\u0435 \u043f\u043e\u043a\u0443\u043f\u043a\u0438, \u0430 \u043d\u0435 \u0447\u0435\u0440\u0435\u0437 \u043d\u0435\u0434\u0435\u043b\u044e. \u041e\u0442 \u043f\u0435\u0440\u0432\u043e\u0439 \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0438 \u0432\u043e\u0437\u0432\u0440\u0430\u0442 \u043f\u043e\u0447\u0442\u0438 \u043d\u0435 \u0437\u0430\u0432\u0438\u0441\u0438\u0442: \u043e\u0442 86,4% (\u00ab\u0414\u0435\u0442\u0441\u043a\u0430\u044f\u00bb) \u0434\u043e 90,3% (\u00ab\u0423\u0447\u0435\u0431\u043d\u0430\u044f\u00bb), \u0442\u0430\u043a \u0447\u0442\u043e \u0434\u0435\u043b\u0438\u0442\u044c \u0440\u0430\u0441\u0441\u044b\u043b\u043a\u0443 \u043f\u043e \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f\u043c \u043f\u043e\u043a\u0430 \u043d\u0435 \u043d\u0443\u0436\u043d\u043e. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u043a\u043b\u0438\u0435\u043d\u0442\u044b, \u043f\u0440\u0438\u0448\u0435\u0434\u0448\u0438\u0435 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435, \u0435\u0449\u0451 \u043d\u0435 \u0443\u0441\u043f\u0435\u043b\u0438 \u0432\u0435\u0440\u043d\u0443\u0442\u044c\u0441\u044f, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0434\u043e\u043b\u044f \u00ab\u043e\u0434\u043d\u043e\u0440\u0430\u0437\u043e\u0432\u044b\u0445\u00bb \u043d\u0435\u043c\u043d\u043e\u0433\u043e \u0437\u0430\u0432\u044b\u0448\u0435\u043d\u0430.", "case_xp": 30, "cheat": [["d = df.sort_values([\"id\", \"date\"])", "\u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0441\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430"], ["d.groupby(\"id\").cumcount() + 1", "\u043d\u043e\u043c\u0435\u0440 \u0441\u0442\u0440\u043e\u043a\u0438 \u0432 \u0433\u0440\u0443\u043f\u043f\u0435"], ["d.groupby(\"id\")[\"x\"].cumsum()", "\u043d\u0430\u043a\u043e\u043f\u043b\u0435\u043d\u043d\u0430\u044f \u0441\u0443\u043c\u043c\u0430"], ["d.groupby(\"id\")[\"date\"].shift(1)", "\u043f\u0440\u043e\u0448\u043b\u043e\u0435 \u0437\u043d\u0430\u0447\u0435\u043d\u0438\u0435 \u0432 \u0433\u0440\u0443\u043f\u043f\u0435"], ["(d[\"date\"] - d[\"prev\"]).dt.days", "\u0434\u043d\u0438 \u043c\u0435\u0436\u0434\u0443 \u0441\u043e\u0431\u044b\u0442\u0438\u044f\u043c\u0438"], ["s.rank(ascending=False, method=\"min\")", "\u043c\u0435\u0441\u0442\u043e, 1 \u2014 \u0441\u0430\u043c\u044b\u0439 \u0431\u043e\u043b\u044c\u0448\u043e\u0439"], ["d.groupby(\"id\")[\"date\"].transform(\"min\")", "\u043f\u0435\u0440\u0432\u0430\u044f \u0434\u0430\u0442\u0430 \u0432 \u043a\u0430\u0436\u0434\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0435"]], "data": "../../data/", "datasets": ["kitobxon_orders.csv"], "day": 17, "hint_cost": 5, "quiz": [1, 1, 1, 0, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"kitobxon_orders.csv\", parse_dates=[\"order_date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["order_n", "1 700", "2 617", "3 755"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["700 11.9"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["0.25 17.0", "0.50 29.0", "0.75 46.0"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["196", "4.0"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["total place", "customer_id", "10297 1170000 1", "10157 1162000 2", "10193 1154000 3", "10235 1139000 4", "10212 1134000 5"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["mean count", "order_n", "1 132657.0 700", "2 139848.0 617", "3 134935.0 428", "4 131352.0 327"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["clients repeat_pct avg_total", "first_cat", "\u0423\u0447\u0435\u0431\u043d\u0430\u044f 154 90.3 397545", "\u0425\u0443\u0434\u043e\u0436\u0435\u0441\u0442\u0432\u0435\u043d\u043d\u0430\u044f 254 88.6 383433", "\u0411\u0438\u0437\u043d\u0435\u0441 108 87.0 409731", "\u0414\u0435\u0442\u0441\u043a\u0430\u044f 184 86.4 418397"], "setup": "", "xp": 25}], "theory": ["brief", "window", "rank", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611061848"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>
