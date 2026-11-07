@@ -265,3 +265,30 @@ const Activity = {
     my.textContent = `у тебя уже ${total} XP`;
   }
 })();
+
+/* ---------- Настройки: выбор фона курса ----------
+   Выбор хранится в браузере (pandas-sprint:skin) и ставится на <html data-skin="…"> ещё в <head>,
+   поэтому любая страница сразу открывается в выбранном фоне. «default» — стандартный фон курса. */
+(function prefs() {
+  const box = document.querySelector("[data-prefs]");
+  if (!box) return;
+  const KEY = "pandas-sprint:skin";
+  const btn = box.querySelector(".prefs-btn"), pop = box.querySelector(".prefs-pop");
+  const opts = [...box.querySelectorAll("[data-skin-opt]")];
+  const current = () => document.documentElement.getAttribute("data-skin") || "default";
+  const mark = () => opts.forEach(o => o.setAttribute("aria-checked", o.dataset.skinOpt === current()));
+  const open = v => { pop.hidden = !v; btn.setAttribute("aria-expanded", v); if (v) mark(); };
+  btn.addEventListener("click", e => { e.stopPropagation(); open(pop.hidden); });
+  document.addEventListener("click", e => { if (!box.contains(e.target)) open(false); });
+  document.addEventListener("keydown", e => { if (e.key === "Escape") open(false); });
+  opts.forEach(o => o.addEventListener("click", () => {
+    const skin = o.dataset.skinOpt;
+    if (skin === "default") document.documentElement.removeAttribute("data-skin");
+    else document.documentElement.setAttribute("data-skin", skin);
+    try { localStorage.setItem(KEY, skin); } catch (e) { /* без сохранения */ }
+    mark();
+    dispatchEvent(new Event("skinchange"));   // страницы с графиками (прогресс) перерисовывают их в цветах нового фона
+    toast(skin === "default" ? "Фон: стандартный" : `Фон: ${o.querySelector("b").textContent}`);
+  }));
+  mark();
+})();

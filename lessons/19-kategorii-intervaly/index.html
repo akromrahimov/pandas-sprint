@@ -1,0 +1,726 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<script>try{var s=localStorage.getItem("pandas-sprint:skin");if(s==="cornflower")document.documentElement.setAttribute("data-skin",s)}catch(e){}</script>
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 19. Категории и интервалы: cut, qcut — Pandas Sprint</title>
+<meta name="description" content="Урок 19 курса Pandas Sprint — Категории и интервалы: cut, qcut. Раскладывать числа по понятным группам и задавать категориям порядок.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/19-kategorii-intervaly/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 19. Категории и интервалы: cut, qcut — Pandas Sprint">
+<meta property="og:description" content="Урок 19 курса Pandas Sprint — Категории и интервалы: cut, qcut. Раскладывать числа по понятным группам и задавать категориям порядок.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/19-kategorii-intervaly/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611072255">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/"><span class="lg-only">Программа</span><span class="sm-only">Уроки</span></a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="prefs" data-prefs>
+      <button type="button" class="prefs-btn" aria-haspopup="true" aria-expanded="false" aria-label="Настройки" title="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <div class="prefs-pop" role="dialog" aria-label="Настройки" hidden>
+        <h3>Настройки</h3>
+        <div class="prefs-sec" role="radiogroup" aria-label="Фон">
+          <b>Фон</b>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="default" aria-checked="true">
+            <span class="pv" style="background:#0E0B22"><i style="left:6px;top:6px;width:24px;height:6px;background:#FFCA00"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#B9A8FF"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#FF5CB0"></i></span>
+            <span><b>Стандартный</b><small>тёмно-синий или светлый — как на устройстве</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="cornflower" aria-checked="false">
+            <span class="pv" style="background:#FDFDF5"><i style="left:6px;top:6px;width:24px;height:6px;background:#3D568F"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#9FBAF1"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#EAF3B2"></i></span>
+            <span><b>Васильковое поле</b><small>кремовый фон, васильковый и синий, лаймовые акценты</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="19">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#cut"><span class="dot">✓</span>cut</a></li><li><a href="#qcut"><span class="dot">✓</span>qcut</a></li><li><a href="#order"><span class="dot">✓</span>Порядок</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Интервалы: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В SQL интервалы обычно задают через CASE WHEN и NTILE. В pandas для этого есть готовые функции.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>CASE WHEN age &lt;= 24 THEN &#39;18–24&#39; WHEN age &lt;= 34 THEN &#39;25–34&#39; … END</code></td><td><code>pd.cut(cl[&#34;age&#34;], [17, 24, 34, …], labels=[…])</code></td><td>свои границы</td></tr><tr><td><code>NTILE(4) OVER (ORDER BY spend)</code></td><td><code>pd.qcut(cl[&#34;monthly_spend&#34;], 4, labels=[&#34;Q1&#34;, …])</code></td><td>квартили</td></tr><tr><td><code>ORDER BY CASE tier WHEN &#39;silver&#39; THEN 1 …</code></td><td><code>astype(pd.CategoricalDtype([...], ordered=True))</code></td><td>порядок значений</td></tr><tr><td><code>… GROUP BY age_group</code></td><td><code>cl.groupby(ag, observed=False)[&#34;churned&#34;].mean()</code></td><td>показатель по интервалам</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 19 из 30 · Неделя 3 · Время и структура</div>
+      <h1><mark>Категории и интервалы</mark>: cut, qcut и порядок значений</h1>
+      <p class="lead">Возраст 23, 37, 61… Числа сами по себе мало что говорят, пока не разложишь людей по понятным группам: «18–24», «25–34», «55+». Сегодня учимся превращать числа в интервалы через cut и qcut, задавать категориям правильный порядок и сравнивать группы — без единого цикла.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Выяснить для банка Tanga, какие клиенты уходят чаще всего: разложить клиентов по возрасту, стажу и уровню трат, найти группу самого высокого риска и проверить, как возраст связан с использованием приложения.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Резать числа на интервалы со своими границами и подписями: <code class="i">pd.cut</code></li><li>Делить на равные по размеру группы (квартили): <code class="i">pd.qcut</code></li><li>Задавать категориям порядок и сравнивать их: <code class="i">CategoricalDtype(ordered=True)</code></li><li>Считать показатели по интервалам и не терять пустые группы (<code class="i">observed=False</code>)</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Кто от нас уходит</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Д</span>Дилноза <small>руководитель отдела удержания Tanga · 11:05</small></div>
+          <p>Привет! За год от нас ушёл примерно каждый девятый клиент. Хочу понять, кто именно: молодые или старшие, новые или давние, те, кто много тратит, или те, кто почти не пользуется картой. Выгрузила всех клиентов с пометкой, ушёл ли человек.</p>
+<div class="file">▤ tanga_clients.csv · клиенты банка</div>        </div>
+      </div>
+      <p class="note">Tanga — учебный банк, данные сгенерированы. Одна строка — один клиент: возраст (у части клиентов не указан), город, уровень карты (silver, gold, platinum), траты в месяц в сумах, сколько месяцев клиент с банком, входов в приложение за месяц и ушёл ли он (churned). Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/tanga_clients.csv" download>Скачать tanga_clients.csv</a><span class="note">1 500 клиентов · 79 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+cl = pd.read_csv(&#34;tanga_clients.csv&#34;)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="cut">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>cut: свои границы интервалов</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь коробки с надписями «18–24», «25–34», «35–44». Каждого клиента кладём в коробку по возрасту. <code class="i">pd.cut</code> делает именно это: берёт числа и раскладывает их по интервалам, которые ты задал.</p>
+  <ul>
+    <li><code class="i">bins=[17, 24, 34]</code> — границы. Интервал <b>(17, 24]</b> значит «больше 17 и до 24 включительно»: круглая скобка — граница не входит, квадратная — входит.</li>
+    <li><code class="i">labels=["18–24", "25–34"]</code> — подписи коробок. Подписей на одну меньше, чем границ.</li>
+    <li>Число вне всех интервалов и пустое значение (NaN) не попадают никуда — получится NaN.</li>
+    <li>Результат — <b>категория</b> (category): у неё есть список возможных значений и их порядок, как в уроке 4.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Как выглядят данные.</b></div><pre class="code" data-cm>print(cl.head(3))
+print()
+print(len(cl), &quot;клиентов, ушли:&quot;, round(cl[&quot;churned&quot;].mean() * 100, 1), &quot;%, возраст не указан:&quot;, cl[&quot;age&quot;].isna().sum())</pre><div class="out">   client_id   age     city    tier  monthly_spend  tenure_months  app_logins  churned
+0      70001  24.0  Ташкент  silver      1453000.0              1          26    False
+1      70002  55.0  Ташкент  silver      2901000.0             50          15    False
+2      70003  69.0   Бухара  silver      1361000.0             11           4    False
+
+1500 клиентов, ушли: 11.5 %, возраст не указан: 18</div><p class="plain"><b>Простыми словами:</b> ушёл каждый 9-й клиент. Вопрос урока — кто именно.</p></div>
+<div class="card"><div class="q"><b>2. cut на игрушечном примере.</b> Где окажется граница.</div><pre class="code" data-cm>ages = pd.Series([18, 24, 25, 34, 35, 70, None])
+pd.DataFrame({&quot;age&quot;: ages, &quot;group&quot;: pd.cut(ages, [17, 24, 34, 70], labels=[&quot;18–24&quot;, &quot;25–34&quot;, &quot;35+&quot;])})</pre><div class="out">    age  group
+0  18.0  18–24
+1  24.0  18–24
+2  25.0  25–34
+3  34.0  25–34
+4  35.0    35+
+5  70.0    35+
+6   NaN    NaN</div><p class="plain"><b>Простыми словами:</b> 24 попал в «18–24», потому что правая граница входит в интервал: (17, 24]. 25 — уже в следующую коробку. Пустой возраст остался NaN.</p></div>
+<div class="card"><div class="q"><b>3. Возрастные группы клиентов.</b></div><pre class="code" data-cm>ag = pd.cut(cl[&quot;age&quot;], [17, 24, 34, 44, 54, 70], labels=[&quot;18–24&quot;, &quot;25–34&quot;, &quot;35–44&quot;, &quot;45–54&quot;, &quot;55+&quot;])
+ag.value_counts(sort=False, dropna=False)</pre><div class="out">age
+18–24    192
+25–34    275
+35–44    283
+45–54    258
+55+      474
+NaN       18
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> <code class="i">sort=False</code> оставляет группы в их естественном порядке, а не по размеру. <code class="i">dropna=False</code> показывает и тех, у кого возраст не указан.</p></div>
+<div class="card"><div class="q"><b>4. Группировка по интервалам.</b> Как возраст связан с приложением.</div><pre class="code" data-cm>cl.groupby(ag, observed=False)[&quot;app_logins&quot;].mean().round(1)</pre><div class="out">age
+18–24    31.8
+25–34    27.3
+35–44    22.7
+45–54    17.0
+55+       9.5
+Name: app_logins, dtype: float64</div><p class="plain"><b>Простыми словами:</b> в groupby можно передать не название колонки, а готовую Series с группами. Молодые заходят в приложение примерно в 3 раза чаще старших. <code class="i">observed=False</code> — показывать все группы категории, даже пустые.</p></div></div>
+    </section>
+    <section id="qcut">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>qcut: группы одинакового размера</h2>
+      <div class="simple"><span class="tag">cut или qcut</span>
+  <ul>
+    <li><b>cut</b> — ты сам говоришь, где границы: «до 1 года», «1–3 года». Размер групп получится любой.</li>
+    <li><b>qcut</b> — ты говоришь, сколько групп нужно, а pandas сам ставит границы так, чтобы в каждой было <b>поровну</b> людей. <code class="i">qcut(x, 4)</code> — четыре квартиля: 25% самых экономных, следующие 25%… и 25% тех, кто тратит больше всех.</li>
+    <li>qcut удобен, когда «нормальных» границ нет: что считать «большими тратами» — 5 млн или 10 млн? Квартили отвечают честно: «верхняя четверть клиентов».</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>5. Квартили трат.</b></div><pre class="code" data-cm>sq = pd.qcut(cl[&quot;monthly_spend&quot;], 4, labels=[&quot;Q1&quot;, &quot;Q2&quot;, &quot;Q3&quot;, &quot;Q4&quot;])
+print(sq.value_counts(sort=False))
+print()
+pd.qcut(cl[&quot;monthly_spend&quot;], 4).cat.categories</pre><div class="out">monthly_spend
+Q1    375
+Q2    375
+Q3    375
+Q4    375
+Name: count, dtype: int64
+
+IntervalIndex([(644999.999, 2180500.0], (2180500.0, 3431500.0], (3431500.0, 6932000.0], (6932000.0, 116722000.0]], dtype=&#x27;interval[float64, right]&#x27;)</div><p class="plain"><b>Простыми словами:</b> в каждой группе по 375 клиентов. Без labels pandas показывает сами границы: Q1 — до 2 180 500 сум в месяц.</p></div>
+<div class="card"><div class="q"><b>6. Кто уходит: по квартилям трат.</b></div><pre class="code" data-cm>(cl.groupby(sq, observed=False)[&quot;churned&quot;].mean() * 100).round(1)</pre><div class="out">monthly_spend
+Q1    19.2
+Q2    12.5
+Q3     6.9
+Q4     7.2
+Name: churned, dtype: float64</div><p class="plain"><b>Простыми словами:</b> среди тех, кто тратит меньше всех (Q1), уходят 19,2%, а в верхней четверти — 7,2%.</p></div>
+<div class="card"><div class="q"><b>7. Два интервала сразу: сводная таблица.</b></div><pre class="code" data-cm>ten = pd.cut(cl[&quot;tenure_months&quot;], [0, 12, 36, 96], labels=[&quot;до года&quot;, &quot;1–3 года&quot;, &quot;больше 3 лет&quot;])
+(cl.pivot_table(index=ten, columns=sq, values=&quot;churned&quot;, aggfunc=&quot;mean&quot;, observed=False) * 100).round(1)</pre><div class="out">monthly_spend    Q1    Q2    Q3    Q4
+tenure_months
+до года        41.7  36.0  20.6  20.6
+1–3 года       11.2   8.2   4.0   5.9
+больше 3 лет   16.8   9.3   3.9   3.8</div><p class="plain"><b>Простыми словами:</b> в pivot_table тоже можно передавать готовые Series с группами. Самая «горячая» клетка — новые клиенты с маленькими тратами.</p></div></div>
+    </section>
+    <section id="order">
+      <div class="eyebrow">04 · Теория</div>
+      <h2>Категории с порядком</h2>
+      <div class="simple"><span class="tag">Зачем порядок</span>
+  <p>Уровни карты silver, gold, platinum — это не просто слова: platinum «выше» gold. Но pandas этого не знает и сортирует по алфавиту: gold, platinum, silver. Если задать категории <b>порядок</b>, сортировка и сравнения начнут работать по смыслу:</p>
+  <ul>
+    <li><code class="i">pd.CategoricalDtype(["silver", "gold", "platinum"], ordered=True)</code> — тип «категория с порядком».</li>
+    <li><code class="i">cl["tier"].astype(тип)</code> — перевести колонку в этот тип.</li>
+    <li>После этого работает <code class="i">cl["tier"] &gt;= "gold"</code> и <code class="i">sort_values("tier")</code> в правильном порядке.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>8. Алфавит против смысла.</b></div><pre class="code" data-cm>print(sorted(cl[&quot;tier&quot;].unique()))
+tier_type = pd.CategoricalDtype([&quot;silver&quot;, &quot;gold&quot;, &quot;platinum&quot;], ordered=True)
+tier = cl[&quot;tier&quot;].astype(tier_type)
+print(tier.cat.categories.tolist())
+(tier &gt;= &quot;gold&quot;).sum()</pre><div class="out">[&#x27;gold&#x27;, &#x27;platinum&#x27;, &#x27;silver&#x27;]
+[&#x27;silver&#x27;, &#x27;gold&#x27;, &#x27;platinum&#x27;]
+594</div><p class="plain"><b>Простыми словами:</b> по алфавиту gold оказался первым. С порядком pandas знает, что platinum выше gold. Сравнение <code class="i">&gt;= "gold"</code> выбрало всех клиентов gold и platinum.</p></div>
+<div class="card"><div class="q"><b>9. Группировка сохраняет порядок категорий.</b></div><pre class="code" data-cm>(cl.groupby(tier, observed=False)[&quot;churned&quot;].mean() * 100).round(1)</pre><div class="out">tier
+silver      14.8
+gold         7.0
+platinum     4.6
+Name: churned, dtype: float64</div><p class="plain"><b>Простыми словами:</b> строки идут silver → gold → platinum, а не по алфавиту. Чем выше уровень карты, тем реже уходят.</p></div></div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">05 · Ловушки</div>
+      <h2>Пять ловушек интервалов</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Граница выпала</h3><div class="bad">pd.cut(cl[&#34;age&#34;], [18, 24, 34])   # 18 лет никуда не попадёт: интервал (18, 24]</div><div class="good">pd.cut(cl[&#34;age&#34;], [17, 24, 34])   # или include_lowest=True</div><p>Левая граница не входит в интервал. Самое маленькое значение окажется NaN, если первая граница равна ему. Ставь границу чуть ниже или добавь <code class="i">include_lowest=True</code>.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Подписей столько же, сколько границ</h3><p>Интервалов всегда на один меньше, чем границ: 6 границ — 5 групп — 5 подписей. Иначе pandas выдаст ошибку.</p></div>
+        <div class="trap"><span class="n">3</span><h3>qcut с одинаковыми числами</h3><p>Если много одинаковых значений (например, 0 входов), qcut не сможет поставить разные границы и выдаст ошибку. Помогает <code class="i">duplicates="drop"</code> или cut со своими границами.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Исчезнувшие группы</h3><p>Если в какой-то группе нет клиентов, groupby с <code class="i">observed=True</code> её просто не покажет. Для отчёта, где важны все группы, пиши <code class="i">observed=False</code>.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Сравнение категорий без порядка</h3><p><code class="i">cl["tier"] &gt;= "gold"</code> для обычной текстовой колонки сравнивает по алфавиту: «silver» &gt; «gold». Сначала задай порядок через CategoricalDtype(ordered=True).</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: интервалы и категории</h3>
+        <ol><li>pd.cut(x, [17, 24, 34], labels=[&#34;18–24&#34;, &#34;25–34&#34;]) <span>— свои границы</span></li><li>pd.cut(x, bins, include_lowest=True) <span>— включить самую левую границу</span></li><li>pd.qcut(x, 4, labels=[&#34;Q1&#34;, &#34;Q2&#34;, &#34;Q3&#34;, &#34;Q4&#34;]) <span>— равные по размеру группы</span></li><li>s.value_counts(sort=False, dropna=False) <span>— размер групп по порядку и с NaN</span></li><li>cl.groupby(groups, observed=False)[&#34;x&#34;].mean() <span>— показатель по интервалам</span></li><li>pd.CategoricalDtype([...], ordered=True) <span>— категория с порядком</span></li><li>tier &gt;= &#34;gold&#34; / tier.cat.categories <span>— сравнение и список категорий</span></li><li>pivot_table(index=a, columns=b, values=..., observed=False) <span>— таблица двух интервалов</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">06 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. В какой интервал попадёт возраст 24 при <code>pd.cut(age, [17, 24, 34])</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>(24, 34]</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>(17, 24]</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Никуда, будет NaN</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>В оба</span></button></div>
+          <div class="why" hidden>Правая граница входит в интервал: (17, 24] значит «больше 17 и до 24 включительно».</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Чем qcut отличается от cut?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>qcut сам ставит границы так, чтобы в группах было поровну значений</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>qcut работает только с датами</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>qcut удаляет пропуски</span></button></div>
+          <div class="why" hidden>cut — твои границы, qcut — твоё число групп одинакового размера.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Сколько подписей нужно для <code>bins=[0, 12, 36, 96]</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>4</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>3</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>2</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Сколько угодно</span></button></div>
+          <div class="why" hidden>4 границы образуют 3 интервала.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Зачем задавать уровню карты порядок silver &lt; gold &lt; platinum?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Чтобы занимало меньше памяти</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Чтобы сортировка и сравнения работали по смыслу, а не по алфавиту</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Без этого нельзя группировать</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Чтобы удалить пропуски</span></button></div>
+          <div class="why" hidden>Без порядка pandas сортирует по алфавиту и сравнивает строки буква за буквой.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Группировка по интервалам скрыла пустую группу. Что добавить?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>dropna=True</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>observed=False</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>sort=True</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>ordered=False</span></button></div>
+          <div class="why" hidden>observed=False показывает все категории, даже без строк.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">07 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Возрастные группы</h3>
+            <ol class='steps-t'><li>Разложи клиентов по возрасту: границы <code class='i'>[17, 24, 34, 44, 54, 70]</code>, подписи «18–24», «25–34», «35–44», «45–54», «55+» → <code class='i'>ag</code>.</li> <li>Выведи, сколько клиентов в каждой группе, в естественном порядке групп и вместе с теми, у кого возраст не указан.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 19 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">ag =
+
+# размер групп
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">age
+18–24    192
+25–34    275
+35–44    283
+45–54    258
+55+      474
+NaN       18
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ag =
+
+# размер групп
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Нужно разложить каждого клиента в «коробку» по возрасту. Границы и подписи коробок уже даны в условии — их нужно передать в одну функцию. Потом посчитать, сколько клиентов в каждой коробке.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.cut(числа, [границы], labels=[подписи])</code>. Подписей на одну меньше, чем границ. <code class="i">s.value_counts(sort=False, dropna=False)</code> — размер групп по их порядку и вместе с пустыми.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>ag = pd.cut(cl[&#34;___&#34;], [17, 24, 34, 44, 54, 70], labels=[&#34;18–24&#34;, &#34;25–34&#34;, &#34;35–44&#34;, &#34;45–54&#34;, &#34;55+&#34;])
+ag.value_counts(sort=___, dropna=___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">sort=False</code> группы встанут по размеру, а не по возрасту, и таблицу будет трудно читать.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Стаж и уход</h3>
+            <ol class='steps-t'><li>Разложи клиентов по стажу (<code class='i'>tenure_months</code>): границы <code class='i'>[0, 12, 36, 96]</code>, подписи «до года», «1–3 года», «больше 3 лет» → <code class='i'>ten</code>.</li> <li>Выведи долю ушедших в каждой группе в процентах, 1 знак.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 19 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">ten =
+
+# доля ушедших по стажу, %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">tenure_months
+до года         29.0
+1–3 года         7.4
+больше 3 лет     8.5
+Name: churned, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ten =
+
+# доля ушедших по стажу, %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала разложи клиентов по стажу, потом сгруппируй по этим интервалам и посчитай долю ушедших. Колонка churned — True/False, а среднее от True/False — это доля True.</p>
+<p><b>Чем это сделать.</b> <code class="i">cl.groupby(группы, observed=False)["колонка"].mean()</code> — в groupby можно передать готовую Series с интервалами.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>ten = pd.cut(cl[&#34;___&#34;], [0, 12, 36, 96], labels=[&#34;до года&#34;, &#34;1–3 года&#34;, &#34;больше 3 лет&#34;])
+(cl.groupby(ten, observed=False)[&#34;___&#34;].mean() * 100).round(___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">.sum()</code> вместо <code class="i">.mean()</code> даст число ушедших, а не долю.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Квартили трат</h3>
+            <ol class='steps-t'><li>Раздели клиентов на 4 равные группы по тратам (<code class='i'>monthly_spend</code>) с подписями Q1–Q4 → <code class='i'>sq</code>.</li> <li>Таблица по группам: <code class='i'>clients</code> — клиентов, <code class='i'>median_k</code> — медиана трат в тысячах сум (целое), <code class='i'>churn_%</code> — доля ушедших (1 знак).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 19 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">sq =
+t = pd.DataFrame({
+    # твой код
+})
+t
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">               clients  median_k  churn_%
+monthly_spend
+Q1                 375      1675     19.2
+Q2                 375      2725     12.5
+Q3                 375      4621      6.9
+Q4                 375     10997      7.2</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>sq =
+t = pd.DataFrame({
+    # твой код
+})
+t
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Четыре равные по размеру группы — это квартили. Границы тут ставишь не ты, а pandas. Потом по каждой группе нужны три числа.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.qcut(числа, 4, labels=[...])</code> — 4 группы поровну. <code class="i">g = cl.groupby(sq, observed=False)</code>, затем <code class="i">g.size()</code>, <code class="i">g["x"].median()</code>, <code class="i">g["y"].mean()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>sq = pd.qcut(cl[&#34;___&#34;], ___, labels=[&#34;Q1&#34;, &#34;Q2&#34;, &#34;Q3&#34;, &#34;Q4&#34;])
+g = cl.groupby(sq, observed=False)
+t = pd.DataFrame({
+    &#34;clients&#34;: g.___(),
+    &#34;median_k&#34;: (g[&#34;monthly_spend&#34;].___() / 1000).round().astype(int),
+    &#34;churn_%&#34;: (g[&#34;churned&#34;].___() * 100).round(1),
+})</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">pd.cut(x, 4)</code> разрежет диапазон трат на 4 равных отрезка, и почти все клиенты попадут в первый. Равные по числу людей группы делает именно qcut.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Уровни карты по порядку</h3>
+            <ol class='steps-t'><li>Создай тип «категория с порядком» silver &lt; gold &lt; platinum и переведи в него колонку <code class='i'>tier</code> → <code class='i'>tier</code>.</li> <li>Напечатай список категорий в их порядке.</li> <li>Напечатай, сколько клиентов с уровнем <b>gold и выше</b>.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 19 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">tier_type =
+tier =
+
+# список категорий и число клиентов gold и выше
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">[&#39;silver&#39;, &#39;gold&#39;, &#39;platinum&#39;]
+594</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>tier_type =
+tier =
+
+# список категорий и число клиентов gold и выше
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Уровни карты — слова, но у них есть порядок. pandas узнает о порядке, только если создать специальный тип категории и перевести колонку в него.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.CategoricalDtype([по порядку], ordered=True)</code> — тип. <code class="i">s.astype(тип)</code> — перевод. <code class="i">s.cat.categories.tolist()</code> — список категорий. Сравнение <code class="i">s &gt;= "gold"</code> работает по порядку.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>tier_type = pd.CategoricalDtype([&#34;___&#34;, &#34;___&#34;, &#34;___&#34;], ordered=___)
+tier = cl[&#34;tier&#34;].astype(___)
+print(tier.cat.categories.tolist())
+print((tier &gt;= &#34;___&#34;).sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без <code class="i">ordered=True</code> сравнение &gt;= выдаст ошибку, а сравнение обычного текста идёт по алфавиту.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Возраст и приложение</h3>
+            <p>Используй возрастные группы из задачи 1 (границы те же).</p> <ol class='steps-t'><li>По возрастным группам: <code class='i'>clients</code> — клиентов, <code class='i'>logins</code> — среднее число входов в приложение (1 знак), <code class='i'>active_pct</code> — доля тех, кто заходит 20 раз в месяц и чаще, % (1 знак).</li> <li>Выведи таблицу.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 19 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">ag = pd.cut(cl[&#34;age&#34;], [17, 24, 34, 44, 54, 70], labels=[&#34;18–24&#34;, &#34;25–34&#34;, &#34;35–44&#34;, &#34;45–54&#34;, &#34;55+&#34;])
+t = (
+    cl.assign(active=cl[&#34;app_logins&#34;] &gt;= 20)
+    # твой код
+)
+t
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">       clients  logins  active_pct
+age
+18–24      192    31.8        99.5
+25–34      275    27.3        92.0
+35–44      283    22.7        72.4
+45–54      258    17.0        28.3
+55+        474     9.5         1.7</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ag = pd.cut(cl[&#34;age&#34;], [17, 24, 34, 44, 54, 70], labels=[&#34;18–24&#34;, &#34;25–34&#34;, &#34;35–44&#34;, &#34;45–54&#34;, &#34;55+&#34;])
+t = (
+    cl.assign(active=cl[&#34;app_logins&#34;] &gt;= 20)
+    # твой код
+)
+t
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Тот же приём с возрастными группами, только посчитать нужно три показателя сразу. «Активный» — это True/False, поэтому его среднее — доля активных.</p>
+<p><b>Чем это сделать.</b> <code class="i">.agg(имя=("колонка", "функция"), ...)</code> — несколько показателей сразу. Потом <code class="i">.assign(...)</code> — округлить и перевести в проценты, <code class="i">.drop(columns=...)</code> — убрать лишнюю колонку.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>t = (
+    cl.assign(active=cl[&#34;app_logins&#34;] &gt;= ___)
+    .groupby(ag, observed=False)
+    .agg(clients=(&#34;client_id&#34;, &#34;___&#34;), logins=(&#34;app_logins&#34;, &#34;___&#34;), active=(&#34;active&#34;, &#34;___&#34;))
+    .assign(logins=lambda d: d[&#34;logins&#34;].round(1),
+            active_pct=lambda d: (d[&#34;active&#34;] * 100).round(1))
+    .drop(columns=&#34;active&#34;)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Условие «20 раз и чаще» — это <code class="i">&gt;= 20</code>, а не <code class="i">&gt; 20</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Группа риска</h3>
+            <p>Группа риска — клиенты со стажем «до года» <b>и</b> тратами в группе Q1 (интервалы из задач 2 и 3).</p> <ol class='steps-t'><li>Сделай маску <code class='i'>risk</code>.</li> <li>Напечатай в одну строку: сколько клиентов в группе риска, доля ушедших в ней и доля ушедших среди всех остальных (проценты, 1 знак).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 19 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">ten = pd.cut(cl[&#34;tenure_months&#34;], [0, 12, 36, 96], labels=[&#34;до года&#34;, &#34;1–3 года&#34;, &#34;больше 3 лет&#34;])
+sq = pd.qcut(cl[&#34;monthly_spend&#34;], 4, labels=[&#34;Q1&#34;, &#34;Q2&#34;, &#34;Q3&#34;, &#34;Q4&#34;])
+risk =
+
+# клиентов, % ушедших в группе и среди остальных
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">60 41.7 10.2</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ten = pd.cut(cl[&#34;tenure_months&#34;], [0, 12, 36, 96], labels=[&#34;до года&#34;, &#34;1–3 года&#34;, &#34;больше 3 лет&#34;])
+sq = pd.qcut(cl[&#34;monthly_spend&#34;], 4, labels=[&#34;Q1&#34;, &#34;Q2&#34;, &#34;Q3&#34;, &#34;Q4&#34;])
+risk =
+
+# клиентов, % ушедших в группе и среди остальных
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Группа риска — это два условия сразу: стаж «до года» и траты в Q1. Получи маску True/False и сравни долю ушедших внутри группы и вне её.</p>
+<p><b>Чем это сделать.</b> Условия соединяют через <code class="i">&amp;</code>, каждое в скобках. <code class="i">~risk</code> — «все, кто не в группе». <code class="i">cl.loc[маска, "колонка"].mean()</code> — доля по маске.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>risk = (ten == &#34;___&#34;) &amp; (sq == &#34;___&#34;)
+print(risk.___(),
+      round(cl.loc[risk, &#34;churned&#34;].mean() * 100, 1),
+      round(cl.loc[___, &#34;churned&#34;].mean() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без скобок вокруг каждого сравнения Python сначала выполнит &amp; и выдаст ошибку.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Карта риска: стаж × траты</h3>
+            <ol class='steps-t'><li>Сводная таблица: строки — группы стажа, колонки — квартили трат, значения — доля ушедших в процентах (1 знак). Все группы должны быть видны (<code class='i'>observed=False</code>).</li> <li>Напечатай таблицу.</li> <li>Напечатай, в какой клетке уходят чаще всего: группу стажа и квартиль одной строкой.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 19 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">ten = pd.cut(cl[&#34;tenure_months&#34;], [0, 12, 36, 96], labels=[&#34;до года&#34;, &#34;1–3 года&#34;, &#34;больше 3 лет&#34;])
+sq = pd.qcut(cl[&#34;monthly_spend&#34;], 4, labels=[&#34;Q1&#34;, &#34;Q2&#34;, &#34;Q3&#34;, &#34;Q4&#34;])
+m =
+
+print(m)
+# клетка с самой большой долей ушедших
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">monthly_spend    Q1    Q2    Q3    Q4
+tenure_months
+до года        41.7  36.0  20.6  20.6
+1–3 года       11.2   8.2   4.0   5.9
+больше 3 лет   16.8   9.3   3.9   3.8
+до года Q1</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ten = pd.cut(cl[&#34;tenure_months&#34;], [0, 12, 36, 96], labels=[&#34;до года&#34;, &#34;1–3 года&#34;, &#34;больше 3 лет&#34;])
+sq = pd.qcut(cl[&#34;monthly_spend&#34;], 4, labels=[&#34;Q1&#34;, &#34;Q2&#34;, &#34;Q3&#34;, &#34;Q4&#34;])
+m =
+
+print(m)
+# клетка с самой большой долей ушедших
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Нужна таблица двух интервалов: стаж по строкам, квартили по колонкам. Чтобы найти самую большую клетку, таблицу удобно «вытянуть» обратно в длинный список, где у каждой клетки есть адрес (строка, колонка).</p>
+<p><b>Чем это сделать.</b> <code class="i">pivot_table(index=a, columns=b, values="x", aggfunc="mean", observed=False)</code>. <code class="i">m.stack()</code> — таблица в Series с адресами-парами, <code class="i">.idxmax()</code> — адрес самой большой.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>m = (cl.pivot_table(index=___, columns=___, values=&#34;churned&#34;, aggfunc=&#34;___&#34;, observed=False) * 100).round(1)
+print(m)
+worst = m.stack().___()
+print(worst[0], worst[1])</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">m.max().max()</code> найдёт само число, но не скажет, в какой оно клетке.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">08 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Дилнозе: кого удерживать</h2>
+      <div class="case">
+        <p>Напиши ответ Дилнозе. Не больше 6 предложений. Структура: <b>сколько клиентов уходит в целом → новые против давних → маленькие траты против больших → группа риска в цифрах → что видно по возрасту и приложению → 1 рекомендация</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Доля ушедших в целом</span><span class="fact-chip">Уходят среди клиентов со стажем до года</span><span class="fact-chip">Уходят среди четверти с самыми маленькими тратами</span><span class="fact-chip">Уходят в группе риска</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Дилноза, привет! Коротко: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Кто, по твоему ответу, уходит чаще всего?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Новые клиенты с маленькими тратами</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Давние клиенты с большими тратами</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Все примерно одинаково</span></button></div>
+            <div class="why" hidden>В группе «до года» и Q1 уходит 41,7% — в четыре раза чаще остальных (10,2%).</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Что значит «Q1» в твоём ответе?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Четверть клиентов с самыми маленькими тратами</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Первый квартал года</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Клиенты с тратами меньше миллиона</span></button></div>
+            <div class="why" hidden>qcut делит клиентов на 4 равные группы по тратам, Q1 — нижняя четверть.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Почему бонус лучше давать через приложение именно новым клиентам?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Именно они чаще уходят, а молодые активно пользуются приложением</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Так дешевле для давних клиентов</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Старшие клиенты уходят чаще</span></button></div>
+            <div class="why" hidden>Риск сосредоточен в первом году, а приложение — канал, который клиенты видят чаще всего.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Дилноза, привет! В целом уходит 11,5% клиентов, но риск очень неравномерный. Среди тех, кто с нами меньше года, ушли 29,0%, а среди клиентов со стажем больше 3 лет — только 8,5%. Четверть клиентов с самыми маленькими тратами (до 2,18 млн в месяц) уходит в 19,2% случаев, а четверть с самыми большими — в 7,2%. Самая опасная группа — новые клиенты с маленькими тратами: их 60, и уходит 41,7% против 10,2% у остальных. Молодые клиенты 18–24 заходят в приложение в среднем 31,8 раза в месяц, клиенты 55+ — 9,5 раза. Рекомендация: в первый год давать новым клиентам с маленькими тратами персональный бонус через приложение.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Общая доля ушедших</li><li>Сравнение новых и давних клиентов</li><li>Сравнение маленьких и больших трат</li><li>Группа риска: размер и доля ушедших</li><li>Возраст и приложение, рекомендация</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">09 · Завершить урок</div>
+        <h2>Закрыть урок 19</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/18-indeks-multiindex/"><small>← Урок 18</small><b>Индекс и MultiIndex</b></a><a class="nx" href="../../lessons/20-vizualizaciya/"><small>Урок 20 →</small><b>Визуализация для отчёта</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611072255"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611072255"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0414\u043e\u043b\u044f \u0443\u0448\u0435\u0434\u0448\u0438\u0445 \u0432 \u0446\u0435\u043b\u043e\u043c", "pct": true, "value": 11.5}, {"name": "\u0423\u0445\u043e\u0434\u044f\u0442 \u0441\u0440\u0435\u0434\u0438 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0441\u043e \u0441\u0442\u0430\u0436\u0435\u043c \u0434\u043e \u0433\u043e\u0434\u0430", "pct": true, "value": 29.0}, {"name": "\u0423\u0445\u043e\u0434\u044f\u0442 \u0441\u0440\u0435\u0434\u0438 \u0447\u0435\u0442\u0432\u0435\u0440\u0442\u0438 \u0441 \u0441\u0430\u043c\u044b\u043c\u0438 \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u043c\u0438 \u0442\u0440\u0430\u0442\u0430\u043c\u0438", "pct": true, "value": 19.2}, {"name": "\u0423\u0445\u043e\u0434\u044f\u0442 \u0432 \u0433\u0440\u0443\u043f\u043f\u0435 \u0440\u0438\u0441\u043a\u0430", "pct": true, "value": 41.7}], "logic": [{"a": 0, "o": ["\u041d\u043e\u0432\u044b\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u0441 \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u043c\u0438 \u0442\u0440\u0430\u0442\u0430\u043c\u0438", "\u0414\u0430\u0432\u043d\u0438\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u0441 \u0431\u043e\u043b\u044c\u0448\u0438\u043c\u0438 \u0442\u0440\u0430\u0442\u0430\u043c\u0438", "\u0412\u0441\u0435 \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u043e"], "q": "\u041a\u0442\u043e, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0443\u0445\u043e\u0434\u0438\u0442 \u0447\u0430\u0449\u0435 \u0432\u0441\u0435\u0433\u043e?", "why": "\u0412 \u0433\u0440\u0443\u043f\u043f\u0435 \u00ab\u0434\u043e \u0433\u043e\u0434\u0430\u00bb \u0438 Q1 \u0443\u0445\u043e\u0434\u0438\u0442 41,7% \u2014 \u0432 \u0447\u0435\u0442\u044b\u0440\u0435 \u0440\u0430\u0437\u0430 \u0447\u0430\u0449\u0435 \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0445 (10,2%)."}, {"a": 0, "o": ["\u0427\u0435\u0442\u0432\u0435\u0440\u0442\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0441 \u0441\u0430\u043c\u044b\u043c\u0438 \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u043c\u0438 \u0442\u0440\u0430\u0442\u0430\u043c\u0438", "\u041f\u0435\u0440\u0432\u044b\u0439 \u043a\u0432\u0430\u0440\u0442\u0430\u043b \u0433\u043e\u0434\u0430", "\u041a\u043b\u0438\u0435\u043d\u0442\u044b \u0441 \u0442\u0440\u0430\u0442\u0430\u043c\u0438 \u043c\u0435\u043d\u044c\u0448\u0435 \u043c\u0438\u043b\u043b\u0438\u043e\u043d\u0430"], "q": "\u0427\u0442\u043e \u0437\u043d\u0430\u0447\u0438\u0442 \u00abQ1\u00bb \u0432 \u0442\u0432\u043e\u0451\u043c \u043e\u0442\u0432\u0435\u0442\u0435?", "why": "qcut \u0434\u0435\u043b\u0438\u0442 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u043d\u0430 4 \u0440\u0430\u0432\u043d\u044b\u0435 \u0433\u0440\u0443\u043f\u043f\u044b \u043f\u043e \u0442\u0440\u0430\u0442\u0430\u043c, Q1 \u2014 \u043d\u0438\u0436\u043d\u044f\u044f \u0447\u0435\u0442\u0432\u0435\u0440\u0442\u044c."}, {"a": 0, "o": ["\u0418\u043c\u0435\u043d\u043d\u043e \u043e\u043d\u0438 \u0447\u0430\u0449\u0435 \u0443\u0445\u043e\u0434\u044f\u0442, \u0430 \u043c\u043e\u043b\u043e\u0434\u044b\u0435 \u0430\u043a\u0442\u0438\u0432\u043d\u043e \u043f\u043e\u043b\u044c\u0437\u0443\u044e\u0442\u0441\u044f \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435\u043c", "\u0422\u0430\u043a \u0434\u0435\u0448\u0435\u0432\u043b\u0435 \u0434\u043b\u044f \u0434\u0430\u0432\u043d\u0438\u0445 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432", "\u0421\u0442\u0430\u0440\u0448\u0438\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u0443\u0445\u043e\u0434\u044f\u0442 \u0447\u0430\u0449\u0435"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u0431\u043e\u043d\u0443\u0441 \u043b\u0443\u0447\u0448\u0435 \u0434\u0430\u0432\u0430\u0442\u044c \u0447\u0435\u0440\u0435\u0437 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0438\u043c\u0435\u043d\u043d\u043e \u043d\u043e\u0432\u044b\u043c \u043a\u043b\u0438\u0435\u043d\u0442\u0430\u043c?", "why": "\u0420\u0438\u0441\u043a \u0441\u043e\u0441\u0440\u0435\u0434\u043e\u0442\u043e\u0447\u0435\u043d \u0432 \u043f\u0435\u0440\u0432\u043e\u043c \u0433\u043e\u0434\u0443, \u0430 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u2014 \u043a\u0430\u043d\u0430\u043b, \u043a\u043e\u0442\u043e\u0440\u044b\u0439 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u0432\u0438\u0434\u044f\u0442 \u0447\u0430\u0449\u0435 \u0432\u0441\u0435\u0433\u043e."}]}, "case_model": "\u0414\u0438\u043b\u043d\u043e\u0437\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u0412 \u0446\u0435\u043b\u043e\u043c \u0443\u0445\u043e\u0434\u0438\u0442 11,5% \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432, \u043d\u043e \u0440\u0438\u0441\u043a \u043e\u0447\u0435\u043d\u044c \u043d\u0435\u0440\u0430\u0432\u043d\u043e\u043c\u0435\u0440\u043d\u044b\u0439. \u0421\u0440\u0435\u0434\u0438 \u0442\u0435\u0445, \u043a\u0442\u043e \u0441 \u043d\u0430\u043c\u0438 \u043c\u0435\u043d\u044c\u0448\u0435 \u0433\u043e\u0434\u0430, \u0443\u0448\u043b\u0438 29,0%, \u0430 \u0441\u0440\u0435\u0434\u0438 \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0441\u043e \u0441\u0442\u0430\u0436\u0435\u043c \u0431\u043e\u043b\u044c\u0448\u0435 3 \u043b\u0435\u0442 \u2014 \u0442\u043e\u043b\u044c\u043a\u043e 8,5%. \u0427\u0435\u0442\u0432\u0435\u0440\u0442\u044c \u043a\u043b\u0438\u0435\u043d\u0442\u043e\u0432 \u0441 \u0441\u0430\u043c\u044b\u043c\u0438 \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u043c\u0438 \u0442\u0440\u0430\u0442\u0430\u043c\u0438 (\u0434\u043e 2,18 \u043c\u043b\u043d \u0432 \u043c\u0435\u0441\u044f\u0446) \u0443\u0445\u043e\u0434\u0438\u0442 \u0432 19,2% \u0441\u043b\u0443\u0447\u0430\u0435\u0432, \u0430 \u0447\u0435\u0442\u0432\u0435\u0440\u0442\u044c \u0441 \u0441\u0430\u043c\u044b\u043c\u0438 \u0431\u043e\u043b\u044c\u0448\u0438\u043c\u0438 \u2014 \u0432 7,2%. \u0421\u0430\u043c\u0430\u044f \u043e\u043f\u0430\u0441\u043d\u0430\u044f \u0433\u0440\u0443\u043f\u043f\u0430 \u2014 \u043d\u043e\u0432\u044b\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b \u0441 \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u043c\u0438 \u0442\u0440\u0430\u0442\u0430\u043c\u0438: \u0438\u0445 60, \u0438 \u0443\u0445\u043e\u0434\u0438\u0442 41,7% \u043f\u0440\u043e\u0442\u0438\u0432 10,2% \u0443 \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0445. \u041c\u043e\u043b\u043e\u0434\u044b\u0435 \u043a\u043b\u0438\u0435\u043d\u0442\u044b 18\u201324 \u0437\u0430\u0445\u043e\u0434\u044f\u0442 \u0432 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435 \u0432 \u0441\u0440\u0435\u0434\u043d\u0435\u043c 31,8 \u0440\u0430\u0437\u0430 \u0432 \u043c\u0435\u0441\u044f\u0446, \u043a\u043b\u0438\u0435\u043d\u0442\u044b 55+ \u2014 9,5 \u0440\u0430\u0437\u0430. \u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u044f: \u0432 \u043f\u0435\u0440\u0432\u044b\u0439 \u0433\u043e\u0434 \u0434\u0430\u0432\u0430\u0442\u044c \u043d\u043e\u0432\u044b\u043c \u043a\u043b\u0438\u0435\u043d\u0442\u0430\u043c \u0441 \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u043c\u0438 \u0442\u0440\u0430\u0442\u0430\u043c\u0438 \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b\u044c\u043d\u044b\u0439 \u0431\u043e\u043d\u0443\u0441 \u0447\u0435\u0440\u0435\u0437 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0435.", "case_xp": 30, "cheat": [["pd.cut(x, [17, 24, 34], labels=[\"18\u201324\", \"25\u201334\"])", "\u0441\u0432\u043e\u0438 \u0433\u0440\u0430\u043d\u0438\u0446\u044b"], ["pd.cut(x, bins, include_lowest=True)", "\u0432\u043a\u043b\u044e\u0447\u0438\u0442\u044c \u0441\u0430\u043c\u0443\u044e \u043b\u0435\u0432\u0443\u044e \u0433\u0440\u0430\u043d\u0438\u0446\u0443"], ["pd.qcut(x, 4, labels=[\"Q1\", \"Q2\", \"Q3\", \"Q4\"])", "\u0440\u0430\u0432\u043d\u044b\u0435 \u043f\u043e \u0440\u0430\u0437\u043c\u0435\u0440\u0443 \u0433\u0440\u0443\u043f\u043f\u044b"], ["s.value_counts(sort=False, dropna=False)", "\u0440\u0430\u0437\u043c\u0435\u0440 \u0433\u0440\u0443\u043f\u043f \u043f\u043e \u043f\u043e\u0440\u044f\u0434\u043a\u0443 \u0438 \u0441 NaN"], ["cl.groupby(groups, observed=False)[\"x\"].mean()", "\u043f\u043e\u043a\u0430\u0437\u0430\u0442\u0435\u043b\u044c \u043f\u043e \u0438\u043d\u0442\u0435\u0440\u0432\u0430\u043b\u0430\u043c"], ["pd.CategoricalDtype([...], ordered=True)", "\u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f \u0441 \u043f\u043e\u0440\u044f\u0434\u043a\u043e\u043c"], ["tier \u003e= \"gold\" / tier.cat.categories", "\u0441\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u0435 \u0438 \u0441\u043f\u0438\u0441\u043e\u043a \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u0439"], ["pivot_table(index=a, columns=b, values=..., observed=False)", "\u0442\u0430\u0431\u043b\u0438\u0446\u0430 \u0434\u0432\u0443\u0445 \u0438\u043d\u0442\u0435\u0440\u0432\u0430\u043b\u043e\u0432"]], "data": "../../data/", "datasets": ["tanga_clients.csv"], "day": 19, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ncl = pd.read_csv(\"tanga_clients.csv\")", "tasks": [{"figure": false, "id": "t1", "keys": ["age", "18\u201324 192", "25\u201334 275", "35\u201344 283", "45\u201354 258", "55+ 474", "NaN 18"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["tenure_months", "\u0434\u043e \u0433\u043e\u0434\u0430 29.0", "1\u20133 \u0433\u043e\u0434\u0430 7.4", "\u0431\u043e\u043b\u044c\u0448\u0435 3 \u043b\u0435\u0442 8.5"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["clients median_k churn_%", "monthly_spend", "Q1 375 1675 19.2", "Q2 375 2725 12.5", "Q3 375 4621 6.9", "Q4 375 10997 7.2"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["[\u0027silver\u0027, \u0027gold\u0027, \u0027platinum\u0027]", "594"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["clients logins active_pct", "age", "18\u201324 192 31.8 99.5", "25\u201334 275 27.3 92.0", "35\u201344 283 22.7 72.4", "45\u201354 258 17.0 28.3", "55+ 474 9.5 1.7"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["60 41.7 10.2"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["monthly_spend Q1 Q2 Q3 Q4", "tenure_months", "\u0434\u043e \u0433\u043e\u0434\u0430 41.7 36.0 20.6 20.6", "1\u20133 \u0433\u043e\u0434\u0430 11.2 8.2 4.0 5.9", "\u0431\u043e\u043b\u044c\u0448\u0435 3 \u043b\u0435\u0442 16.8 9.3 3.9 3.8", "\u0434\u043e \u0433\u043e\u0434\u0430 Q1"], "setup": "", "xp": 25}], "theory": ["brief", "cut", "qcut", "order", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611072255"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

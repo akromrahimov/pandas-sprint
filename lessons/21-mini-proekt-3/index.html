@@ -2,15 +2,16 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<script>try{var s=localStorage.getItem("pandas-sprint:skin");if(s==="cornflower")document.documentElement.setAttribute("data-skin",s)}catch(e){}</script>
 <style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Проект 21. Мини-проект 3: дашборд-ноутбук когорт и метрик — Pandas Sprint</title>
-<meta name="description" content="Проект 21 курса Pandas Sprint — Мини-проект 3: дашборд-ноутбук когорт и метрик. Ноутбук для продакта: метрики, когорты и графики в одном месте.">
+<title>Проект 21. Мини-проект 3: отчёт по продажам во времени — Pandas Sprint</title>
+<meta name="description" content="Проект 21 курса Pandas Sprint — Мини-проект 3: отчёт по продажам во времени. Квартальный отчёт сети магазинов: тренд, рост регионов, рейтинг магазинов и сезон.">
 <link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/21-mini-proekt-3/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Pandas Sprint">
-<meta property="og:title" content="Проект 21. Мини-проект 3: дашборд-ноутбук когорт и метрик — Pandas Sprint">
-<meta property="og:description" content="Проект 21 курса Pandas Sprint — Мини-проект 3: дашборд-ноутбук когорт и метрик. Ноутбук для продакта: метрики, когорты и графики в одном месте.">
+<meta property="og:title" content="Проект 21. Мини-проект 3: отчёт по продажам во времени — Pandas Sprint">
+<meta property="og:description" content="Проект 21 курса Pandas Sprint — Мини-проект 3: отчёт по продажам во времени. Квартальный отчёт сети магазинов: тренд, рост регионов, рейтинг магазинов и сезон.">
 <meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/21-mini-proekt-3/">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,17 +19,38 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="expect" href="#page-ready" blocking="render">
 <script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611072255">
 </head>
 <body>
 <header class="site-head">
   <div class="in">
     <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
     <nav class="nav" aria-label="Разделы сайта">
-      <a href="../../program/">Программа</a>
+      <a href="../../program/"><span class="lg-only">Программа</span><span class="sm-only">Уроки</span></a>
       <a href="../../start/">Как начать</a>
       <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
     </nav>
+    <div class="prefs" data-prefs>
+      <button type="button" class="prefs-btn" aria-haspopup="true" aria-expanded="false" aria-label="Настройки" title="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <div class="prefs-pop" role="dialog" aria-label="Настройки" hidden>
+        <h3>Настройки</h3>
+        <div class="prefs-sec" role="radiogroup" aria-label="Фон">
+          <b>Фон</b>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="default" aria-checked="true">
+            <span class="pv" style="background:#0E0B22"><i style="left:6px;top:6px;width:24px;height:6px;background:#FFCA00"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#B9A8FF"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#FF5CB0"></i></span>
+            <span><b>Стандартный</b><small>тёмно-синий или светлый — как на устройстве</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="cornflower" aria-checked="false">
+            <span class="pv" style="background:#FDFDF5"><i style="left:6px;top:6px;width:24px;height:6px;background:#3D568F"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#9FBAF1"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#EAF3B2"></i></span>
+            <span><b>Васильковое поле</b><small>кремовый фон, васильковый и синий, лаймовые акценты</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="auth" data-auth hidden>
       <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
       <div class="auth-pop" hidden>
@@ -89,32 +111,32 @@
   <aside class="rail">
     <ol class="outline">
       <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
-<li><a href="#plan"><span class="dot">✓</span>План дашборда</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+<li><a href="#plan"><span class="dot">✓</span>План отчёта</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
       <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
 <li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
     </ol>
     <div class="meter"><b id="xpNow">0 / 240 XP</b>Задачи: <span id="tasksNow">0 из 8</span><div class="bar"><span id="xpBar"></span></div></div>
 <button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
   <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
-    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Дашборд: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
-    <p>Если ты собирал дашборды на SQL, вот как те же метрики выглядят в pandas.</p>
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Отчёт во времени: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>Если ты собирал такие отчёты на SQL, вот как те же шаги выглядят в pandas.</p>
     <div class="scroll"><table class="map">
       <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
-      <tbody><tr><td><code>SELECT month, COUNT(DISTINCT user_id), SUM(amount) … GROUP BY month</code></td><td><code>p.groupby(&#34;month&#34;).agg(payers=(&#34;user_id&#34;, &#34;nunique&#34;), revenue=(&#34;amount&#34;, &#34;sum&#34;))</code></td><td>метрики по месяцам</td></tr><tr><td><code>… WHERE age = 0</code></td><td><code>p[p[&#34;age&#34;] == 0].groupby(&#34;month&#34;)[&#34;user_id&#34;].nunique()</code></td><td>новые платящие</td></tr><tr><td><code>матрица когорт через CTE</code></td><td><code>p.pivot_table(index=&#34;cohort&#34;, columns=&#34;age&#34;, values=&#34;user_id&#34;, aggfunc=&#34;nunique&#34;)</code></td><td>удержание</td></tr><tr><td><code>SUM(amount) / COUNT(DISTINCT user_id)</code></td><td><code>revenue / payers</code></td><td>ARPPU</td></tr></tbody>
+      <tbody><tr><td><code>SELECT date_trunc(&#39;week&#39;, date), SUM(revenue) … GROUP BY 1</code></td><td><code>day.resample(&#34;W&#34;).sum()</code></td><td>выручка по неделям</td></tr><tr><td><code>… HAVING COUNT(DISTINCT date) = 7</code></td><td><code>wk[day.resample(&#34;W&#34;).count() == 7]</code></td><td>только полные недели</td></tr><tr><td><code>(x - LAG(x)) / LAG(x) OVER (PARTITION BY region ORDER BY month)</code></td><td><code>mr.pct_change()</code></td><td>рост месяц к месяцу</td></tr><tr><td><code>RANK() OVER (PARTITION BY region ORDER BY revenue DESC)</code></td><td><code>st.groupby(level=&#34;region&#34;).rank(ascending=False)</code></td><td>место внутри региона</td></tr></tbody>
     </table></div>
     <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
   </dialog>
 
   <main>
     <section id="top">
-      <div class="eyebrow">Проект 21 из 30 · Неделя 3 · Время и метрики</div>
-      <h1>Мини-проект 3: <mark>дашборд-ноутбук</mark> когорт и метрик</h1>
-      <p class="lead">Неделя 3 позади: даты, временные ряды, оконные функции, продуктовые метрики, когорты и графики. Сегодня собираем всё в один ноутбук-дашборд для основательницы онлайн-школы: метрики по месяцам, удержание, тарифы, каналы и графики, которые можно показать команде.</p>
+      <div class="eyebrow">Проект 21 из 30 · Неделя 3 · Время и структура</div>
+      <h1>Мини-проект 3: <mark>отчёт по продажам</mark> во времени</h1>
+      <p class="lead">Неделя 3 позади: даты, resample и rolling, оконные функции, индекс и MultiIndex, интервалы и категории, графики. Сегодня собираем всё в один отчёт для директора по продажам: тренд по дням и неделям, рост регионов, рейтинг магазинов, дни недели и сезонный всплеск «к школе» — с графиком и итоговой сводкой.</p>
       <div class="chips"><span class="chip">8 шагов проекта + кейс</span><span class="chip">pandas 3.0</span><span class="chip">matplotlib</span><span class="chip">240 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
       <div class="goal">
         <div class="goal-main">
           <div class="eyebrow">Цель урока</div>
-          <p>Собрать для онлайн-школы Darslik ежемесячный дашборд: сколько учеников платит, сколько приходит новых, как удерживаются когорты, какой тариф и какой канал выгоднее, — с двумя графиками и итоговой сводкой.</p>
+          <p>Собрать для сети Chakana квартальный отчёт по продажам во времени: как менялась выручка по дням, неделям и месяцам, какие регионы растут, какой магазин лидирует в своём регионе, когда покупают больше всего и насколько сработал сезон «к школе».</p>
           <div class="goal-steps">
             <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
             <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
@@ -124,70 +146,67 @@
         <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
       </div>
       <h3>После урока ты сможешь</h3>
-      <ul class="can"><li>Строить помесячную таблицу метрик из сырых оплат</li><li>Считать матрицу удержания и рисовать её тепловой картой</li><li>Сравнивать тарифы и каналы по удержанию и доходу за одинаковый срок</li><li>Собирать сводку для руководителя в одну Series</li></ul>
+      <ul class="can"><li>Строить ряды по дням и неделям и честно отрезать неполные периоды</li><li>Считать рост месяц к месяцу по регионам через pct_change</li><li>Ранжировать магазины внутри региона и подписывать дни недели по порядку</li><li>Собирать график с заголовком-выводом и сводку для руководителя в одну Series</li></ul>
     </section>
 
     <section id="brief">
       <div class="eyebrow">01 · Брифинг</div>
-      <h2>Нужен дашборд на каждый месяц</h2>
+      <h2>Нужен отчёт по кварталу во времени</h2>
       <div class="chat">
         <div class="msg">
-          <div class="who"><span class="ava">Ф</span>Феруза <small>основательница Darslik · 08:50</small></div>
-          <p>Спасибо за анализ когорт! Хочу, чтобы это стало регулярным: в начале каждого месяца один ноутбук с главными цифрами и двумя-тремя графиками. И отдельно — сравнить тарифы basic и pro и каналы привлечения.</p>
-<div class="file">▤ darslik_payments.csv · оплаты с января по сентябрь</div>        </div>
+          <div class="who"><span class="ava">Н</span>Нилуфар <small>директор по продажам Chakana · 09:30</small></div>
+          <p>Спасибо за разбор по регионам! Теперь собственники хотят увидеть квартал во времени: как шли продажи по неделям, какие регионы выросли в сентябре, кто лучший магазин в каждом регионе, в какие дни недели покупают больше и насколько выстрелил сезон «к школе» в детских товарах. И один понятный график.</p>
+<div class="file">▤ chakana_sales.csv · продажи июля–сентября</div>        </div>
       </div>
-      <p class="note">Это те же данные, что в уроке 19. Каждая задача — шаг проекта: перед ней уже выполнены прошлые шаги (код можно раскрыть под условием). Графики рисуются прямо в «Твой вывод».</p>
-      <div class="dlrow"><a class="btn main" href="../../data/darslik_payments.csv" download>Скачать darslik_payments.csv</a><span class="note">4 765 оплат · 174 КБ</span></div>
+      <p class="note">Это те же данные, что в уроке 18. Каждая задача — шаг проекта: перед ней уже выполнены прошлые шаги (код можно раскрыть под условием). Графики рисуются прямо в «Твой вывод».</p>
+      <div class="dlrow"><a class="btn main" href="../../data/chakana_sales.csv" download>Скачать chakana_sales.csv</a><span class="note">4 565 строк · 303 КБ</span></div>
       <div class="howopen">
         <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
         <pre class="code solo" data-cm>import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-p = pd.read_csv(&#34;darslik_payments.csv&#34;, parse_dates=[&#34;pay_date&#34;])</pre>
-        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+df = pd.read_csv(&#34;chakana_sales.csv&#34;, parse_dates=[&#34;date&#34;])</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
       </div>
     </section>
 
     <section id="plan">
       <div class="eyebrow">02 · Теория</div>
-      <h2>Что должно быть в ежемесячном дашборде</h2>
+      <h2>Из чего состоит отчёт</h2>
       <div class="simple"><span class="tag">Как устроен проект</span>
-  <p>Дашборд-ноутбук — это один файл, который каждый месяц запускают целиком и получают свежие цифры и графики. Поэтому код должен идти шагами: подготовка → метрики → графики → сводка.</p>
+  <p>Отчёт идёт от общего к частному: сначала вся сеть по дням и неделям, потом регионы, магазины, дни недели и сезон.</p>
   <ul>
-    <li><b>Шаг 1.</b> Подготовка: месяц оплаты, когорта, возраст.</li>
-    <li><b>Шаги 2–3.</b> Метрики по месяцам: платящие, новые, выручка, ARPPU — и график.</li>
-    <li><b>Шаги 4–5.</b> Удержание: матрица когорт и тепловая карта.</li>
-    <li><b>Шаги 6–7.</b> Тарифы и каналы: кто удерживается лучше и приносит больше за одинаковый срок.</li>
-    <li><b>Шаг 8.</b> Итоговая сводка — пять чисел для руководителя.</li>
+    <li><b>Шаги 1–3.</b> Выручка по дням и полным неделям, график с трендом.</li>
+    <li><b>Шаг 4.</b> Рост регионов месяц к месяцу.</li>
+    <li><b>Шаг 5.</b> Рейтинг магазинов внутри своего региона.</li>
+    <li><b>Шаг 6.</b> Дни недели по порядку — когда покупают больше.</li>
+    <li><b>Шаг 7.</b> Сезон «к школе» в детских товарах.</li>
+    <li><b>Шаг 8.</b> Итоговая сводка — семь чисел для собственников.</li>
   </ul>
 </div>
-<div class="cards"><div class="card"><div class="q"><b>Новый приём: тепловая карта.</b> Матрицу удобнее читать цветом, чем числами.</div><pre class="code" data-cm>first = p.groupby(&quot;user_id&quot;)[&quot;pay_date&quot;].transform(&quot;min&quot;)
-cohort = first.dt.to_period(&quot;M&quot;)
-age = (p[&quot;pay_date&quot;].dt.year - first.dt.year) * 12 + (p[&quot;pay_date&quot;].dt.month - first.dt.month)
-m = p.assign(cohort=cohort, age=age).pivot_table(index=&quot;cohort&quot;, columns=&quot;age&quot;, values=&quot;user_id&quot;, aggfunc=&quot;nunique&quot;)
-ret = m.div(m[0], axis=0) * 100
-fig, ax = plt.subplots(figsize=(7, 3.6))
-im = ax.imshow(ret.iloc[:, 1:6], cmap=&quot;Purples&quot;, aspect=&quot;auto&quot;)
-ax.set_xticks(range(5), [f&quot;мес. {i}&quot; for i in range(1, 6)])
-ax.set_yticks(range(len(ret)), ret.index.astype(str))
-fig.colorbar(im, label=&quot;% удержания&quot;)
-ax.set_title(&quot;Удержание когорт: темнее — лучше&quot;)</pre><div class="figure-out"><img src="../../static/img/lessons/day21-ex1.png" alt="График из примера" loading="lazy"></div><p class="plain"><b>Простыми словами:</b> <code class="i">imshow</code> раскрашивает таблицу: чем темнее клетка, тем больше учеников осталось. Видно, что нижние (новые) когорты темнее — удержание растёт.</p></div></div>
-<div class="callout"><b>Правило дашборда.</b> На каждом графике и в каждой цифре должно быть понятно, за какой период она посчитана. «Удержание 56%» — какого месяца, каких когорт? Пиши это прямо в заголовке.</div>
+<div class="cards"><div class="card"><div class="q"><b>Новый приём: найти неполные недели.</b> Квартал начинается в среду и заканчивается в среду.</div><pre class="code" data-cm>day = df.set_index(&quot;date&quot;)[&quot;revenue&quot;].resample(&quot;D&quot;).sum()
+pd.DataFrame({&quot;days&quot;: day.resample(&quot;W&quot;).count(), &quot;mln&quot;: (day.resample(&quot;W&quot;).sum() / 1e6).round(1)}).iloc[[0, 1, -2, -1]]</pre><div class="out">            days     mln
+date
+2026-07-05     5   955.2
+2026-07-12     7  1338.0
+2026-09-27     7  1538.7
+2026-10-04     3   624.8</div><p class="plain"><b>Простыми словами:</b> <code class="i">resample("W").count()</code> показывает, сколько дней попало в каждую неделю. В первой неделе 5 дней, в последней 3 — сравнивать их с полными нельзя, иначе получится ложное «падение».</p></div></div>
+<div class="callout"><b>Правило отчёта во времени.</b> Сравнивай только равные периоды: полные недели с полными, месяц с месяцем. Каждый неполный период либо отрезай, либо подписывай.</div>
     </section>
 
 
     <section id="traps">
       <div class="eyebrow">03 · Ловушки</div>
-      <h2>Четыре ловушки дашборда</h2>
+      <h2>Четыре ловушки отчёта во времени</h2>
       <div class="traps">
-        <div class="trap"><span class="n">1</span><h3>Неполный последний месяц</h3><p>Если выгрузка сделана в середине месяца, последний месяц всегда будет «падать». Проверь последнюю дату в данных и подпиши это в дашборде.</p></div>
-        <div class="trap"><span class="n">2</span><h3>Простое среднее удержания</h3><p>Средний столбец матрицы даёт маленькой когорте такой же вес, как большой. Общее удержание = сумма вернувшихся / сумма пришедших.</p></div>
-        <div class="trap"><span class="n">3</span><h3>Сравнение тарифов по общей выручке</h3><p>Pro приносит больше на одного ученика, но учеников basic больше. Сравнивай и долю в выручке, и удержание, и доход на ученика.</p></div>
-        <div class="trap"><span class="n">4</span><h3>LTV разного срока</h3><p>Январская когорта платит уже 9 месяцев, сентябрьская — один. Доход каналов сравнивай за одинаковые первые 3 месяца и только по когортам, у которых эти 3 месяца уже прошли.</p></div>
+        <div class="trap"><span class="n">1</span><h3>Неполные недели на краях</h3><p>Квартал редко начинается в понедельник. Первая и последняя недели короче — проверь число дней в каждой и отрежь неполные.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Рост первого месяца</h3><p>У первого месяца нет прошлого, поэтому pct_change даёт NaN. Это не ноль и не ошибка — просто сравнивать не с чем.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Дни недели по алфавиту</h3><p>Названия «Пн», «Вт»… отсортируются по алфавиту, если не задать порядок. Используй номер дня (<code class="i">dayofweek</code>) или категорию с порядком из урока 19.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Рейтинг по всей сети вместо региона</h3><p>Магазин Бухары почти всегда проиграет ташкентскому. Честный рейтинг — внутри своего региона: <code class="i">groupby(level="region").rank()</code>.</p></div>
       </div>
       <div class="cheat" id="cheat">
         <h3>Шпаргалка проекта</h3>
-        <ol><li>p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;M&#34;) <span>— месяц оплаты</span></li><li>transform(&#34;min&#34;) <span>— первая оплата в каждой строке</span></li><li>groupby(&#34;month&#34;).agg(payers=(&#34;user_id&#34;, &#34;nunique&#34;)) <span>— платящие по месяцам</span></li><li>pivot_table(..., aggfunc=&#34;nunique&#34;) <span>— матрица когорт</span></li><li>ax.imshow(table, cmap=&#34;Purples&#34;) <span>— тепловая карта</span></li><li>m1 = counts[1].sum() / counts.loc[has, 0].sum() <span>— взвешенное удержание</span></li></ol>
+        <ol><li>day = df.set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum() <span>— выручка по дням</span></li><li>day.resample(&#34;W&#34;).count() == 7 <span>— только полные недели</span></li><li>groupby([pd.Grouper(key=&#34;date&#34;, freq=&#34;MS&#34;), &#34;region&#34;]) <span>— месяц × регион</span></li><li>mr.pct_change() * 100 <span>— рост месяц к месяцу</span></li><li>st.groupby(level=&#34;region&#34;).rank(ascending=False) <span>— место внутри региона</span></li><li>day.groupby(day.index.dayofweek).mean() <span>— средний день недели</span></li></ol>
         <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
       </div>
     </section>
@@ -197,29 +216,29 @@ ax.set_title(&quot;Удержание когорт: темнее — лучше&
       <h2>Квиз за 3 минуты</h2>
       <div class="quiz">
         <div class="qz" data-q="0" data-a="1">
-          <p>1. Чем «новые платящие» отличаются от «платящих» в месяце?</p>
-          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Новые — те, у кого это первая оплата (age = 0)</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Новые платят больше</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Новые — только pro</span></button></div>
-          <div class="why" hidden>Платящие месяца — все, кто платил. Новые — только те, для кого этот месяц — месяц когорты.</div>
+          <p>1. Первая неделя квартала короче остальных. Что сделать перед сравнением недель?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничего</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Отрезать или подписать неполные недели</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Умножить на 7</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Удалить весь июль</span></button></div>
+          <div class="why" hidden>Сравнивать можно только равные периоды, иначе неполная неделя выглядит как падение.</div>
         </div>
         <div class="qz" data-q="1" data-a="1">
-          <p>2. Что показывает тёмная клетка в тепловой карте удержания?</p>
-          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ошибку</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Высокое удержание</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Мало оплат</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Отсутствие данных</span></button></div>
-          <div class="why" hidden>Чем больше значение, тем темнее цвет при палитре Purples.</div>
+          <p>2. Что вернёт <code>pct_change()</code> для первого месяца?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>0</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>NaN</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>100</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибку</span></button></div>
+          <div class="why" hidden>Прошлого месяца нет, сравнивать не с чем.</div>
         </div>
         <div class="qz" data-q="2" data-a="1">
-          <p>3. Как честно сравнить доход каналов?</p>
-          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>По всей выручке за год</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>По доходу на ученика за одинаковые первые месяцы</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>По числу учеников</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>По последнему месяцу</span></button></div>
-          <div class="why" hidden>Нужен одинаковый срок и деление на число учеников канала.</div>
+          <p>3. Как получить место магазина внутри своего региона?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>st.rank()</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>st.groupby(level="region").rank(ascending=False)</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>st.sort_values()</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>st.idxmax()</span></button></div>
+          <div class="why" hidden>rank внутри groupby считает места отдельно в каждом регионе.</div>
         </div>
         <div class="qz" data-q="3" data-a="1">
-          <p>4. Последний месяц в дашборде всегда «падает». Возможная причина?</p>
-          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ошибка pandas</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Месяц ещё не закончился в выгрузке</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Так всегда бывает</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Слишком много учеников</span></button></div>
-          <div class="why" hidden>Если данные выгружены не в конце месяца, часть оплат ещё не произошла.</div>
+          <p>4. Выручка детских товаров во второй половине августа выше в 2 раза. Как это назвать в отчёте?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ошибка данных</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Сезонный всплеск «к школе»</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Рост навсегда</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Случайность</span></button></div>
+          <div class="why" hidden>Всплеск привязан к датам перед 1 сентября — это сезон.</div>
         </div>
         <div class="qz" data-q="4" data-a="1">
-          <p>5. Где хранить итоговые 5 цифр для руководителя?</p>
-          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В комментарии</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В Series со словарём «название → значение»</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В графике</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нигде</span></button></div>
-          <div class="why" hidden>pd.Series({...}) — удобная сводка: одна строка — одна метрика с понятным именем.</div>
+          <p>5. Где хранить итоговые цифры для собственников?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В комментарии</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В Series «название → значение»</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В графике</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нигде</span></button></div>
+          <div class="why" hidden>pd.Series({...}) — одна строка, одна метрика с понятным именем.</div>
         </div>
       </div>
     </section>
@@ -232,21 +251,18 @@ ax.set_title(&quot;Удержание когорт: темнее — лучше&
         <article class="task" id="task-t1" data-task="t1" data-xp="20">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>Подготовка данных</h3>
-            <ol class='steps-t'><li>Добавь колонки: <code class='i'>month</code> — месяц оплаты, <code class='i'>cohort</code> — месяц первой оплаты ученика, <code class='i'>age</code> — месяцев с первой оплаты.</li> <li>Напечатай в одну строку: число учеников, число оплат, первый и последний месяц.</li></ol>
+            <h3>Выручка по дням</h3>
+            <ol class='steps-t'><li>Посчитай выручку всей сети по дням → <code class='i'>day</code> (дата в индексе).</li> <li>Напечатай в одну строку: число дней, выручку квартала в млрд сум (2 знака) и дату лучшего дня.</li></ol>
           </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 21 · задача 1</div>
-            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] =
-p[&#34;cohort&#34;] =
-p[&#34;age&#34;] =
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">day =
 
-# учеников, оплат, первый и последний месяц
+# дней, выручка в млрд, лучший день
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">2080 4765 2026-01 2026-09</pre></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">92 19.11 2026-08-30</pre></div>
             </div>
             <div class="actions">
               <button type="button" class="b-run" data-act="run">▶ Запустить</button>
@@ -257,54 +273,50 @@ p[&#34;age&#34;] =
               <span class="note" data-runnote>Ctrl+Enter — запустить</span>
             </div>
           </div>
-          <template data-starter>first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] =
-p[&#34;cohort&#34;] =
-p[&#34;age&#34;] =
+          <template data-starter>day =
 
-# учеников, оплат, первый и последний месяц
+# дней, выручка в млрд, лучший день
 </template>
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> Три колонки, как в уроке 19: месяц оплаты, когорта (месяц первой оплаты) и возраст в месяцах. Потом 4 числа одной строкой.</p>
-<p><b>Чем это сделать.</b> <code class="i">.dt.to_period("M")</code> — месяц. Возраст: <code class="i">(год − год_первой) * 12 + (месяц − месяц_первой)</code>. Учеников — <code class="i">nunique()</code>, оплат — <code class="i">len(p)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;___&#34;)
-p[&#34;cohort&#34;] = first.dt.to_period(&#34;___&#34;)
-p[&#34;age&#34;] = (p[&#34;pay_date&#34;].dt.year - first.dt.year) * 12 + (___)
-print(p[&#34;user_id&#34;].___(), len(p), p[&#34;month&#34;].min(), p[&#34;month&#34;].___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Когорта считается от <code class="i">first</code> (первой оплаты), а месяц — от самой оплаты. Не перепутай.</p>          </div>
+            <p><b>С чего начать.</b> Нужна выручка всей сети за каждый день. Дату поставь в индекс и сложи выручку внутри каждого дня.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.set_index("date")["revenue"].resample("D").sum()</code> — сумма по дням. <code class="i">s.idxmax().date()</code> — дата лучшего дня без времени.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>day = df.set_index(&#34;___&#34;)[&#34;revenue&#34;].resample(&#34;___&#34;).sum()
+print(len(day), round(day.sum() / 1e___, 2), day.___().date())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Миллиарды — это 1e9, а не 1e6.</p>          </div>
         </article>
         <article class="task" id="task-t2" data-task="t2" data-xp="20">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>Метрики по месяцам</h3>
-            <p>Таблица <code class='i'>mm</code> по месяцу оплаты:</p> <ol class='steps-t'><li><code class='i'>payers</code> — платящие ученики, <code class='i'>new</code> — новые (age = 0);</li> <li><code class='i'>revenue_mln</code> — выручка, млн, 1 знак; <code class='i'>arppu</code> — выручка / платящие, целое.</li></ol>
-<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Подготовка данных» —
-first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;M&#34;)
-p[&#34;cohort&#34;] = first.dt.to_period(&#34;M&#34;)
-p[&#34;age&#34;] = (p[&#34;pay_date&#34;].dt.year - first.dt.year) * 12 + (p[&#34;pay_date&#34;].dt.month - first.dt.month)
-print(p[&#34;user_id&#34;].nunique(), len(p), p[&#34;month&#34;].min(), p[&#34;month&#34;].max())</pre></details>          </div>
+            <h3>Полные недели</h3>
+            <ol class='steps-t'><li>Посчитай выручку по неделям (<code class='i'>resample("W")</code>) и число дней в каждой неделе.</li> <li>Оставь только полные недели (7 дней) → <code class='i'>weeks</code>, в млн сум, 1 знак.</li> <li>Напечатай число полных недель и выведи <code class='i'>weeks</code>.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Выручка по дням» —
+day = df.set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+print(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())</pre></details>          </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 21 · задача 2</div>
-            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">mm = (
-    p
-    # твой код
-)
-mm
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">wk =
+full =
+weeks =
+
+# число полных недель и сами недели
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">         payers  new  revenue_mln   arppu
-month
-2026-01     160  160         19.5  122125
-2026-02     248  180         31.4  126419
-2026-03     339  210         42.8  126139
-2026-04     398  190         50.4  126638
-2026-05     504  230         64.8  128563
-2026-06     598  250         77.0  128766
-2026-07     717  270         93.5  130381
-2026-08     842  290        109.9  130473
-2026-09     959  300        124.6  129970</pre></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">12
+date
+2026-07-12    1338.0
+2026-07-19    1342.1
+2026-07-26    1386.0
+2026-08-02    1378.4
+2026-08-09    1368.9
+2026-08-16    1380.2
+2026-08-23    1642.7
+2026-08-30    1666.7
+2026-09-06    1495.0
+2026-09-13    1479.0
+2026-09-20    1510.3
+2026-09-27    1538.7
+Freq: W-SUN, Name: revenue, dtype: float64</pre></div>
             </div>
             <div class="actions">
               <button type="button" class="b-run" data-act="run">▶ Запустить</button>
@@ -315,60 +327,46 @@ month
               <span class="note" data-runnote>Ctrl+Enter — запустить</span>
             </div>
           </div>
-          <template data-starter>mm = (
-    p
-    # твой код
-)
-mm
+          <template data-starter>wk =
+full =
+weeks =
+
+# число полных недель и сами недели
 </template>
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> По месяцу оплаты: сколько разных учеников платили и сколько денег. Новые — те, у кого в этом месяце возраст 0; их удобно посчитать отдельно и добавить колонкой.</p>
-<p><b>Чем это сделать.</b> <code class="i">.agg(payers=("user_id", "nunique"), revenue=("amount", "sum"))</code>. Series с теми же месяцами можно добавить в assign: <code class="i">.assign(new=new)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>new = p[p[&#34;age&#34;] == ___].groupby(&#34;month&#34;)[&#34;user_id&#34;].nunique()
-mm = (
-    p
-    .groupby(&#34;month&#34;)
-    .agg(payers=(___), revenue=(___))
-    .assign(new=new,
-            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
-            arppu=lambda d: (d[&#34;revenue&#34;] / d[&#34;___&#34;]).round(0).astype(int))
-    [[&#34;payers&#34;, &#34;new&#34;, &#34;revenue_mln&#34;, &#34;arppu&#34;]]
-)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> ARPPU делится на платящих этого месяца, а не на всех учеников за всё время.</p>          </div>
+            <p><b>С чего начать.</b> Неделя на краю квартала может быть короче 7 дней. Посчитай для каждой недели и сумму, и число дней, а потом оставь только недели с 7 днями.</p>
+<p><b>Чем это сделать.</b> <code class="i">day.resample("W").sum()</code> и <code class="i">day.resample("W").count()</code> — одинаковые подписи недель, поэтому маску из одного можно применить к другому.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>wk = day.resample(&#34;W&#34;).___()
+full = day.resample(&#34;W&#34;).___() == 7
+weeks = (wk[___] / 1e6).round(1)
+print(len(weeks))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Без фильтра первая неделя (5 дней) и последняя (3 дня) выглядят как обвал продаж.</p>          </div>
         </article>
         <article class="task" id="task-t3" data-task="t3" data-xp="25">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>График: платящие и новые</h3>
-            <ol class='steps-t'><li>Нарисуй на одном графике две линии из <code class='i'>mm</code>: платящие и новые по месяцам.</li> <li>Заголовок — вывод: <code class='i'>f"Платящих в сентябре: {mm['payers'].iloc[-1]}"</code>. Напечатай этот заголовок.</li></ol>
-<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Подготовка данных» —
-first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;M&#34;)
-p[&#34;cohort&#34;] = first.dt.to_period(&#34;M&#34;)
-p[&#34;age&#34;] = (p[&#34;pay_date&#34;].dt.year - first.dt.year) * 12 + (p[&#34;pay_date&#34;].dt.month - first.dt.month)
-print(p[&#34;user_id&#34;].nunique(), len(p), p[&#34;month&#34;].min(), p[&#34;month&#34;].max())
-# — шаг «Метрики по месяцам» —
-new = p[p[&#34;age&#34;] == 0].groupby(&#34;month&#34;)[&#34;user_id&#34;].nunique()
-mm = (
-    p
-    .groupby(&#34;month&#34;)
-    .agg(payers=(&#34;user_id&#34;, &#34;nunique&#34;), revenue=(&#34;amount&#34;, &#34;sum&#34;))
-    .assign(new=new,
-            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
-            arppu=lambda d: (d[&#34;revenue&#34;] / d[&#34;payers&#34;]).round(0).astype(int))
-    [[&#34;payers&#34;, &#34;new&#34;, &#34;revenue_mln&#34;, &#34;arppu&#34;]]
-)
-mm</pre></details>          </div>
+            <h3>График: дни и тренд</h3>
+            <ol class='steps-t'><li>Нарисуй на одном графике выручку по дням в млн сум (тонкая линия) и скользящее среднее за 7 дней (толстая линия).</li> <li>Заголовок — вывод: <code class='i'>f"Лучшая неделя квартала: {weeks.idxmax():%d.%m}"</code> (подпись недели — её воскресенье). Напечатай заголовок.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Выручка по дням» —
+day = df.set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+print(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())
+# — шаг «Полные недели» —
+wk = day.resample(&#34;W&#34;).sum()
+full = day.resample(&#34;W&#34;).count() == 7
+weeks = (wk[full] / 1e6).round(1)
+print(len(weeks))
+weeks</pre></details>          </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 21 · задача 3</div>
             <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">title =
 print(title)
 
-# график
+fig, ax = plt.subplots(figsize=(8, 3.5))
+# две линии и заголовок
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">Платящих в сентябре: 959</pre><div class="figs"><img src="../../static/img/lessons/day21-t3.png" alt="Пример графика" loading="lazy"></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">Лучшая неделя квартала: 30.08</pre><div class="figs"><img src="../../static/img/lessons/day21-t3.png" alt="Пример графика" loading="lazy"></div></div>
             </div>
             <div class="actions">
               <button type="button" class="b-run" data-act="run">▶ Запустить</button>
@@ -382,66 +380,59 @@ print(title)
           <template data-starter>title =
 print(title)
 
-# график
+fig, ax = plt.subplots(figsize=(8, 3.5))
+# две линии и заголовок
 </template>
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> Две колонки таблицы mm рисуются одной командой — каждая колонка станет своей линией. Заголовок собери f-строкой из последнего значения payers.</p>
-<p><b>Чем это сделать.</b> <code class="i">mm[["payers", "new"]].plot(marker="o")</code>. <code class="i">mm["payers"].iloc[-1]</code> — последний месяц.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>title = f&#34;Платящих в сентябре: {mm[&#39;payers&#39;].iloc[___]}&#34;
+            <p><b>С чего начать.</b> На одном полотне две линии: дневная выручка и её скользящее среднее. Заголовок собираешь из данных: подпись лучшей полной недели в виде «день.месяц».</p>
+<p><b>Чем это сделать.</b> <code class="i">s.plot(ax=ax, linewidth=..., label=...)</code> — линия на нужных осях. <code class="i">f"{дата:%d.%m}"</code> — дата в виде 30.08. <code class="i">ax.legend()</code> — подписи линий.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>title = f&#34;Лучшая неделя квартала: {weeks.___():%d.%m}&#34;
 print(title)
-ax = mm[[&#34;___&#34;, &#34;___&#34;]].plot(marker=&#34;o&#34;, figsize=(7, 3.5))
-ax.set_title(___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Внутри f-строки в двойных кавычках имя колонки пиши в одинарных: <code class="i">mm['payers']</code>.</p>          </div>
+fig, ax = plt.subplots(figsize=(8, 3.5))
+(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=&#34;день&#34;)
+(day / 1e6).rolling(___).mean().plot(ax=ax, linewidth=3, label=&#34;среднее за 7 дней&#34;)
+ax.set_title(___)
+ax.legend()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если рисовать <code class="i">day</code> без деления на 1e6, ось будет в огромных числах вида 2.5e8.</p>          </div>
         </article>
         <article class="task" id="task-t4" data-task="t4" data-xp="25">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>Матрица удержания</h3>
-            <ol class='steps-t'><li><code class='i'>counts</code> — уникальные ученики по когорте и возрасту.</li> <li><code class='i'>ret</code> — удержание в % (1 знак).</li> <li>Выведи столбцы 1, 2, 3.</li></ol>
-<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Подготовка данных» —
-first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;M&#34;)
-p[&#34;cohort&#34;] = first.dt.to_period(&#34;M&#34;)
-p[&#34;age&#34;] = (p[&#34;pay_date&#34;].dt.year - first.dt.year) * 12 + (p[&#34;pay_date&#34;].dt.month - first.dt.month)
-print(p[&#34;user_id&#34;].nunique(), len(p), p[&#34;month&#34;].min(), p[&#34;month&#34;].max())
-# — шаг «Метрики по месяцам» —
-new = p[p[&#34;age&#34;] == 0].groupby(&#34;month&#34;)[&#34;user_id&#34;].nunique()
-mm = (
-    p
-    .groupby(&#34;month&#34;)
-    .agg(payers=(&#34;user_id&#34;, &#34;nunique&#34;), revenue=(&#34;amount&#34;, &#34;sum&#34;))
-    .assign(new=new,
-            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
-            arppu=lambda d: (d[&#34;revenue&#34;] / d[&#34;payers&#34;]).round(0).astype(int))
-    [[&#34;payers&#34;, &#34;new&#34;, &#34;revenue_mln&#34;, &#34;arppu&#34;]]
-)
-mm
-# — шаг «График: платящие и новые» —
-title = f&#34;Платящих в сентябре: {mm[&#39;payers&#39;].iloc[-1]}&#34;
+            <h3>Рост регионов месяц к месяцу</h3>
+            <ol class='steps-t'><li>Одной группировкой посчитай выручку по месяцу (<code class='i'>pd.Grouper</code>, начало месяца) и региону, сделай широкую таблицу → <code class='i'>mr</code> (строки — месяцы, колонки — регионы).</li> <li>Посчитай рост к прошлому месяцу в процентах (1 знак) → <code class='i'>mom</code>.</li> <li>Выведи <code class='i'>mom</code> без первой строки (у июля сравнивать не с чем).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Выручка по дням» —
+day = df.set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+print(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())
+# — шаг «Полные недели» —
+wk = day.resample(&#34;W&#34;).sum()
+full = day.resample(&#34;W&#34;).count() == 7
+weeks = (wk[full] / 1e6).round(1)
+print(len(weeks))
+weeks
+# — шаг «График: дни и тренд» —
+title = f&#34;Лучшая неделя квартала: {weeks.idxmax():%d.%m}&#34;
 print(title)
-ax = mm[[&#34;payers&#34;, &#34;new&#34;]].plot(marker=&#34;o&#34;, figsize=(7, 3.5))
+
+fig, ax = plt.subplots(figsize=(8, 3.5))
+(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=&#34;день&#34;)
+(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=&#34;среднее за 7 дней&#34;)
 ax.set_title(title)
-ax.set_xlabel(&#34;&#34;)</pre></details>          </div>
+ax.set_ylabel(&#34;млн сум&#34;)
+ax.set_xlabel(&#34;&#34;)
+ax.legend()</pre></details>          </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 21 · задача 4</div>
-            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">counts =
-ret =
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">mr =
+mom =
 
-ret[[1, 2, 3]]
+mom.iloc[1:]
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">age         1     2     3
-cohort
-2026-01  42.5  30.6  21.9
-2026-02  44.4  37.8  28.3
-2026-03  50.0  40.0  31.9
-2026-04  59.5  51.1  45.8
-2026-05  56.1  50.4  43.5
-2026-06  62.0  54.4  48.8
-2026-07  61.5  52.6   NaN
-2026-08  64.1   NaN   NaN
-2026-09   NaN   NaN   NaN</pre></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">region      Бухара  Самарканд  Ташкент  Фергана
+date
+2026-08-01    10.5       14.3     12.3     15.8
+2026-09-01     0.0       -7.0     -4.0     -8.3</pre></div>
             </div>
             <div class="actions">
               <button type="button" class="b-run" data-act="run">▶ Запустить</button>
@@ -452,63 +443,63 @@ cohort
               <span class="note" data-runnote>Ctrl+Enter — запустить</span>
             </div>
           </div>
-          <template data-starter>counts =
-ret =
+          <template data-starter>mr =
+mom =
 
-ret[[1, 2, 3]]
+mom.iloc[1:]
 </template>
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> Повтор урока 19: матрица уникальных учеников по когорте и возрасту, потом каждая строка делится на свой столбец 0.</p>
-<p><b>Чем это сделать.</b> <code class="i">pivot_table(index="cohort", columns="age", values="user_id", aggfunc="nunique")</code> и <code class="i">counts.div(counts[0], axis=0)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>counts = p.pivot_table(index=&#34;___&#34;, columns=&#34;___&#34;, values=&#34;user_id&#34;, aggfunc=&#34;___&#34;)
-ret = (counts.div(counts[___], axis=0) * 100).round(1)
-ret[[1, 2, 3]]</pre></div><p class="hint-trap"><b>Частая ошибка.</b> aggfunc="count" посчитает оплаты, а не учеников.</p>          </div>
+            <p><b>С чего начать.</b> Сначала таблица «месяцы × регионы», потом рост каждого месяца к предыдущему внутри каждого региона (колонки).</p>
+<p><b>Чем это сделать.</b> <code class="i">groupby([pd.Grouper(key="date", freq="MS"), "region"])</code> + <code class="i">.unstack()</code>. <code class="i">t.pct_change()</code> считает рост по строкам внутри каждой колонки.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>mr = df.groupby([pd.Grouper(key=&#34;___&#34;, freq=&#34;___&#34;), &#34;region&#34;])[&#34;revenue&#34;].sum().unstack()
+mom = (mr.___() * 100).round(1)
+mom.iloc[1:]</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если не сделать unstack, pct_change посчитает рост между соседними строками разных регионов.</p>          </div>
         </article>
         <article class="task" id="task-t5" data-task="t5" data-xp="25">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>Тепловая карта и общее удержание</h3>
-            <ol class='steps-t'><li>Напечатай взвешенное удержание месяца 1 (по когортам, у которых месяц 1 уже был), %, 1 знак.</li> <li>Нарисуй тепловую карту <code class='i'>ret</code> для возраста 1–5 (<code class='i'>imshow</code>) с подписями когорт и цветовой шкалой.</li></ol>
-<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Подготовка данных» —
-first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;M&#34;)
-p[&#34;cohort&#34;] = first.dt.to_period(&#34;M&#34;)
-p[&#34;age&#34;] = (p[&#34;pay_date&#34;].dt.year - first.dt.year) * 12 + (p[&#34;pay_date&#34;].dt.month - first.dt.month)
-print(p[&#34;user_id&#34;].nunique(), len(p), p[&#34;month&#34;].min(), p[&#34;month&#34;].max())
-# — шаг «Метрики по месяцам» —
-new = p[p[&#34;age&#34;] == 0].groupby(&#34;month&#34;)[&#34;user_id&#34;].nunique()
-mm = (
-    p
-    .groupby(&#34;month&#34;)
-    .agg(payers=(&#34;user_id&#34;, &#34;nunique&#34;), revenue=(&#34;amount&#34;, &#34;sum&#34;))
-    .assign(new=new,
-            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
-            arppu=lambda d: (d[&#34;revenue&#34;] / d[&#34;payers&#34;]).round(0).astype(int))
-    [[&#34;payers&#34;, &#34;new&#34;, &#34;revenue_mln&#34;, &#34;arppu&#34;]]
-)
-mm
-# — шаг «График: платящие и новые» —
-title = f&#34;Платящих в сентябре: {mm[&#39;payers&#39;].iloc[-1]}&#34;
+            <h3>Лучший магазин в каждом регионе</h3>
+            <ol class='steps-t'><li>Посчитай выручку по паре регион → магазин → <code class='i'>st</code>.</li> <li>Посчитай место магазина внутри своего региона (1 — лучший), целым числом → <code class='i'>rk</code>.</li> <li>Выведи только магазины с местом 1: регион, магазин и выручку в млн сум (1 знак).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Выручка по дням» —
+day = df.set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+print(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())
+# — шаг «Полные недели» —
+wk = day.resample(&#34;W&#34;).sum()
+full = day.resample(&#34;W&#34;).count() == 7
+weeks = (wk[full] / 1e6).round(1)
+print(len(weeks))
+weeks
+# — шаг «График: дни и тренд» —
+title = f&#34;Лучшая неделя квартала: {weeks.idxmax():%d.%m}&#34;
 print(title)
-ax = mm[[&#34;payers&#34;, &#34;new&#34;]].plot(marker=&#34;o&#34;, figsize=(7, 3.5))
+
+fig, ax = plt.subplots(figsize=(8, 3.5))
+(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=&#34;день&#34;)
+(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=&#34;среднее за 7 дней&#34;)
 ax.set_title(title)
+ax.set_ylabel(&#34;млн сум&#34;)
 ax.set_xlabel(&#34;&#34;)
-# — шаг «Матрица удержания» —
-counts = p.pivot_table(index=&#34;cohort&#34;, columns=&#34;age&#34;, values=&#34;user_id&#34;, aggfunc=&#34;nunique&#34;)
-ret = (counts.div(counts[0], axis=0) * 100).round(1)
-ret[[1, 2, 3]]</pre></details>          </div>
+ax.legend()
+# — шаг «Рост регионов месяц к месяцу» —
+mr = df.groupby([pd.Grouper(key=&#34;date&#34;, freq=&#34;MS&#34;), &#34;region&#34;])[&#34;revenue&#34;].sum().unstack()
+mom = (mr.pct_change() * 100).round(1)
+mom.iloc[1:]</pre></details>          </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 21 · задача 5</div>
-            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">has = counts[1].notna()
-print(round(counts.loc[has, 1].sum() / counts.loc[has, 0].sum() * 100, 1))
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">st =
+rk =
 
-fig, ax = plt.subplots(figsize=(7, 3.6))
-# твой код
+# лидеры регионов
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">56.3</pre><div class="figs"><img src="../../static/img/lessons/day21-t5.png" alt="Пример графика" loading="lazy"></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">region     store
+Бухара     Ark          1540.2
+Самарканд  Registon     2381.8
+Ташкент    Chilonzor    3320.1
+Фергана    Markaz       1879.8
+Name: revenue, dtype: float64</pre></div>
             </div>
             <div class="actions">
               <button type="button" class="b-run" data-act="run">▶ Запустить</button>
@@ -519,79 +510,71 @@ fig, ax = plt.subplots(figsize=(7, 3.6))
               <span class="note" data-runnote>Ctrl+Enter — запустить</span>
             </div>
           </div>
-          <template data-starter>has = counts[1].notna()
-print(round(counts.loc[has, 1].sum() / counts.loc[has, 0].sum() * 100, 1))
+          <template data-starter>st =
+rk =
 
-fig, ax = plt.subplots(figsize=(7, 3.6))
-# твой код
+# лидеры регионов
 </template>
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> Тепловая карта — матрица, где цвет показывает величину. Нарисуй столбцы возраста 1–5 матрицы ret, подпиши когорты по оси Y и добавь шкалу цвета.</p>
-<p><b>Чем это сделать.</b> <code class="i">ax.imshow(таблица, cmap="Purples", aspect="auto")</code>. <code class="i">ret.iloc[:, 1:6]</code> — столбцы 1–5. <code class="i">ax.set_yticks(позиции, подписи)</code>, <code class="i">fig.colorbar(im)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>im = ax.imshow(ret.iloc[:, ___:___], cmap=&#34;Purples&#34;, aspect=&#34;auto&#34;)
-ax.set_xticks(range(5), [f&#34;мес. {i}&#34; for i in range(1, 6)])
-ax.set_yticks(range(len(ret)), ret.index.astype(___))
-fig.colorbar(___, label=&#34;% удержания&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">iloc[:, 1:6]</code> берёт столбцы с 1 по 5: правая граница не включается.</p>          </div>
+            <p><b>С чего начать.</b> Место считается не по всей сети, а внутри каждого региона: лучший магазин региона получает 1.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.groupby(level="region").rank(ascending=False)</code> — места внутри региона, 1 — самое большое значение. <code class="i">s[rk == 1]</code> — оставить только лидеров.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>st = df.groupby([&#34;___&#34;, &#34;___&#34;])[&#34;revenue&#34;].sum()
+rk = st.groupby(level=&#34;___&#34;).rank(ascending=___).astype(int)
+(st[rk == ___] / 1e6).round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">st.rank()</code> без groupby поставит места по всей сети, и в Бухаре «лидера» не будет.</p>          </div>
         </article>
         <article class="task" id="task-t6" data-task="t6" data-xp="25">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>basic против pro</h3>
-            <ol class='steps-t'><li>Таблица учеников <code class='i'>u</code>: plan, source, cohort (первое значение) и <code class='i'>back</code> — была ли оплата с возрастом 1.</li> <li>Для когорт до августа включительно: % вернувшихся по тарифу (1 знак).</li> <li>Напечатай долю pro во всей выручке, %, 1 знак.</li></ol>
-<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Подготовка данных» —
-first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;M&#34;)
-p[&#34;cohort&#34;] = first.dt.to_period(&#34;M&#34;)
-p[&#34;age&#34;] = (p[&#34;pay_date&#34;].dt.year - first.dt.year) * 12 + (p[&#34;pay_date&#34;].dt.month - first.dt.month)
-print(p[&#34;user_id&#34;].nunique(), len(p), p[&#34;month&#34;].min(), p[&#34;month&#34;].max())
-# — шаг «Метрики по месяцам» —
-new = p[p[&#34;age&#34;] == 0].groupby(&#34;month&#34;)[&#34;user_id&#34;].nunique()
-mm = (
-    p
-    .groupby(&#34;month&#34;)
-    .agg(payers=(&#34;user_id&#34;, &#34;nunique&#34;), revenue=(&#34;amount&#34;, &#34;sum&#34;))
-    .assign(new=new,
-            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
-            arppu=lambda d: (d[&#34;revenue&#34;] / d[&#34;payers&#34;]).round(0).astype(int))
-    [[&#34;payers&#34;, &#34;new&#34;, &#34;revenue_mln&#34;, &#34;arppu&#34;]]
-)
-mm
-# — шаг «График: платящие и новые» —
-title = f&#34;Платящих в сентябре: {mm[&#39;payers&#39;].iloc[-1]}&#34;
+            <h3>Дни недели</h3>
+            <ol class='steps-t'><li>Посчитай среднюю выручку дня по дням недели (номер дня: 0 — понедельник) → <code class='i'>wd</code>.</li> <li>Замени номера на подписи «Пн» … «Вс» (в правильном порядке) и выведи в млн сум, 1 знак.</li> <li>Напечатай, на сколько процентов средний выходной (сб, вс) выше среднего будня (1 знак).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Выручка по дням» —
+day = df.set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+print(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())
+# — шаг «Полные недели» —
+wk = day.resample(&#34;W&#34;).sum()
+full = day.resample(&#34;W&#34;).count() == 7
+weeks = (wk[full] / 1e6).round(1)
+print(len(weeks))
+weeks
+# — шаг «График: дни и тренд» —
+title = f&#34;Лучшая неделя квартала: {weeks.idxmax():%d.%m}&#34;
 print(title)
-ax = mm[[&#34;payers&#34;, &#34;new&#34;]].plot(marker=&#34;o&#34;, figsize=(7, 3.5))
+
+fig, ax = plt.subplots(figsize=(8, 3.5))
+(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=&#34;день&#34;)
+(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=&#34;среднее за 7 дней&#34;)
 ax.set_title(title)
+ax.set_ylabel(&#34;млн сум&#34;)
 ax.set_xlabel(&#34;&#34;)
-# — шаг «Матрица удержания» —
-counts = p.pivot_table(index=&#34;cohort&#34;, columns=&#34;age&#34;, values=&#34;user_id&#34;, aggfunc=&#34;nunique&#34;)
-ret = (counts.div(counts[0], axis=0) * 100).round(1)
-ret[[1, 2, 3]]
-# — шаг «Тепловая карта и общее удержание» —
-has = counts[1].notna()
-print(round(counts.loc[has, 1].sum() / counts.loc[has, 0].sum() * 100, 1))
-fig, ax = plt.subplots(figsize=(7, 3.6))
-im = ax.imshow(ret.iloc[:, 1:6], cmap=&#34;Purples&#34;, aspect=&#34;auto&#34;)
-ax.set_xticks(range(5), [f&#34;мес. {i}&#34; for i in range(1, 6)])
-ax.set_yticks(range(len(ret)), ret.index.astype(str))
-fig.colorbar(im, label=&#34;% удержания&#34;)
-ax.set_title(&#34;Удержание когорт&#34;)</pre></details>          </div>
+ax.legend()
+# — шаг «Рост регионов месяц к месяцу» —
+mr = df.groupby([pd.Grouper(key=&#34;date&#34;, freq=&#34;MS&#34;), &#34;region&#34;])[&#34;revenue&#34;].sum().unstack()
+mom = (mr.pct_change() * 100).round(1)
+mom.iloc[1:]
+# — шаг «Лучший магазин в каждом регионе» —
+st = df.groupby([&#34;region&#34;, &#34;store&#34;])[&#34;revenue&#34;].sum()
+rk = st.groupby(level=&#34;region&#34;).rank(ascending=False).astype(int)
+(st[rk == 1] / 1e6).round(1)</pre></details>          </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 21 · задача 6</div>
-            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">u =
-u[&#34;back&#34;] =
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">wd =
+names = [&#34;Пн&#34;, &#34;Вт&#34;, &#34;Ср&#34;, &#34;Чт&#34;, &#34;Пт&#34;, &#34;Сб&#34;, &#34;Вс&#34;]
 
-# % вернувшихся по тарифу
-
-# доля pro в выручке
+# средний день недели, млн
+# выходной против будня, %
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">plan
-basic    57.3
-pro      54.0
-Name: back, dtype: float64
-46.1</pre></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">Пн    199.8
+Вт    198.4
+Ср    194.8
+Чт    194.3
+Пт    197.5
+Сб    235.4
+Вс    234.4
+Name: revenue, dtype: float64
+19.3</pre></div>
             </div>
             <div class="actions">
               <button type="button" class="b-run" data-act="run">▶ Запустить</button>
@@ -602,86 +585,73 @@ Name: back, dtype: float64
               <span class="note" data-runnote>Ctrl+Enter — запустить</span>
             </div>
           </div>
-          <template data-starter>u =
-u[&#34;back&#34;] =
+          <template data-starter>wd =
+names = [&#34;Пн&#34;, &#34;Вт&#34;, &#34;Ср&#34;, &#34;Чт&#34;, &#34;Пт&#34;, &#34;Сб&#34;, &#34;Вс&#34;]
 
-# % вернувшихся по тарифу
-
-# доля pro в выручке
+# средний день недели, млн
+# выходной против будня, %
 </template>
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> Таблица «один ученик — одна строка»: тариф, источник, когорта и «вернулся ли» (была оплата с возрастом 1). Доля вернувшихся по тарифу — среднее маски. Доля pro в выручке — сумма оплат pro / все оплаты.</p>
-<p><b>Чем это сделать.</b> <code class="i">.agg(plan=("plan", "first"), …)</code>, <code class="i">u.index.isin(...)</code>. Фильтр когорт: <code class="i">u["cohort"] <= pd.Period("2026-08", "M")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>u = p.groupby(&#34;user_id&#34;).agg(plan=(&#34;plan&#34;, &#34;first&#34;), source=(&#34;source&#34;, &#34;first&#34;), cohort=(&#34;cohort&#34;, &#34;first&#34;))
-u[&#34;back&#34;] = u.index.isin(p.loc[p[&#34;age&#34;] == ___, &#34;user_id&#34;])
-print((u[u[&#34;cohort&#34;] &lt;= pd.Period(&#34;___&#34;, &#34;M&#34;)].groupby(&#34;___&#34;)[&#34;back&#34;].mean() * 100).round(1))
-print(round(p.loc[p[&#34;plan&#34;] == &#34;___&#34;, &#34;amount&#34;].sum() / p[&#34;amount&#34;].sum() * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сентябрьская когорта ещё не могла вернуться — без фильтра она занизит удержание обоих тарифов.</p>          </div>
+            <p><b>С чего начать.</b> Номер дня недели даёт правильный порядок от понедельника до воскресенья. Посчитай среднее по номерам, а потом просто подмени подписи на «Пн» … «Вс».</p>
+<p><b>Чем это сделать.</b> <code class="i">day.index.dayofweek</code> — номер дня (0 — понедельник, 5 и 6 — выходные). <code class="i">s.index = список</code> — новые подписи в том же порядке.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>wd = day.groupby(day.index.___).mean()
+wd.index = names
+print((wd / 1e6).round(1))
+weekend = day[day.index.dayofweek &gt;= ___].mean() / day[day.index.dayofweek &lt; ___].mean() - 1
+print(round(weekend * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если группировать по названиям дней (<code class="i">day_name()</code>), они встанут по алфавиту.</p>          </div>
         </article>
         <article class="task" id="task-t7" data-task="t7" data-xp="25">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 7</span><span class="lvl m">Средне</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>Какой канал выгоднее</h3>
-            <p>Сравни каналы по доходу на ученика за первые 3 месяца (age 0–2). Бери только когорты до июля включительно — у них 3 месяца уже прошли.</p> <ol class='steps-t'><li>По источнику: <code class='i'>students</code> — учеников, <code class='i'>ltv3</code> — доход за 3 месяца на ученика (целое).</li> <li>Отсортируй по ltv3.</li></ol>
-<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Подготовка данных» —
-first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;M&#34;)
-p[&#34;cohort&#34;] = first.dt.to_period(&#34;M&#34;)
-p[&#34;age&#34;] = (p[&#34;pay_date&#34;].dt.year - first.dt.year) * 12 + (p[&#34;pay_date&#34;].dt.month - first.dt.month)
-print(p[&#34;user_id&#34;].nunique(), len(p), p[&#34;month&#34;].min(), p[&#34;month&#34;].max())
-# — шаг «Метрики по месяцам» —
-new = p[p[&#34;age&#34;] == 0].groupby(&#34;month&#34;)[&#34;user_id&#34;].nunique()
-mm = (
-    p
-    .groupby(&#34;month&#34;)
-    .agg(payers=(&#34;user_id&#34;, &#34;nunique&#34;), revenue=(&#34;amount&#34;, &#34;sum&#34;))
-    .assign(new=new,
-            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
-            arppu=lambda d: (d[&#34;revenue&#34;] / d[&#34;payers&#34;]).round(0).astype(int))
-    [[&#34;payers&#34;, &#34;new&#34;, &#34;revenue_mln&#34;, &#34;arppu&#34;]]
-)
-mm
-# — шаг «График: платящие и новые» —
-title = f&#34;Платящих в сентябре: {mm[&#39;payers&#39;].iloc[-1]}&#34;
+            <h3>Сезон «к школе»</h3>
+            <ol class='steps-t'><li>Посчитай выручку категории <b>Детские товары</b> по дням → <code class='i'>kid</code>.</li> <li>Средняя выручка дня с 15 по 31 августа и с 1 июля по 14 августа — в млн сум, 1 знак.</li> <li>Напечатай оба числа и рост в процентах (целое) в одну строку.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Выручка по дням» —
+day = df.set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+print(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())
+# — шаг «Полные недели» —
+wk = day.resample(&#34;W&#34;).sum()
+full = day.resample(&#34;W&#34;).count() == 7
+weeks = (wk[full] / 1e6).round(1)
+print(len(weeks))
+weeks
+# — шаг «График: дни и тренд» —
+title = f&#34;Лучшая неделя квартала: {weeks.idxmax():%d.%m}&#34;
 print(title)
-ax = mm[[&#34;payers&#34;, &#34;new&#34;]].plot(marker=&#34;o&#34;, figsize=(7, 3.5))
+
+fig, ax = plt.subplots(figsize=(8, 3.5))
+(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=&#34;день&#34;)
+(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=&#34;среднее за 7 дней&#34;)
 ax.set_title(title)
+ax.set_ylabel(&#34;млн сум&#34;)
 ax.set_xlabel(&#34;&#34;)
-# — шаг «Матрица удержания» —
-counts = p.pivot_table(index=&#34;cohort&#34;, columns=&#34;age&#34;, values=&#34;user_id&#34;, aggfunc=&#34;nunique&#34;)
-ret = (counts.div(counts[0], axis=0) * 100).round(1)
-ret[[1, 2, 3]]
-# — шаг «Тепловая карта и общее удержание» —
-has = counts[1].notna()
-print(round(counts.loc[has, 1].sum() / counts.loc[has, 0].sum() * 100, 1))
-fig, ax = plt.subplots(figsize=(7, 3.6))
-im = ax.imshow(ret.iloc[:, 1:6], cmap=&#34;Purples&#34;, aspect=&#34;auto&#34;)
-ax.set_xticks(range(5), [f&#34;мес. {i}&#34; for i in range(1, 6)])
-ax.set_yticks(range(len(ret)), ret.index.astype(str))
-fig.colorbar(im, label=&#34;% удержания&#34;)
-ax.set_title(&#34;Удержание когорт&#34;)
-# — шаг «basic против pro» —
-u = p.groupby(&#34;user_id&#34;).agg(plan=(&#34;plan&#34;, &#34;first&#34;), source=(&#34;source&#34;, &#34;first&#34;), cohort=(&#34;cohort&#34;, &#34;first&#34;))
-u[&#34;back&#34;] = u.index.isin(p.loc[p[&#34;age&#34;] == 1, &#34;user_id&#34;])
-print((u[u[&#34;cohort&#34;] &lt;= pd.Period(&#34;2026-08&#34;, &#34;M&#34;)].groupby(&#34;plan&#34;)[&#34;back&#34;].mean() * 100).round(1))
-print(round(p.loc[p[&#34;plan&#34;] == &#34;pro&#34;, &#34;amount&#34;].sum() / p[&#34;amount&#34;].sum() * 100, 1))</pre></details>          </div>
+ax.legend()
+# — шаг «Рост регионов месяц к месяцу» —
+mr = df.groupby([pd.Grouper(key=&#34;date&#34;, freq=&#34;MS&#34;), &#34;region&#34;])[&#34;revenue&#34;].sum().unstack()
+mom = (mr.pct_change() * 100).round(1)
+mom.iloc[1:]
+# — шаг «Лучший магазин в каждом регионе» —
+st = df.groupby([&#34;region&#34;, &#34;store&#34;])[&#34;revenue&#34;].sum()
+rk = st.groupby(level=&#34;region&#34;).rank(ascending=False).astype(int)
+(st[rk == 1] / 1e6).round(1)
+# — шаг «Дни недели» —
+wd = day.groupby(day.index.dayofweek).mean()
+names = [&#34;Пн&#34;, &#34;Вт&#34;, &#34;Ср&#34;, &#34;Чт&#34;, &#34;Пт&#34;, &#34;Сб&#34;, &#34;Вс&#34;]
+wd.index = names
+print((wd / 1e6).round(1))
+weekend = day[day.index.dayofweek &gt;= 5].mean() / day[day.index.dayofweek &lt; 5].mean() - 1
+print(round(weekend * 100, 1))</pre></details>          </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 21 · задача 7</div>
-            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">old = u[u[&#34;cohort&#34;] &lt;= pd.Period(&#34;2026-07&#34;, &#34;M&#34;)]
-rev3 =
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">kid =
+before =
+season =
 
-by_src = pd.DataFrame({
-    # твой код
-})
-by_src
+# до сезона, сезон, рост %
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           students    ltv3
-source
-referral        332  289042
-telegram        415  254896
-instagram       743  248127</pre></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">31.5 66.2 110</pre></div>
             </div>
             <div class="actions">
               <button type="button" class="b-run" data-act="run">▶ Запустить</button>
@@ -692,96 +662,82 @@ instagram       743  248127</pre></div>
               <span class="note" data-runnote>Ctrl+Enter — запустить</span>
             </div>
           </div>
-          <template data-starter>old = u[u[&#34;cohort&#34;] &lt;= pd.Period(&#34;2026-07&#34;, &#34;M&#34;)]
-rev3 =
+          <template data-starter>kid =
+before =
+season =
 
-by_src = pd.DataFrame({
-    # твой код
-})
-by_src
+# до сезона, сезон, рост %
 </template>
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> Берём только «старых» учеников (когорты до июля), у которых уже прошло 3 месяца. Их доход за возраст 0–2 по источнику делим на число таких учеников в источнике.</p>
-<p><b>Чем это сделать.</b> Две маски сразу: <code class="i">(p["age"] <= 2) & p["user_id"].isin(old.index)</code>. Учеников по источнику: <code class="i">old.groupby("source").size()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>rev3 = p[(p[&#34;age&#34;] &lt;= ___) &amp; p[&#34;user_id&#34;].isin(old.___)].groupby(&#34;source&#34;)[&#34;amount&#34;].sum()
-students = old.groupby(&#34;___&#34;).size()
-by_src = pd.DataFrame({
-    &#34;students&#34;: students,
-    &#34;ltv3&#34;: (rev3 / ___).round(0).astype(int),
-}).sort_values(&#34;ltv3&#34;, ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если не ограничить возраст, у старых когорт будет больше месяцев дохода, и сравнение каналов станет нечестным.</p>          </div>
+            <p><b>С чего начать.</b> Возьми только детские товары, сложи по дням и сравни средний день в сезон (15–31 августа) со средним днём до него.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.loc["2026-08-15":"2026-08-31"]</code> — срез по датам (обе границы включены). Рост: <code class="i">сезон / до - 1</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>kid = df[df[&#34;category&#34;] == &#34;___&#34;].set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+before = kid.loc[&#34;2026-07-01&#34;:&#34;2026-08-___&#34;].mean()
+season = kid.loc[&#34;2026-08-___&#34;:&#34;2026-08-31&#34;].mean()
+print(round(before / 1e6, 1), round(season / 1e6, 1), round((season / before - 1) * 100))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сравнивай средние за день, а не суммы: периоды разной длины (45 и 17 дней).</p>          </div>
         </article>
         <article class="task" id="task-t8" data-task="t8" data-xp="25">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 8</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>Сводка дашборда</h3>
-            <p>Series <code class='i'>summary</code>:</p> <ol class='steps-t'><li><code class='i'>payers_last</code> — платящих в последнем месяце;</li> <li><code class='i'>revenue_last_mln</code> — выручка последнего месяца, 1 знак;</li> <li><code class='i'>revenue_growth_%</code> — рост выручки к прошлому месяцу, 1 знак;</li> <li><code class='i'>m1_retention_%</code> — взвешенное удержание месяца 1, 1 знак;</li> <li><code class='i'>best_source</code> — канал с наибольшим ltv3.</li></ol>
-<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Подготовка данных» —
-first = p.groupby(&#34;user_id&#34;)[&#34;pay_date&#34;].transform(&#34;min&#34;)
-p[&#34;month&#34;] = p[&#34;pay_date&#34;].dt.to_period(&#34;M&#34;)
-p[&#34;cohort&#34;] = first.dt.to_period(&#34;M&#34;)
-p[&#34;age&#34;] = (p[&#34;pay_date&#34;].dt.year - first.dt.year) * 12 + (p[&#34;pay_date&#34;].dt.month - first.dt.month)
-print(p[&#34;user_id&#34;].nunique(), len(p), p[&#34;month&#34;].min(), p[&#34;month&#34;].max())
-# — шаг «Метрики по месяцам» —
-new = p[p[&#34;age&#34;] == 0].groupby(&#34;month&#34;)[&#34;user_id&#34;].nunique()
-mm = (
-    p
-    .groupby(&#34;month&#34;)
-    .agg(payers=(&#34;user_id&#34;, &#34;nunique&#34;), revenue=(&#34;amount&#34;, &#34;sum&#34;))
-    .assign(new=new,
-            revenue_mln=lambda d: (d[&#34;revenue&#34;] / 1e6).round(1),
-            arppu=lambda d: (d[&#34;revenue&#34;] / d[&#34;payers&#34;]).round(0).astype(int))
-    [[&#34;payers&#34;, &#34;new&#34;, &#34;revenue_mln&#34;, &#34;arppu&#34;]]
-)
-mm
-# — шаг «График: платящие и новые» —
-title = f&#34;Платящих в сентябре: {mm[&#39;payers&#39;].iloc[-1]}&#34;
+            <h3>Сводка для собственников</h3>
+            <p>Series <code class='i'>summary</code>:</p> <ol class='steps-t'><li><code class='i'>revenue_bln</code> — выручка квартала, млрд сум, 2 знака;</li> <li><code class='i'>best_week</code> — воскресенье лучшей полной недели, дата строкой <code class='i'>"30.08"</code>;</li> <li><code class='i'>sep_worst_region</code> — регион с самым сильным падением в сентябре и <code class='i'>sep_worst_%</code> — его рост, %;</li> <li><code class='i'>weekend_uplift_%</code> — выходные против будней, %, 1 знак;</li> <li><code class='i'>school_uplift_%</code> — рост детских товаров в сезон, %, целое.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm># — шаг «Выручка по дням» —
+day = df.set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+print(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())
+# — шаг «Полные недели» —
+wk = day.resample(&#34;W&#34;).sum()
+full = day.resample(&#34;W&#34;).count() == 7
+weeks = (wk[full] / 1e6).round(1)
+print(len(weeks))
+weeks
+# — шаг «График: дни и тренд» —
+title = f&#34;Лучшая неделя квартала: {weeks.idxmax():%d.%m}&#34;
 print(title)
-ax = mm[[&#34;payers&#34;, &#34;new&#34;]].plot(marker=&#34;o&#34;, figsize=(7, 3.5))
+
+fig, ax = plt.subplots(figsize=(8, 3.5))
+(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=&#34;день&#34;)
+(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=&#34;среднее за 7 дней&#34;)
 ax.set_title(title)
+ax.set_ylabel(&#34;млн сум&#34;)
 ax.set_xlabel(&#34;&#34;)
-# — шаг «Матрица удержания» —
-counts = p.pivot_table(index=&#34;cohort&#34;, columns=&#34;age&#34;, values=&#34;user_id&#34;, aggfunc=&#34;nunique&#34;)
-ret = (counts.div(counts[0], axis=0) * 100).round(1)
-ret[[1, 2, 3]]
-# — шаг «Тепловая карта и общее удержание» —
-has = counts[1].notna()
-print(round(counts.loc[has, 1].sum() / counts.loc[has, 0].sum() * 100, 1))
-fig, ax = plt.subplots(figsize=(7, 3.6))
-im = ax.imshow(ret.iloc[:, 1:6], cmap=&#34;Purples&#34;, aspect=&#34;auto&#34;)
-ax.set_xticks(range(5), [f&#34;мес. {i}&#34; for i in range(1, 6)])
-ax.set_yticks(range(len(ret)), ret.index.astype(str))
-fig.colorbar(im, label=&#34;% удержания&#34;)
-ax.set_title(&#34;Удержание когорт&#34;)
-# — шаг «basic против pro» —
-u = p.groupby(&#34;user_id&#34;).agg(plan=(&#34;plan&#34;, &#34;first&#34;), source=(&#34;source&#34;, &#34;first&#34;), cohort=(&#34;cohort&#34;, &#34;first&#34;))
-u[&#34;back&#34;] = u.index.isin(p.loc[p[&#34;age&#34;] == 1, &#34;user_id&#34;])
-print((u[u[&#34;cohort&#34;] &lt;= pd.Period(&#34;2026-08&#34;, &#34;M&#34;)].groupby(&#34;plan&#34;)[&#34;back&#34;].mean() * 100).round(1))
-print(round(p.loc[p[&#34;plan&#34;] == &#34;pro&#34;, &#34;amount&#34;].sum() / p[&#34;amount&#34;].sum() * 100, 1))
-# — шаг «Какой канал выгоднее» —
-old = u[u[&#34;cohort&#34;] &lt;= pd.Period(&#34;2026-07&#34;, &#34;M&#34;)]
-rev3 = p[(p[&#34;age&#34;] &lt;= 2) &amp; p[&#34;user_id&#34;].isin(old.index)].groupby(&#34;source&#34;)[&#34;amount&#34;].sum()
-students = old.groupby(&#34;source&#34;).size()
-by_src = pd.DataFrame({
-    &#34;students&#34;: students,
-    &#34;ltv3&#34;: (rev3 / students).round(0).astype(int),
-}).sort_values(&#34;ltv3&#34;, ascending=False)
-by_src</pre></details>          </div>
+ax.legend()
+# — шаг «Рост регионов месяц к месяцу» —
+mr = df.groupby([pd.Grouper(key=&#34;date&#34;, freq=&#34;MS&#34;), &#34;region&#34;])[&#34;revenue&#34;].sum().unstack()
+mom = (mr.pct_change() * 100).round(1)
+mom.iloc[1:]
+# — шаг «Лучший магазин в каждом регионе» —
+st = df.groupby([&#34;region&#34;, &#34;store&#34;])[&#34;revenue&#34;].sum()
+rk = st.groupby(level=&#34;region&#34;).rank(ascending=False).astype(int)
+(st[rk == 1] / 1e6).round(1)
+# — шаг «Дни недели» —
+wd = day.groupby(day.index.dayofweek).mean()
+names = [&#34;Пн&#34;, &#34;Вт&#34;, &#34;Ср&#34;, &#34;Чт&#34;, &#34;Пт&#34;, &#34;Сб&#34;, &#34;Вс&#34;]
+wd.index = names
+print((wd / 1e6).round(1))
+weekend = day[day.index.dayofweek &gt;= 5].mean() / day[day.index.dayofweek &lt; 5].mean() - 1
+print(round(weekend * 100, 1))
+# — шаг «Сезон «к школе»» —
+kid = df[df[&#34;category&#34;] == &#34;Детские товары&#34;].set_index(&#34;date&#34;)[&#34;revenue&#34;].resample(&#34;D&#34;).sum()
+before = kid.loc[&#34;2026-07-01&#34;:&#34;2026-08-14&#34;].mean()
+season = kid.loc[&#34;2026-08-15&#34;:&#34;2026-08-31&#34;].mean()
+print(round(before / 1e6, 1), round(season / 1e6, 1), round((season / before - 1) * 100))</pre></details>          </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 21 · задача 8</div>
             <textarea class="editor" spellcheck="false" aria-label="Код задачи 8">summary = pd.Series({
-    &#34;payers_last&#34;: ...,
+    &#34;revenue_bln&#34;: ...,
     # продолжи
 })
 summary
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">payers_last              959
-revenue_last_mln       124.6
-revenue_growth_%        13.4
-m1_retention_%          56.3
-best_source         referral
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">revenue_bln           19.11
+best_week             30.08
+sep_worst_region    Фергана
+sep_worst_%            -8.3
+weekend_uplift_%       19.3
+school_uplift_%         110
 dtype: object</pre></div>
             </div>
             <div class="actions">
@@ -794,7 +750,7 @@ dtype: object</pre></div>
             </div>
           </div>
           <template data-starter>summary = pd.Series({
-    &#34;payers_last&#34;: ...,
+    &#34;revenue_bln&#34;: ...,
     # продолжи
 })
 summary
@@ -802,56 +758,57 @@ summary
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> Почти все числа уже посчитаны в прошлых шагах: mm, counts/has, by_src. Нужно только достать последние значения и посчитать рост к прошлому месяцу.</p>
-<p><b>Чем это сделать.</b> <code class="i">.iloc[-1]</code> — последний, <code class="i">.iloc[-2]</code> — предпоследний. <code class="i">.idxmax()</code> — название лучшего канала.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>summary = pd.Series({
-    &#34;payers_last&#34;: mm[&#34;payers&#34;].iloc[___],
-    &#34;revenue_last_mln&#34;: mm[&#34;revenue_mln&#34;].iloc[-1],
-    &#34;revenue_growth_%&#34;: round((mm[&#34;revenue_mln&#34;].iloc[-1] / mm[&#34;revenue_mln&#34;].iloc[___] - 1) * 100, 1),
-    &#34;m1_retention_%&#34;: round(counts.loc[has, 1].sum() / counts.loc[has, ___].sum() * 100, 1),
-    &#34;best_source&#34;: by_src[&#34;ltv3&#34;].___(),
-})</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">.max()</code> вернёт сумму денег, а нужен канал — <code class="i">.idxmax()</code>.</p>          </div>
+            <p><b>С чего начать.</b> Почти всё уже посчитано в прошлых шагах — собери готовые значения в одну Series с понятными именами.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.Series({"имя": значение, ...})</code>. Последняя строка роста: <code class="i">mom.iloc[-1]</code>, регион с минимумом: <code class="i">.idxmin()</code>. Дата строкой: <code class="i">.strftime("%d.%m")</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>summary = pd.Series({
+    &#34;revenue_bln&#34;: round(day.sum() / 1e9, 2),
+    &#34;best_week&#34;: weeks.idxmax().strftime(&#34;___&#34;),
+    &#34;sep_worst_region&#34;: mom.iloc[-1].___(),
+    &#34;sep_worst_%&#34;: mom.iloc[-1].___(),
+    &#34;weekend_uplift_%&#34;: round(weekend * 100, 1),
+    &#34;school_uplift_%&#34;: round((season / before - 1) * 100),
+})</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">mom.iloc[0]</code> — это июль, где роста нет (NaN). Сентябрь — последняя строка.</p>          </div>
         </article>
       </div>
     </section>
 
     <section id="case">
       <div class="eyebrow">06 · Бизнес-кейс · 30 XP</div>
-      <h2>Письмо команде Darslik</h2>
+      <h2>Письмо собственникам Chakana</h2>
       <div class="case">
-        <p>Напиши короткое письмо команде к ежемесячному дашборду. Не больше 6 предложений. Структура: <b>главная цифра месяца → рост и удержание → тарифы → каналы → 1 оговорка → 1 задача на следующий месяц</b>.</p>
+        <p>Напиши короткое письмо собственникам к отчёту. Не больше 6 предложений. Структура: <b>выручка квартала → лучшая неделя и почему → что было с регионами в сентябре → выходные против будней → сезон «к школе» → 1 предложение на следующий квартал</b>.</p>
         <div class="howcheck">
-          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Платящих в сентябре</span><span class="fact-chip">Выручка сентября</span><span class="fact-chip">Удержание через месяц</span><span class="fact-chip">Доля pro в выручке</span></div>
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Выручка квартала</span><span class="fact-chip">Выручка лучшей недели</span><span class="fact-chip">Рост детских товаров в сезон</span><span class="fact-chip">Падение Ферганы в сентябре</span><span class="fact-chip">Выходные выше будней</span></div>
           <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
         </div>
         <label for="caseAnswer" class="note">Твой ответ</label>
-        <textarea id="caseAnswer" class="answer" placeholder="Команда, привет! Итоги сентября: …"></textarea>
+        <textarea id="caseAnswer" class="answer" placeholder="Добрый день! Итоги третьего квартала: …"></textarea>
         <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
         <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
         <div class="case-nums" id="caseNums" role="status" hidden></div>
         <div class="case-logic" id="caseLogic" hidden>
           <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
           <div class="qz" data-lq="0" data-a="0">
-            <p>1. Что твой ответ говорит про pro и basic?</p>
-            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Pro удерживается чуть хуже basic, но даёт почти половину выручки</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Pro удерживается намного лучше basic</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Pro почти не приносит денег</span></button></div>
-            <div class="why" hidden>54,0% против 57,3% возвратов, но при ~30% учеников pro даёт 46,1% выручки.</div>
+            <p>1. Почему лучшая неделя квартала — конец августа?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Это пик сезона «к школе» в детских товарах</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В эту неделю было больше дней</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Ошибка в данных</span></button></div>
+            <div class="why" hidden>Все недели в сравнении полные, а детские товары во второй половине августа продавались вдвое больше обычного.</div>
           </div>
           <div class="qz" data-lq="1" data-a="0">
-            <p>2. Какой канал приносит больше денег за первые 3 месяца?</p>
-            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>referral</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>instagram</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Каналы одинаковые</span></button></div>
-            <div class="why" hidden>289 042 сум на ученика у referral против 248 127 у instagram.</div>
+            <p>2. Почему первую и последнюю неделю квартала не сравнивают с остальными?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В них меньше 7 дней</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Они плохие</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Там нет данных</span></button></div>
+            <div class="why" hidden>Квартал начинается и заканчивается в среду: в первой неделе 5 дней, в последней 3.</div>
           </div>
           <div class="qz" data-lq="2" data-a="0">
-            <p>3. Какую оговорку ты делаешь?</p>
-            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>По сентябрьской когорте удержания ещё нет</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Оговорок нет</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Все данные за сентябрь неверные</span></button></div>
-            <div class="why" hidden>Сентябрьские ученики ещё не прожили месяц 1.</div>
+            <p>3. Что произошло в сентябре?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>После сезона продажи снизились почти во всех регионах</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Продажи выросли везде</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сеть закрылась</span></button></div>
+            <div class="why" hidden>Рост к августу в сентябре отрицательный у трёх регионов из четырёх, в Бухаре — 0%.</div>
           </div>
         </div>
         <div class="verdict" id="caseVerdict" role="status" hidden></div>
         <div class="model" id="caseModel" hidden>
           <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
-          <p>Команда, привет! Итоги сентября: 959 платящих учеников и 124,6 млн сум выручки, из них 300 новых. Через месяц после первой оплаты продолжают платить 56,3% учеников (по когортам января–августа), и новые когорты удерживаются лучше старых. Pro удерживается чуть хуже basic (54,0% против 57,3%), но при ~30% учеников даёт 46,1% выручки. Больше всего за первые 3 месяца приносит ученик из канала «referral» — 289 042 сум против 248 127 у «instagram». Оговорка: по сентябрьской когорте удержания ещё нет. Задача на октябрь: проверить, почему уходят после первого месяца, и протестировать скидку на переход с basic на pro.</p>
+          <p>Добрый день! За июль–сентябрь сеть Chakana продала на 19,11 млрд сум. Лучшая полная неделя закончилась 30.08 — 1 666,7 млн: это пик сезона «к школе», когда детские товары продавались в среднем на 110,0% больше, чем до него. В августе выросли все регионы, а в сентябре после сезона сильнее всего упали продажи региона Фергана: -8,3% к августу. В выходные сеть в среднем продаёт на 19,3% больше, чем в будни. Предложение: заранее увеличить запасы детских товаров к 15 августа и усилить персонал магазинов в выходные.</p>
           <p><b>Что делает ответ сильным:</b></p>
-          <ul><li>Главная цифра месяца в первом предложении</li><li>Удержание с указанием, по каким когортам</li><li>Тарифы: удержание и доля выручки</li><li>Каналы сравнены за одинаковые 3 месяца</li><li>Оговорка и задача на следующий месяц</li></ul>
+          <ul><li>Выручка квартала</li><li>Лучшая неделя и причина — сезон</li><li>Сентябрь по регионам с цифрой</li><li>Выходные против будней</li><li>Предложение на следующий квартал</li></ul>
         </div>
       </div>
     </section>
@@ -864,7 +821,7 @@ summary
         <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
       </div>
       <nav class="pager" aria-label="Соседние уроки">
-<a href="../../lessons/20-vizualizaciya/"><small>← Урок 20</small><b>Визуализация для отчёта</b></a><a class="nx" href="../../lessons/22-ab-test/"><small>Урок 22 →</small><b>A/B-тест в pandas: от сырых данных до решения</b></a>      </nav>
+<a href="../../lessons/20-vizualizaciya/"><small>← Урок 20</small><b>Визуализация для отчёта</b></a><a class="nx" href="../../lessons/22-vlozhennye-dannye/"><small>Урок 22 →</small><b>Вложенные данные: JSON, explode, apply</b></a>      </nav>
     </section>
   </main>
 </div>
@@ -876,14 +833,14 @@ summary
   </div>
 </footer>
 <div class="toast" id="toast" hidden></div>
-<script src="../../static/js/site.js?v=202611061848"></script>
+<script src="../../static/js/site.js?v=202611072255"></script>
 <script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
-<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
-<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041f\u043b\u0430\u0442\u044f\u0449\u0438\u0445 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435", "value": 959}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044f", "value": 124600000}, {"name": "\u0423\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435 \u0447\u0435\u0440\u0435\u0437 \u043c\u0435\u0441\u044f\u0446", "pct": true, "value": 56.3}, {"name": "\u0414\u043e\u043b\u044f pro \u0432 \u0432\u044b\u0440\u0443\u0447\u043a\u0435", "pct": true, "value": 46.1}], "logic": [{"a": 0, "o": ["Pro \u0443\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u0447\u0443\u0442\u044c \u0445\u0443\u0436\u0435 basic, \u043d\u043e \u0434\u0430\u0451\u0442 \u043f\u043e\u0447\u0442\u0438 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0443 \u0432\u044b\u0440\u0443\u0447\u043a\u0438", "Pro \u0443\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u043d\u0430\u043c\u043d\u043e\u0433\u043e \u043b\u0443\u0447\u0448\u0435 basic", "Pro \u043f\u043e\u0447\u0442\u0438 \u043d\u0435 \u043f\u0440\u0438\u043d\u043e\u0441\u0438\u0442 \u0434\u0435\u043d\u0435\u0433"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043f\u0440\u043e pro \u0438 basic?", "why": "54,0% \u043f\u0440\u043e\u0442\u0438\u0432 57,3% \u0432\u043e\u0437\u0432\u0440\u0430\u0442\u043e\u0432, \u043d\u043e \u043f\u0440\u0438 ~30% \u0443\u0447\u0435\u043d\u0438\u043a\u043e\u0432 pro \u0434\u0430\u0451\u0442 46,1% \u0432\u044b\u0440\u0443\u0447\u043a\u0438."}, {"a": 0, "o": ["referral", "instagram", "\u041a\u0430\u043d\u0430\u043b\u044b \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u044b\u0435"], "q": "\u041a\u0430\u043a\u043e\u0439 \u043a\u0430\u043d\u0430\u043b \u043f\u0440\u0438\u043d\u043e\u0441\u0438\u0442 \u0431\u043e\u043b\u044c\u0448\u0435 \u0434\u0435\u043d\u0435\u0433 \u0437\u0430 \u043f\u0435\u0440\u0432\u044b\u0435 3 \u043c\u0435\u0441\u044f\u0446\u0430?", "why": "289 042 \u0441\u0443\u043c \u043d\u0430 \u0443\u0447\u0435\u043d\u0438\u043a\u0430 \u0443 referral \u043f\u0440\u043e\u0442\u0438\u0432 248 127 \u0443 instagram."}, {"a": 0, "o": ["\u041f\u043e \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c\u0441\u043a\u043e\u0439 \u043a\u043e\u0433\u043e\u0440\u0442\u0435 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f \u0435\u0449\u0451 \u043d\u0435\u0442", "\u041e\u0433\u043e\u0432\u043e\u0440\u043e\u043a \u043d\u0435\u0442", "\u0412\u0441\u0435 \u0434\u0430\u043d\u043d\u044b\u0435 \u0437\u0430 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c \u043d\u0435\u0432\u0435\u0440\u043d\u044b\u0435"], "q": "\u041a\u0430\u043a\u0443\u044e \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0443 \u0442\u044b \u0434\u0435\u043b\u0430\u0435\u0448\u044c?", "why": "\u0421\u0435\u043d\u0442\u044f\u0431\u0440\u044c\u0441\u043a\u0438\u0435 \u0443\u0447\u0435\u043d\u0438\u043a\u0438 \u0435\u0449\u0451 \u043d\u0435 \u043f\u0440\u043e\u0436\u0438\u043b\u0438 \u043c\u0435\u0441\u044f\u0446 1."}]}, "case_model": "\u041a\u043e\u043c\u0430\u043d\u0434\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u0418\u0442\u043e\u0433\u0438 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044f: 959 \u043f\u043b\u0430\u0442\u044f\u0449\u0438\u0445 \u0443\u0447\u0435\u043d\u0438\u043a\u043e\u0432 \u0438 124,6 \u043c\u043b\u043d \u0441\u0443\u043c \u0432\u044b\u0440\u0443\u0447\u043a\u0438, \u0438\u0437 \u043d\u0438\u0445 300 \u043d\u043e\u0432\u044b\u0445. \u0427\u0435\u0440\u0435\u0437 \u043c\u0435\u0441\u044f\u0446 \u043f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0432\u043e\u0439 \u043e\u043f\u043b\u0430\u0442\u044b \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u044e\u0442 \u043f\u043b\u0430\u0442\u0438\u0442\u044c 56,3% \u0443\u0447\u0435\u043d\u0438\u043a\u043e\u0432 (\u043f\u043e \u043a\u043e\u0433\u043e\u0440\u0442\u0430\u043c \u044f\u043d\u0432\u0430\u0440\u044f\u2013\u0430\u0432\u0433\u0443\u0441\u0442\u0430), \u0438 \u043d\u043e\u0432\u044b\u0435 \u043a\u043e\u0433\u043e\u0440\u0442\u044b \u0443\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u044e\u0442\u0441\u044f \u043b\u0443\u0447\u0448\u0435 \u0441\u0442\u0430\u0440\u044b\u0445. Pro \u0443\u0434\u0435\u0440\u0436\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u0447\u0443\u0442\u044c \u0445\u0443\u0436\u0435 basic (54,0% \u043f\u0440\u043e\u0442\u0438\u0432 57,3%), \u043d\u043e \u043f\u0440\u0438 ~30% \u0443\u0447\u0435\u043d\u0438\u043a\u043e\u0432 \u0434\u0430\u0451\u0442 46,1% \u0432\u044b\u0440\u0443\u0447\u043a\u0438. \u0411\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u0437\u0430 \u043f\u0435\u0440\u0432\u044b\u0435 3 \u043c\u0435\u0441\u044f\u0446\u0430 \u043f\u0440\u0438\u043d\u043e\u0441\u0438\u0442 \u0443\u0447\u0435\u043d\u0438\u043a \u0438\u0437 \u043a\u0430\u043d\u0430\u043b\u0430 \u00abreferral\u00bb \u2014 289 042 \u0441\u0443\u043c \u043f\u0440\u043e\u0442\u0438\u0432 248 127 \u0443 \u00abinstagram\u00bb. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u043f\u043e \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c\u0441\u043a\u043e\u0439 \u043a\u043e\u0433\u043e\u0440\u0442\u0435 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f \u0435\u0449\u0451 \u043d\u0435\u0442. \u0417\u0430\u0434\u0430\u0447\u0430 \u043d\u0430 \u043e\u043a\u0442\u044f\u0431\u0440\u044c: \u043f\u0440\u043e\u0432\u0435\u0440\u0438\u0442\u044c, \u043f\u043e\u0447\u0435\u043c\u0443 \u0443\u0445\u043e\u0434\u044f\u0442 \u043f\u043e\u0441\u043b\u0435 \u043f\u0435\u0440\u0432\u043e\u0433\u043e \u043c\u0435\u0441\u044f\u0446\u0430, \u0438 \u043f\u0440\u043e\u0442\u0435\u0441\u0442\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0441\u043a\u0438\u0434\u043a\u0443 \u043d\u0430 \u043f\u0435\u0440\u0435\u0445\u043e\u0434 \u0441 basic \u043d\u0430 pro.", "case_xp": 30, "cheat": [["p[\"month\"] = p[\"pay_date\"].dt.to_period(\"M\")", "\u043c\u0435\u0441\u044f\u0446 \u043e\u043f\u043b\u0430\u0442\u044b"], ["transform(\"min\")", "\u043f\u0435\u0440\u0432\u0430\u044f \u043e\u043f\u043b\u0430\u0442\u0430 \u0432 \u043a\u0430\u0436\u0434\u043e\u0439 \u0441\u0442\u0440\u043e\u043a\u0435"], ["groupby(\"month\").agg(payers=(\"user_id\", \"nunique\"))", "\u043f\u043b\u0430\u0442\u044f\u0449\u0438\u0435 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c"], ["pivot_table(..., aggfunc=\"nunique\")", "\u043c\u0430\u0442\u0440\u0438\u0446\u0430 \u043a\u043e\u0433\u043e\u0440\u0442"], ["ax.imshow(table, cmap=\"Purples\")", "\u0442\u0435\u043f\u043b\u043e\u0432\u0430\u044f \u043a\u0430\u0440\u0442\u0430"], ["m1 = counts[1].sum() / counts.loc[has, 0].sum()", "\u0432\u0437\u0432\u0435\u0448\u0435\u043d\u043d\u043e\u0435 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435"]], "data": "../../data/", "datasets": ["darslik_payments.csv"], "day": 21, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\np = pd.read_csv(\"darslik_payments.csv\", parse_dates=[\"pay_date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["2080 4765 2026-01 2026-09"], "setup": "", "xp": 20}, {"figure": false, "id": "t2", "keys": ["payers new revenue_mln arppu", "month", "2026-01 160 160 19.5 122125", "2026-02 248 180 31.4 126419", "2026-06 598 250 77.0 128766", "2026-07 717 270 93.5 130381", "2026-08 842 290 109.9 130473", "2026-09 959 300 124.6 129970"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445\u00bb \u2014\nfirst = p.groupby(\"user_id\")[\"pay_date\"].transform(\"min\")\np[\"month\"] = p[\"pay_date\"].dt.to_period(\"M\")\np[\"cohort\"] = first.dt.to_period(\"M\")\np[\"age\"] = (p[\"pay_date\"].dt.year - first.dt.year) * 12 + (p[\"pay_date\"].dt.month - first.dt.month)\nprint(p[\"user_id\"].nunique(), len(p), p[\"month\"].min(), p[\"month\"].max())", "xp": 20}, {"figure": true, "id": "t3", "keys": ["\u041f\u043b\u0430\u0442\u044f\u0449\u0438\u0445 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435: 959"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445\u00bb \u2014\nfirst = p.groupby(\"user_id\")[\"pay_date\"].transform(\"min\")\np[\"month\"] = p[\"pay_date\"].dt.to_period(\"M\")\np[\"cohort\"] = first.dt.to_period(\"M\")\np[\"age\"] = (p[\"pay_date\"].dt.year - first.dt.year) * 12 + (p[\"pay_date\"].dt.month - first.dt.month)\nprint(p[\"user_id\"].nunique(), len(p), p[\"month\"].min(), p[\"month\"].max())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0435\u0442\u0440\u0438\u043a\u0438 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb \u2014\nnew = p[p[\"age\"] == 0].groupby(\"month\")[\"user_id\"].nunique()\nmm = (\n    p\n    .groupby(\"month\")\n    .agg(payers=(\"user_id\", \"nunique\"), revenue=(\"amount\", \"sum\"))\n    .assign(new=new,\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            arppu=lambda d: (d[\"revenue\"] / d[\"payers\"]).round(0).astype(int))\n    [[\"payers\", \"new\", \"revenue_mln\", \"arppu\"]]\n)\nmm", "xp": 25}, {"figure": false, "id": "t4", "keys": ["age 1 2 3", "cohort", "2026-01 42.5 30.6 21.9", "2026-02 44.4 37.8 28.3", "2026-06 62.0 54.4 48.8", "2026-07 61.5 52.6 NaN", "2026-08 64.1 NaN NaN", "2026-09 NaN NaN NaN"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445\u00bb \u2014\nfirst = p.groupby(\"user_id\")[\"pay_date\"].transform(\"min\")\np[\"month\"] = p[\"pay_date\"].dt.to_period(\"M\")\np[\"cohort\"] = first.dt.to_period(\"M\")\np[\"age\"] = (p[\"pay_date\"].dt.year - first.dt.year) * 12 + (p[\"pay_date\"].dt.month - first.dt.month)\nprint(p[\"user_id\"].nunique(), len(p), p[\"month\"].min(), p[\"month\"].max())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0435\u0442\u0440\u0438\u043a\u0438 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb \u2014\nnew = p[p[\"age\"] == 0].groupby(\"month\")[\"user_id\"].nunique()\nmm = (\n    p\n    .groupby(\"month\")\n    .agg(payers=(\"user_id\", \"nunique\"), revenue=(\"amount\", \"sum\"))\n    .assign(new=new,\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            arppu=lambda d: (d[\"revenue\"] / d[\"payers\"]).round(0).astype(int))\n    [[\"payers\", \"new\", \"revenue_mln\", \"arppu\"]]\n)\nmm\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u043f\u043b\u0430\u0442\u044f\u0449\u0438\u0435 \u0438 \u043d\u043e\u0432\u044b\u0435\u00bb \u2014\ntitle = f\"\u041f\u043b\u0430\u0442\u044f\u0449\u0438\u0445 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435: {mm[\u0027payers\u0027].iloc[-1]}\"\nprint(title)\nax = mm[[\"payers\", \"new\"]].plot(marker=\"o\", figsize=(7, 3.5))\nax.set_title(title)\nax.set_xlabel(\"\")", "xp": 25}, {"figure": true, "id": "t5", "keys": ["56.3"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445\u00bb \u2014\nfirst = p.groupby(\"user_id\")[\"pay_date\"].transform(\"min\")\np[\"month\"] = p[\"pay_date\"].dt.to_period(\"M\")\np[\"cohort\"] = first.dt.to_period(\"M\")\np[\"age\"] = (p[\"pay_date\"].dt.year - first.dt.year) * 12 + (p[\"pay_date\"].dt.month - first.dt.month)\nprint(p[\"user_id\"].nunique(), len(p), p[\"month\"].min(), p[\"month\"].max())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0435\u0442\u0440\u0438\u043a\u0438 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb \u2014\nnew = p[p[\"age\"] == 0].groupby(\"month\")[\"user_id\"].nunique()\nmm = (\n    p\n    .groupby(\"month\")\n    .agg(payers=(\"user_id\", \"nunique\"), revenue=(\"amount\", \"sum\"))\n    .assign(new=new,\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            arppu=lambda d: (d[\"revenue\"] / d[\"payers\"]).round(0).astype(int))\n    [[\"payers\", \"new\", \"revenue_mln\", \"arppu\"]]\n)\nmm\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u043f\u043b\u0430\u0442\u044f\u0449\u0438\u0435 \u0438 \u043d\u043e\u0432\u044b\u0435\u00bb \u2014\ntitle = f\"\u041f\u043b\u0430\u0442\u044f\u0449\u0438\u0445 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435: {mm[\u0027payers\u0027].iloc[-1]}\"\nprint(title)\nax = mm[[\"payers\", \"new\"]].plot(marker=\"o\", figsize=(7, 3.5))\nax.set_title(title)\nax.set_xlabel(\"\")\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0430\u0442\u0440\u0438\u0446\u0430 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f\u00bb \u2014\ncounts = p.pivot_table(index=\"cohort\", columns=\"age\", values=\"user_id\", aggfunc=\"nunique\")\nret = (counts.div(counts[0], axis=0) * 100).round(1)\nret[[1, 2, 3]]", "xp": 25}, {"figure": false, "id": "t6", "keys": ["plan", "basic 57.3", "pro 54.0", "46.1"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445\u00bb \u2014\nfirst = p.groupby(\"user_id\")[\"pay_date\"].transform(\"min\")\np[\"month\"] = p[\"pay_date\"].dt.to_period(\"M\")\np[\"cohort\"] = first.dt.to_period(\"M\")\np[\"age\"] = (p[\"pay_date\"].dt.year - first.dt.year) * 12 + (p[\"pay_date\"].dt.month - first.dt.month)\nprint(p[\"user_id\"].nunique(), len(p), p[\"month\"].min(), p[\"month\"].max())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0435\u0442\u0440\u0438\u043a\u0438 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb \u2014\nnew = p[p[\"age\"] == 0].groupby(\"month\")[\"user_id\"].nunique()\nmm = (\n    p\n    .groupby(\"month\")\n    .agg(payers=(\"user_id\", \"nunique\"), revenue=(\"amount\", \"sum\"))\n    .assign(new=new,\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            arppu=lambda d: (d[\"revenue\"] / d[\"payers\"]).round(0).astype(int))\n    [[\"payers\", \"new\", \"revenue_mln\", \"arppu\"]]\n)\nmm\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u043f\u043b\u0430\u0442\u044f\u0449\u0438\u0435 \u0438 \u043d\u043e\u0432\u044b\u0435\u00bb \u2014\ntitle = f\"\u041f\u043b\u0430\u0442\u044f\u0449\u0438\u0445 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435: {mm[\u0027payers\u0027].iloc[-1]}\"\nprint(title)\nax = mm[[\"payers\", \"new\"]].plot(marker=\"o\", figsize=(7, 3.5))\nax.set_title(title)\nax.set_xlabel(\"\")\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0430\u0442\u0440\u0438\u0446\u0430 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f\u00bb \u2014\ncounts = p.pivot_table(index=\"cohort\", columns=\"age\", values=\"user_id\", aggfunc=\"nunique\")\nret = (counts.div(counts[0], axis=0) * 100).round(1)\nret[[1, 2, 3]]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0422\u0435\u043f\u043b\u043e\u0432\u0430\u044f \u043a\u0430\u0440\u0442\u0430 \u0438 \u043e\u0431\u0449\u0435\u0435 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435\u00bb \u2014\nhas = counts[1].notna()\nprint(round(counts.loc[has, 1].sum() / counts.loc[has, 0].sum() * 100, 1))\nfig, ax = plt.subplots(figsize=(7, 3.6))\nim = ax.imshow(ret.iloc[:, 1:6], cmap=\"Purples\", aspect=\"auto\")\nax.set_xticks(range(5), [f\"\u043c\u0435\u0441. {i}\" for i in range(1, 6)])\nax.set_yticks(range(len(ret)), ret.index.astype(str))\nfig.colorbar(im, label=\"% \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f\")\nax.set_title(\"\u0423\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435 \u043a\u043e\u0433\u043e\u0440\u0442\")", "xp": 25}, {"figure": false, "id": "t7", "keys": ["students ltv3", "source", "referral 332 289042", "telegram 415 254896", "instagram 743 248127"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445\u00bb \u2014\nfirst = p.groupby(\"user_id\")[\"pay_date\"].transform(\"min\")\np[\"month\"] = p[\"pay_date\"].dt.to_period(\"M\")\np[\"cohort\"] = first.dt.to_period(\"M\")\np[\"age\"] = (p[\"pay_date\"].dt.year - first.dt.year) * 12 + (p[\"pay_date\"].dt.month - first.dt.month)\nprint(p[\"user_id\"].nunique(), len(p), p[\"month\"].min(), p[\"month\"].max())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0435\u0442\u0440\u0438\u043a\u0438 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb \u2014\nnew = p[p[\"age\"] == 0].groupby(\"month\")[\"user_id\"].nunique()\nmm = (\n    p\n    .groupby(\"month\")\n    .agg(payers=(\"user_id\", \"nunique\"), revenue=(\"amount\", \"sum\"))\n    .assign(new=new,\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            arppu=lambda d: (d[\"revenue\"] / d[\"payers\"]).round(0).astype(int))\n    [[\"payers\", \"new\", \"revenue_mln\", \"arppu\"]]\n)\nmm\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u043f\u043b\u0430\u0442\u044f\u0449\u0438\u0435 \u0438 \u043d\u043e\u0432\u044b\u0435\u00bb \u2014\ntitle = f\"\u041f\u043b\u0430\u0442\u044f\u0449\u0438\u0445 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435: {mm[\u0027payers\u0027].iloc[-1]}\"\nprint(title)\nax = mm[[\"payers\", \"new\"]].plot(marker=\"o\", figsize=(7, 3.5))\nax.set_title(title)\nax.set_xlabel(\"\")\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0430\u0442\u0440\u0438\u0446\u0430 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f\u00bb \u2014\ncounts = p.pivot_table(index=\"cohort\", columns=\"age\", values=\"user_id\", aggfunc=\"nunique\")\nret = (counts.div(counts[0], axis=0) * 100).round(1)\nret[[1, 2, 3]]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0422\u0435\u043f\u043b\u043e\u0432\u0430\u044f \u043a\u0430\u0440\u0442\u0430 \u0438 \u043e\u0431\u0449\u0435\u0435 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435\u00bb \u2014\nhas = counts[1].notna()\nprint(round(counts.loc[has, 1].sum() / counts.loc[has, 0].sum() * 100, 1))\nfig, ax = plt.subplots(figsize=(7, 3.6))\nim = ax.imshow(ret.iloc[:, 1:6], cmap=\"Purples\", aspect=\"auto\")\nax.set_xticks(range(5), [f\"\u043c\u0435\u0441. {i}\" for i in range(1, 6)])\nax.set_yticks(range(len(ret)), ret.index.astype(str))\nfig.colorbar(im, label=\"% \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f\")\nax.set_title(\"\u0423\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435 \u043a\u043e\u0433\u043e\u0440\u0442\")\n# \u2014 \u0448\u0430\u0433 \u00abbasic \u043f\u0440\u043e\u0442\u0438\u0432 pro\u00bb \u2014\nu = p.groupby(\"user_id\").agg(plan=(\"plan\", \"first\"), source=(\"source\", \"first\"), cohort=(\"cohort\", \"first\"))\nu[\"back\"] = u.index.isin(p.loc[p[\"age\"] == 1, \"user_id\"])\nprint((u[u[\"cohort\"] \u003c= pd.Period(\"2026-08\", \"M\")].groupby(\"plan\")[\"back\"].mean() * 100).round(1))\nprint(round(p.loc[p[\"plan\"] == \"pro\", \"amount\"].sum() / p[\"amount\"].sum() * 100, 1))", "xp": 25}, {"figure": false, "id": "t8", "keys": ["payers_last 959", "revenue_last_mln 124.6", "revenue_growth_% 13.4", "m1_retention_% 56.3", "best_source referral"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u0434\u0433\u043e\u0442\u043e\u0432\u043a\u0430 \u0434\u0430\u043d\u043d\u044b\u0445\u00bb \u2014\nfirst = p.groupby(\"user_id\")[\"pay_date\"].transform(\"min\")\np[\"month\"] = p[\"pay_date\"].dt.to_period(\"M\")\np[\"cohort\"] = first.dt.to_period(\"M\")\np[\"age\"] = (p[\"pay_date\"].dt.year - first.dt.year) * 12 + (p[\"pay_date\"].dt.month - first.dt.month)\nprint(p[\"user_id\"].nunique(), len(p), p[\"month\"].min(), p[\"month\"].max())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0435\u0442\u0440\u0438\u043a\u0438 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb \u2014\nnew = p[p[\"age\"] == 0].groupby(\"month\")[\"user_id\"].nunique()\nmm = (\n    p\n    .groupby(\"month\")\n    .agg(payers=(\"user_id\", \"nunique\"), revenue=(\"amount\", \"sum\"))\n    .assign(new=new,\n            revenue_mln=lambda d: (d[\"revenue\"] / 1e6).round(1),\n            arppu=lambda d: (d[\"revenue\"] / d[\"payers\"]).round(0).astype(int))\n    [[\"payers\", \"new\", \"revenue_mln\", \"arppu\"]]\n)\nmm\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u043f\u043b\u0430\u0442\u044f\u0449\u0438\u0435 \u0438 \u043d\u043e\u0432\u044b\u0435\u00bb \u2014\ntitle = f\"\u041f\u043b\u0430\u0442\u044f\u0449\u0438\u0445 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435: {mm[\u0027payers\u0027].iloc[-1]}\"\nprint(title)\nax = mm[[\"payers\", \"new\"]].plot(marker=\"o\", figsize=(7, 3.5))\nax.set_title(title)\nax.set_xlabel(\"\")\n# \u2014 \u0448\u0430\u0433 \u00ab\u041c\u0430\u0442\u0440\u0438\u0446\u0430 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f\u00bb \u2014\ncounts = p.pivot_table(index=\"cohort\", columns=\"age\", values=\"user_id\", aggfunc=\"nunique\")\nret = (counts.div(counts[0], axis=0) * 100).round(1)\nret[[1, 2, 3]]\n# \u2014 \u0448\u0430\u0433 \u00ab\u0422\u0435\u043f\u043b\u043e\u0432\u0430\u044f \u043a\u0430\u0440\u0442\u0430 \u0438 \u043e\u0431\u0449\u0435\u0435 \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435\u00bb \u2014\nhas = counts[1].notna()\nprint(round(counts.loc[has, 1].sum() / counts.loc[has, 0].sum() * 100, 1))\nfig, ax = plt.subplots(figsize=(7, 3.6))\nim = ax.imshow(ret.iloc[:, 1:6], cmap=\"Purples\", aspect=\"auto\")\nax.set_xticks(range(5), [f\"\u043c\u0435\u0441. {i}\" for i in range(1, 6)])\nax.set_yticks(range(len(ret)), ret.index.astype(str))\nfig.colorbar(im, label=\"% \u0443\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u044f\")\nax.set_title(\"\u0423\u0434\u0435\u0440\u0436\u0430\u043d\u0438\u0435 \u043a\u043e\u0433\u043e\u0440\u0442\")\n# \u2014 \u0448\u0430\u0433 \u00abbasic \u043f\u0440\u043e\u0442\u0438\u0432 pro\u00bb \u2014\nu = p.groupby(\"user_id\").agg(plan=(\"plan\", \"first\"), source=(\"source\", \"first\"), cohort=(\"cohort\", \"first\"))\nu[\"back\"] = u.index.isin(p.loc[p[\"age\"] == 1, \"user_id\"])\nprint((u[u[\"cohort\"] \u003c= pd.Period(\"2026-08\", \"M\")].groupby(\"plan\")[\"back\"].mean() * 100).round(1))\nprint(round(p.loc[p[\"plan\"] == \"pro\", \"amount\"].sum() / p[\"amount\"].sum() * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u041a\u0430\u043a\u043e\u0439 \u043a\u0430\u043d\u0430\u043b \u0432\u044b\u0433\u043e\u0434\u043d\u0435\u0435\u00bb \u2014\nold = u[u[\"cohort\"] \u003c= pd.Period(\"2026-07\", \"M\")]\nrev3 = p[(p[\"age\"] \u003c= 2) \u0026 p[\"user_id\"].isin(old.index)].groupby(\"source\")[\"amount\"].sum()\nstudents = old.groupby(\"source\").size()\nby_src = pd.DataFrame({\n    \"students\": students,\n    \"ltv3\": (rev3 / students).round(0).astype(int),\n}).sort_values(\"ltv3\", ascending=False)\nby_src", "xp": 25}], "theory": ["brief", "plan", "traps"], "worker": "../../static/js/py-worker.js", "xp": 240}</script>
+<script type="module" src="../../static/js/auth.js?v=202611072255"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430", "value": 19110000000}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043b\u0443\u0447\u0448\u0435\u0439 \u043d\u0435\u0434\u0435\u043b\u0438", "value": 1666700000}, {"name": "\u0420\u043e\u0441\u0442 \u0434\u0435\u0442\u0441\u043a\u0438\u0445 \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u0432 \u0441\u0435\u0437\u043e\u043d", "pct": true, "value": 110}, {"name": "\u041f\u0430\u0434\u0435\u043d\u0438\u0435 \u0424\u0435\u0440\u0433\u0430\u043d\u044b \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435", "pct": true, "value": 8.3}, {"name": "\u0412\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0432\u044b\u0448\u0435 \u0431\u0443\u0434\u043d\u0435\u0439", "pct": true, "value": 19.3}], "logic": [{"a": 0, "o": ["\u042d\u0442\u043e \u043f\u0438\u043a \u0441\u0435\u0437\u043e\u043d\u0430 \u00ab\u043a \u0448\u043a\u043e\u043b\u0435\u00bb \u0432 \u0434\u0435\u0442\u0441\u043a\u0438\u0445 \u0442\u043e\u0432\u0430\u0440\u0430\u0445", "\u0412 \u044d\u0442\u0443 \u043d\u0435\u0434\u0435\u043b\u044e \u0431\u044b\u043b\u043e \u0431\u043e\u043b\u044c\u0448\u0435 \u0434\u043d\u0435\u0439", "\u041e\u0448\u0438\u0431\u043a\u0430 \u0432 \u0434\u0430\u043d\u043d\u044b\u0445"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u043b\u0443\u0447\u0448\u0430\u044f \u043d\u0435\u0434\u0435\u043b\u044f \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430 \u2014 \u043a\u043e\u043d\u0435\u0446 \u0430\u0432\u0433\u0443\u0441\u0442\u0430?", "why": "\u0412\u0441\u0435 \u043d\u0435\u0434\u0435\u043b\u0438 \u0432 \u0441\u0440\u0430\u0432\u043d\u0435\u043d\u0438\u0438 \u043f\u043e\u043b\u043d\u044b\u0435, \u0430 \u0434\u0435\u0442\u0441\u043a\u0438\u0435 \u0442\u043e\u0432\u0430\u0440\u044b \u0432\u043e \u0432\u0442\u043e\u0440\u043e\u0439 \u043f\u043e\u043b\u043e\u0432\u0438\u043d\u0435 \u0430\u0432\u0433\u0443\u0441\u0442\u0430 \u043f\u0440\u043e\u0434\u0430\u0432\u0430\u043b\u0438\u0441\u044c \u0432\u0434\u0432\u043e\u0435 \u0431\u043e\u043b\u044c\u0448\u0435 \u043e\u0431\u044b\u0447\u043d\u043e\u0433\u043e."}, {"a": 0, "o": ["\u0412 \u043d\u0438\u0445 \u043c\u0435\u043d\u044c\u0448\u0435 7 \u0434\u043d\u0435\u0439", "\u041e\u043d\u0438 \u043f\u043b\u043e\u0445\u0438\u0435", "\u0422\u0430\u043c \u043d\u0435\u0442 \u0434\u0430\u043d\u043d\u044b\u0445"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u043f\u0435\u0440\u0432\u0443\u044e \u0438 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u044e\u044e \u043d\u0435\u0434\u0435\u043b\u044e \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430 \u043d\u0435 \u0441\u0440\u0430\u0432\u043d\u0438\u0432\u0430\u044e\u0442 \u0441 \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u043c\u0438?", "why": "\u041a\u0432\u0430\u0440\u0442\u0430\u043b \u043d\u0430\u0447\u0438\u043d\u0430\u0435\u0442\u0441\u044f \u0438 \u0437\u0430\u043a\u0430\u043d\u0447\u0438\u0432\u0430\u0435\u0442\u0441\u044f \u0432 \u0441\u0440\u0435\u0434\u0443: \u0432 \u043f\u0435\u0440\u0432\u043e\u0439 \u043d\u0435\u0434\u0435\u043b\u0435 5 \u0434\u043d\u0435\u0439, \u0432 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0435\u0439 3."}, {"a": 0, "o": ["\u041f\u043e\u0441\u043b\u0435 \u0441\u0435\u0437\u043e\u043d\u0430 \u043f\u0440\u043e\u0434\u0430\u0436\u0438 \u0441\u043d\u0438\u0437\u0438\u043b\u0438\u0441\u044c \u043f\u043e\u0447\u0442\u0438 \u0432\u043e \u0432\u0441\u0435\u0445 \u0440\u0435\u0433\u0438\u043e\u043d\u0430\u0445", "\u041f\u0440\u043e\u0434\u0430\u0436\u0438 \u0432\u044b\u0440\u043e\u0441\u043b\u0438 \u0432\u0435\u0437\u0434\u0435", "\u0421\u0435\u0442\u044c \u0437\u0430\u043a\u0440\u044b\u043b\u0430\u0441\u044c"], "q": "\u0427\u0442\u043e \u043f\u0440\u043e\u0438\u0437\u043e\u0448\u043b\u043e \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435?", "why": "\u0420\u043e\u0441\u0442 \u043a \u0430\u0432\u0433\u0443\u0441\u0442\u0443 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435 \u043e\u0442\u0440\u0438\u0446\u0430\u0442\u0435\u043b\u044c\u043d\u044b\u0439 \u0443 \u0442\u0440\u0451\u0445 \u0440\u0435\u0433\u0438\u043e\u043d\u043e\u0432 \u0438\u0437 \u0447\u0435\u0442\u044b\u0440\u0451\u0445, \u0432 \u0411\u0443\u0445\u0430\u0440\u0435 \u2014 0%."}]}, "case_model": "\u0414\u043e\u0431\u0440\u044b\u0439 \u0434\u0435\u043d\u044c! \u0417\u0430 \u0438\u044e\u043b\u044c\u2013\u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c \u0441\u0435\u0442\u044c Chakana \u043f\u0440\u043e\u0434\u0430\u043b\u0430 \u043d\u0430 19,11 \u043c\u043b\u0440\u0434 \u0441\u0443\u043c. \u041b\u0443\u0447\u0448\u0430\u044f \u043f\u043e\u043b\u043d\u0430\u044f \u043d\u0435\u0434\u0435\u043b\u044f \u0437\u0430\u043a\u043e\u043d\u0447\u0438\u043b\u0430\u0441\u044c 30.08 \u2014 1 666,7 \u043c\u043b\u043d: \u044d\u0442\u043e \u043f\u0438\u043a \u0441\u0435\u0437\u043e\u043d\u0430 \u00ab\u043a \u0448\u043a\u043e\u043b\u0435\u00bb, \u043a\u043e\u0433\u0434\u0430 \u0434\u0435\u0442\u0441\u043a\u0438\u0435 \u0442\u043e\u0432\u0430\u0440\u044b \u043f\u0440\u043e\u0434\u0430\u0432\u0430\u043b\u0438\u0441\u044c \u0432 \u0441\u0440\u0435\u0434\u043d\u0435\u043c \u043d\u0430 110,0% \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u0434\u043e \u043d\u0435\u0433\u043e. \u0412 \u0430\u0432\u0433\u0443\u0441\u0442\u0435 \u0432\u044b\u0440\u043e\u0441\u043b\u0438 \u0432\u0441\u0435 \u0440\u0435\u0433\u0438\u043e\u043d\u044b, \u0430 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435 \u043f\u043e\u0441\u043b\u0435 \u0441\u0435\u0437\u043e\u043d\u0430 \u0441\u0438\u043b\u044c\u043d\u0435\u0435 \u0432\u0441\u0435\u0433\u043e \u0443\u043f\u0430\u043b\u0438 \u043f\u0440\u043e\u0434\u0430\u0436\u0438 \u0440\u0435\u0433\u0438\u043e\u043d\u0430 \u0424\u0435\u0440\u0433\u0430\u043d\u0430: -8,3% \u043a \u0430\u0432\u0433\u0443\u0441\u0442\u0443. \u0412 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0441\u0435\u0442\u044c \u0432 \u0441\u0440\u0435\u0434\u043d\u0435\u043c \u043f\u0440\u043e\u0434\u0430\u0451\u0442 \u043d\u0430 19,3% \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u0432 \u0431\u0443\u0434\u043d\u0438. \u041f\u0440\u0435\u0434\u043b\u043e\u0436\u0435\u043d\u0438\u0435: \u0437\u0430\u0440\u0430\u043d\u0435\u0435 \u0443\u0432\u0435\u043b\u0438\u0447\u0438\u0442\u044c \u0437\u0430\u043f\u0430\u0441\u044b \u0434\u0435\u0442\u0441\u043a\u0438\u0445 \u0442\u043e\u0432\u0430\u0440\u043e\u0432 \u043a 15 \u0430\u0432\u0433\u0443\u0441\u0442\u0430 \u0438 \u0443\u0441\u0438\u043b\u0438\u0442\u044c \u043f\u0435\u0440\u0441\u043e\u043d\u0430\u043b \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u043e\u0432 \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435.", "case_xp": 30, "cheat": [["day = df.set_index(\"date\")[\"revenue\"].resample(\"D\").sum()", "\u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0434\u043d\u044f\u043c"], ["day.resample(\"W\").count() == 7", "\u0442\u043e\u043b\u044c\u043a\u043e \u043f\u043e\u043b\u043d\u044b\u0435 \u043d\u0435\u0434\u0435\u043b\u0438"], ["groupby([pd.Grouper(key=\"date\", freq=\"MS\"), \"region\"])", "\u043c\u0435\u0441\u044f\u0446 \u00d7 \u0440\u0435\u0433\u0438\u043e\u043d"], ["mr.pct_change() * 100", "\u0440\u043e\u0441\u0442 \u043c\u0435\u0441\u044f\u0446 \u043a \u043c\u0435\u0441\u044f\u0446\u0443"], ["st.groupby(level=\"region\").rank(ascending=False)", "\u043c\u0435\u0441\u0442\u043e \u0432\u043d\u0443\u0442\u0440\u0438 \u0440\u0435\u0433\u0438\u043e\u043d\u0430"], ["day.groupby(day.index.dayofweek).mean()", "\u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0434\u0435\u043d\u044c \u043d\u0435\u0434\u0435\u043b\u0438"]], "data": "../../data/", "datasets": ["chakana_sales.csv"], "day": 21, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\ndf = pd.read_csv(\"chakana_sales.csv\", parse_dates=[\"date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["92 19.11 2026-08-30"], "setup": "", "xp": 20}, {"figure": false, "id": "t2", "keys": ["12", "date", "2026-07-12 1338.0", "2026-07-19 1342.1", "2026-09-06 1495.0", "2026-09-13 1479.0", "2026-09-20 1510.3", "2026-09-27 1538.7"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0434\u043d\u044f\u043c\u00bb \u2014\nday = df.set_index(\"date\")[\"revenue\"].resample(\"D\").sum()\nprint(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())", "xp": 20}, {"figure": true, "id": "t3", "keys": ["\u041b\u0443\u0447\u0448\u0430\u044f \u043d\u0435\u0434\u0435\u043b\u044f \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430: 30.08"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0434\u043d\u044f\u043c\u00bb \u2014\nday = df.set_index(\"date\")[\"revenue\"].resample(\"D\").sum()\nprint(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u043b\u043d\u044b\u0435 \u043d\u0435\u0434\u0435\u043b\u0438\u00bb \u2014\nwk = day.resample(\"W\").sum()\nfull = day.resample(\"W\").count() == 7\nweeks = (wk[full] / 1e6).round(1)\nprint(len(weeks))\nweeks", "xp": 25}, {"figure": false, "id": "t4", "keys": ["region \u0411\u0443\u0445\u0430\u0440\u0430 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u0424\u0435\u0440\u0433\u0430\u043d\u0430", "date", "2026-08-01 10.5 14.3 12.3 15.8", "2026-09-01 0.0 -7.0 -4.0 -8.3"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0434\u043d\u044f\u043c\u00bb \u2014\nday = df.set_index(\"date\")[\"revenue\"].resample(\"D\").sum()\nprint(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u043b\u043d\u044b\u0435 \u043d\u0435\u0434\u0435\u043b\u0438\u00bb \u2014\nwk = day.resample(\"W\").sum()\nfull = day.resample(\"W\").count() == 7\nweeks = (wk[full] / 1e6).round(1)\nprint(len(weeks))\nweeks\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u0434\u043d\u0438 \u0438 \u0442\u0440\u0435\u043d\u0434\u00bb \u2014\ntitle = f\"\u041b\u0443\u0447\u0448\u0430\u044f \u043d\u0435\u0434\u0435\u043b\u044f \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430: {weeks.idxmax():%d.%m}\"\nprint(title)\n\nfig, ax = plt.subplots(figsize=(8, 3.5))\n(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=\"\u0434\u0435\u043d\u044c\")\n(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=\"\u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u0437\u0430 7 \u0434\u043d\u0435\u0439\")\nax.set_title(title)\nax.set_ylabel(\"\u043c\u043b\u043d \u0441\u0443\u043c\")\nax.set_xlabel(\"\")\nax.legend()", "xp": 25}, {"figure": false, "id": "t5", "keys": ["region store", "\u0411\u0443\u0445\u0430\u0440\u0430 Ark 1540.2", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 Registon 2381.8", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 Chilonzor 3320.1", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 Markaz 1879.8"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0434\u043d\u044f\u043c\u00bb \u2014\nday = df.set_index(\"date\")[\"revenue\"].resample(\"D\").sum()\nprint(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u043b\u043d\u044b\u0435 \u043d\u0435\u0434\u0435\u043b\u0438\u00bb \u2014\nwk = day.resample(\"W\").sum()\nfull = day.resample(\"W\").count() == 7\nweeks = (wk[full] / 1e6).round(1)\nprint(len(weeks))\nweeks\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u0434\u043d\u0438 \u0438 \u0442\u0440\u0435\u043d\u0434\u00bb \u2014\ntitle = f\"\u041b\u0443\u0447\u0448\u0430\u044f \u043d\u0435\u0434\u0435\u043b\u044f \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430: {weeks.idxmax():%d.%m}\"\nprint(title)\n\nfig, ax = plt.subplots(figsize=(8, 3.5))\n(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=\"\u0434\u0435\u043d\u044c\")\n(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=\"\u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u0437\u0430 7 \u0434\u043d\u0435\u0439\")\nax.set_title(title)\nax.set_ylabel(\"\u043c\u043b\u043d \u0441\u0443\u043c\")\nax.set_xlabel(\"\")\nax.legend()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0420\u043e\u0441\u0442 \u0440\u0435\u0433\u0438\u043e\u043d\u043e\u0432 \u043c\u0435\u0441\u044f\u0446 \u043a \u043c\u0435\u0441\u044f\u0446\u0443\u00bb \u2014\nmr = df.groupby([pd.Grouper(key=\"date\", freq=\"MS\"), \"region\"])[\"revenue\"].sum().unstack()\nmom = (mr.pct_change() * 100).round(1)\nmom.iloc[1:]", "xp": 25}, {"figure": false, "id": "t6", "keys": ["\u041f\u043d 199.8", "\u0412\u0442 198.4", "\u0421\u0440 194.8", "\u0427\u0442 194.3", "\u041f\u0442 197.5", "\u0421\u0431 235.4", "\u0412\u0441 234.4", "19.3"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0434\u043d\u044f\u043c\u00bb \u2014\nday = df.set_index(\"date\")[\"revenue\"].resample(\"D\").sum()\nprint(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u043b\u043d\u044b\u0435 \u043d\u0435\u0434\u0435\u043b\u0438\u00bb \u2014\nwk = day.resample(\"W\").sum()\nfull = day.resample(\"W\").count() == 7\nweeks = (wk[full] / 1e6).round(1)\nprint(len(weeks))\nweeks\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u0434\u043d\u0438 \u0438 \u0442\u0440\u0435\u043d\u0434\u00bb \u2014\ntitle = f\"\u041b\u0443\u0447\u0448\u0430\u044f \u043d\u0435\u0434\u0435\u043b\u044f \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430: {weeks.idxmax():%d.%m}\"\nprint(title)\n\nfig, ax = plt.subplots(figsize=(8, 3.5))\n(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=\"\u0434\u0435\u043d\u044c\")\n(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=\"\u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u0437\u0430 7 \u0434\u043d\u0435\u0439\")\nax.set_title(title)\nax.set_ylabel(\"\u043c\u043b\u043d \u0441\u0443\u043c\")\nax.set_xlabel(\"\")\nax.legend()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0420\u043e\u0441\u0442 \u0440\u0435\u0433\u0438\u043e\u043d\u043e\u0432 \u043c\u0435\u0441\u044f\u0446 \u043a \u043c\u0435\u0441\u044f\u0446\u0443\u00bb \u2014\nmr = df.groupby([pd.Grouper(key=\"date\", freq=\"MS\"), \"region\"])[\"revenue\"].sum().unstack()\nmom = (mr.pct_change() * 100).round(1)\nmom.iloc[1:]\n# \u2014 \u0448\u0430\u0433 \u00ab\u041b\u0443\u0447\u0448\u0438\u0439 \u043c\u0430\u0433\u0430\u0437\u0438\u043d \u0432 \u043a\u0430\u0436\u0434\u043e\u043c \u0440\u0435\u0433\u0438\u043e\u043d\u0435\u00bb \u2014\nst = df.groupby([\"region\", \"store\"])[\"revenue\"].sum()\nrk = st.groupby(level=\"region\").rank(ascending=False).astype(int)\n(st[rk == 1] / 1e6).round(1)", "xp": 25}, {"figure": false, "id": "t7", "keys": ["31.5 66.2 110"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0434\u043d\u044f\u043c\u00bb \u2014\nday = df.set_index(\"date\")[\"revenue\"].resample(\"D\").sum()\nprint(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u043b\u043d\u044b\u0435 \u043d\u0435\u0434\u0435\u043b\u0438\u00bb \u2014\nwk = day.resample(\"W\").sum()\nfull = day.resample(\"W\").count() == 7\nweeks = (wk[full] / 1e6).round(1)\nprint(len(weeks))\nweeks\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u0434\u043d\u0438 \u0438 \u0442\u0440\u0435\u043d\u0434\u00bb \u2014\ntitle = f\"\u041b\u0443\u0447\u0448\u0430\u044f \u043d\u0435\u0434\u0435\u043b\u044f \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430: {weeks.idxmax():%d.%m}\"\nprint(title)\n\nfig, ax = plt.subplots(figsize=(8, 3.5))\n(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=\"\u0434\u0435\u043d\u044c\")\n(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=\"\u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u0437\u0430 7 \u0434\u043d\u0435\u0439\")\nax.set_title(title)\nax.set_ylabel(\"\u043c\u043b\u043d \u0441\u0443\u043c\")\nax.set_xlabel(\"\")\nax.legend()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0420\u043e\u0441\u0442 \u0440\u0435\u0433\u0438\u043e\u043d\u043e\u0432 \u043c\u0435\u0441\u044f\u0446 \u043a \u043c\u0435\u0441\u044f\u0446\u0443\u00bb \u2014\nmr = df.groupby([pd.Grouper(key=\"date\", freq=\"MS\"), \"region\"])[\"revenue\"].sum().unstack()\nmom = (mr.pct_change() * 100).round(1)\nmom.iloc[1:]\n# \u2014 \u0448\u0430\u0433 \u00ab\u041b\u0443\u0447\u0448\u0438\u0439 \u043c\u0430\u0433\u0430\u0437\u0438\u043d \u0432 \u043a\u0430\u0436\u0434\u043e\u043c \u0440\u0435\u0433\u0438\u043e\u043d\u0435\u00bb \u2014\nst = df.groupby([\"region\", \"store\"])[\"revenue\"].sum()\nrk = st.groupby(level=\"region\").rank(ascending=False).astype(int)\n(st[rk == 1] / 1e6).round(1)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u043d\u0438 \u043d\u0435\u0434\u0435\u043b\u0438\u00bb \u2014\nwd = day.groupby(day.index.dayofweek).mean()\nnames = [\"\u041f\u043d\", \"\u0412\u0442\", \"\u0421\u0440\", \"\u0427\u0442\", \"\u041f\u0442\", \"\u0421\u0431\", \"\u0412\u0441\"]\nwd.index = names\nprint((wd / 1e6).round(1))\nweekend = day[day.index.dayofweek \u003e= 5].mean() / day[day.index.dayofweek \u003c 5].mean() - 1\nprint(round(weekend * 100, 1))", "xp": 25}, {"figure": false, "id": "t8", "keys": ["revenue_bln 19.11", "best_week 30.08", "sep_worst_region \u0424\u0435\u0440\u0433\u0430\u043d\u0430", "sep_worst_% -8.3", "weekend_uplift_% 19.3", "school_uplift_% 110"], "setup": "# \u2014 \u0448\u0430\u0433 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u0434\u043d\u044f\u043c\u00bb \u2014\nday = df.set_index(\"date\")[\"revenue\"].resample(\"D\").sum()\nprint(len(day), round(day.sum() / 1e9, 2), day.idxmax().date())\n# \u2014 \u0448\u0430\u0433 \u00ab\u041f\u043e\u043b\u043d\u044b\u0435 \u043d\u0435\u0434\u0435\u043b\u0438\u00bb \u2014\nwk = day.resample(\"W\").sum()\nfull = day.resample(\"W\").count() == 7\nweeks = (wk[full] / 1e6).round(1)\nprint(len(weeks))\nweeks\n# \u2014 \u0448\u0430\u0433 \u00ab\u0413\u0440\u0430\u0444\u0438\u043a: \u0434\u043d\u0438 \u0438 \u0442\u0440\u0435\u043d\u0434\u00bb \u2014\ntitle = f\"\u041b\u0443\u0447\u0448\u0430\u044f \u043d\u0435\u0434\u0435\u043b\u044f \u043a\u0432\u0430\u0440\u0442\u0430\u043b\u0430: {weeks.idxmax():%d.%m}\"\nprint(title)\n\nfig, ax = plt.subplots(figsize=(8, 3.5))\n(day / 1e6).plot(ax=ax, linewidth=1, alpha=.5, label=\"\u0434\u0435\u043d\u044c\")\n(day / 1e6).rolling(7).mean().plot(ax=ax, linewidth=3, label=\"\u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u0437\u0430 7 \u0434\u043d\u0435\u0439\")\nax.set_title(title)\nax.set_ylabel(\"\u043c\u043b\u043d \u0441\u0443\u043c\")\nax.set_xlabel(\"\")\nax.legend()\n# \u2014 \u0448\u0430\u0433 \u00ab\u0420\u043e\u0441\u0442 \u0440\u0435\u0433\u0438\u043e\u043d\u043e\u0432 \u043c\u0435\u0441\u044f\u0446 \u043a \u043c\u0435\u0441\u044f\u0446\u0443\u00bb \u2014\nmr = df.groupby([pd.Grouper(key=\"date\", freq=\"MS\"), \"region\"])[\"revenue\"].sum().unstack()\nmom = (mr.pct_change() * 100).round(1)\nmom.iloc[1:]\n# \u2014 \u0448\u0430\u0433 \u00ab\u041b\u0443\u0447\u0448\u0438\u0439 \u043c\u0430\u0433\u0430\u0437\u0438\u043d \u0432 \u043a\u0430\u0436\u0434\u043e\u043c \u0440\u0435\u0433\u0438\u043e\u043d\u0435\u00bb \u2014\nst = df.groupby([\"region\", \"store\"])[\"revenue\"].sum()\nrk = st.groupby(level=\"region\").rank(ascending=False).astype(int)\n(st[rk == 1] / 1e6).round(1)\n# \u2014 \u0448\u0430\u0433 \u00ab\u0414\u043d\u0438 \u043d\u0435\u0434\u0435\u043b\u0438\u00bb \u2014\nwd = day.groupby(day.index.dayofweek).mean()\nnames = [\"\u041f\u043d\", \"\u0412\u0442\", \"\u0421\u0440\", \"\u0427\u0442\", \"\u041f\u0442\", \"\u0421\u0431\", \"\u0412\u0441\"]\nwd.index = names\nprint((wd / 1e6).round(1))\nweekend = day[day.index.dayofweek \u003e= 5].mean() / day[day.index.dayofweek \u003c 5].mean() - 1\nprint(round(weekend * 100, 1))\n# \u2014 \u0448\u0430\u0433 \u00ab\u0421\u0435\u0437\u043e\u043d \u00ab\u043a \u0448\u043a\u043e\u043b\u0435\u00bb\u00bb \u2014\nkid = df[df[\"category\"] == \"\u0414\u0435\u0442\u0441\u043a\u0438\u0435 \u0442\u043e\u0432\u0430\u0440\u044b\"].set_index(\"date\")[\"revenue\"].resample(\"D\").sum()\nbefore = kid.loc[\"2026-07-01\":\"2026-08-14\"].mean()\nseason = kid.loc[\"2026-08-15\":\"2026-08-31\"].mean()\nprint(round(before / 1e6, 1), round(season / 1e6, 1), round((season / before - 1) * 100))", "xp": 25}], "theory": ["brief", "plan", "traps"], "worker": "../../static/js/py-worker.js", "xp": 240}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
-<script src="../../static/js/lesson.js?v=202611061848"></script>
+<script src="../../static/js/lesson.js?v=202611072255"></script>
 <span id="page-ready" hidden></span>
 </body>
 </html>

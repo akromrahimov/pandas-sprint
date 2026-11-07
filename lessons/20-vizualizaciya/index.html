@@ -2,6 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<script>try{var s=localStorage.getItem("pandas-sprint:skin");if(s==="cornflower")document.documentElement.setAttribute("data-skin",s)}catch(e){}</script>
 <style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Урок 20. Визуализация для отчёта — Pandas Sprint</title>
@@ -18,17 +19,38 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="expect" href="#page-ready" blocking="render">
 <script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611072255">
 </head>
 <body>
 <header class="site-head">
   <div class="in">
     <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
     <nav class="nav" aria-label="Разделы сайта">
-      <a href="../../program/">Программа</a>
+      <a href="../../program/"><span class="lg-only">Программа</span><span class="sm-only">Уроки</span></a>
       <a href="../../start/">Как начать</a>
       <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
     </nav>
+    <div class="prefs" data-prefs>
+      <button type="button" class="prefs-btn" aria-haspopup="true" aria-expanded="false" aria-label="Настройки" title="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <div class="prefs-pop" role="dialog" aria-label="Настройки" hidden>
+        <h3>Настройки</h3>
+        <div class="prefs-sec" role="radiogroup" aria-label="Фон">
+          <b>Фон</b>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="default" aria-checked="true">
+            <span class="pv" style="background:#0E0B22"><i style="left:6px;top:6px;width:24px;height:6px;background:#FFCA00"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#B9A8FF"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#FF5CB0"></i></span>
+            <span><b>Стандартный</b><small>тёмно-синий или светлый — как на устройстве</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="cornflower" aria-checked="false">
+            <span class="pv" style="background:#FDFDF5"><i style="left:6px;top:6px;width:24px;height:6px;background:#3D568F"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#9FBAF1"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#EAF3B2"></i></span>
+            <span><b>Васильковое поле</b><small>кремовый фон, васильковый и синий, лаймовые акценты</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="auth" data-auth hidden>
       <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
       <div class="auth-pop" hidden>
@@ -107,7 +129,7 @@
 
   <main>
     <section id="top">
-      <div class="eyebrow">Урок 20 из 30 · Неделя 3 · Время и метрики</div>
+      <div class="eyebrow">Урок 20 из 30 · Неделя 3 · Время и структура</div>
       <h1><mark>Визуализация</mark> для отчёта</h1>
       <p class="lead">Руководитель не будет читать таблицу из 270 строк. Ему нужен один график, на котором за пять секунд видно главное: «растём», «вот лучшая категория», «вот где проблема». Сегодня учимся строить такие графики прямо из pandas и делать их понятными: правильный тип графика, подписи и заголовок-вывод.</p>
       <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">matplotlib</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
@@ -664,7 +686,7 @@ fig.tight_layout()</pre></div><p class="hint-trap"><b>Частая ошибка.
         <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
       </div>
       <nav class="pager" aria-label="Соседние уроки">
-<a href="../../lessons/19-kogorty-retention/"><small>← Урок 19</small><b>Когортный анализ и retention</b></a><a class="nx" href="../../lessons/21-mini-proekt-3/"><small>Проект 21 →</small><b>Мини-проект 3: дашборд-ноутбук когорт и метрик</b></a>      </nav>
+<a href="../../lessons/19-kategorii-intervaly/"><small>← Урок 19</small><b>Категории и интервалы: cut, qcut</b></a><a class="nx" href="../../lessons/21-mini-proekt-3/"><small>Проект 21 →</small><b>Мини-проект 3: отчёт по продажам во времени</b></a>      </nav>
     </section>
   </main>
 </div>
@@ -676,14 +698,14 @@ fig.tight_layout()</pre></div><p class="hint-trap"><b>Частая ошибка.
   </div>
 </footer>
 <div class="toast" id="toast" hidden></div>
-<script src="../../static/js/site.js?v=202611061848"></script>
+<script src="../../static/js/site.js?v=202611072255"></script>
 <script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
-<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
+<script type="module" src="../../static/js/auth.js?v=202611072255"></script>
 <script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u044f\u043d\u0432\u0430\u0440\u0435", "value": 196900000}, {"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435", "value": 246400000}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u043e\u0439 \u0434\u0435\u043d\u044c", "value": 187}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0431\u0443\u0434\u043d\u0438\u0439 \u0434\u0435\u043d\u044c", "value": 144}], "logic": [{"a": 0, "o": ["\u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u0438-\u0432\u044b\u0432\u043e\u0434\u044b: \u0447\u0442\u043e \u0432\u0438\u0434\u043d\u043e \u043d\u0430 \u0433\u0440\u0430\u0444\u0438\u043a\u0435, \u0441 \u0446\u0438\u0444\u0440\u043e\u0439", "\u041d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0434\u0430\u043d\u043d\u044b\u0445: \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb", "\u0411\u0435\u0437 \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u043e\u0432"], "q": "\u041a\u0430\u043a\u0438\u0435 \u0443 \u0442\u0435\u0431\u044f \u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043a\u0438 \u0433\u0440\u0430\u0444\u0438\u043a\u043e\u0432?", "why": "\u0411\u0430\u043d\u043a \u0434\u043e\u043b\u0436\u0435\u043d \u043f\u043e\u043d\u044f\u0442\u044c \u0433\u043b\u0430\u0432\u043d\u043e\u0435 \u0437\u0430 3 \u0441\u0435\u043a\u0443\u043d\u0434\u044b. \u0417\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432\u044b\u0440\u043e\u0441\u043b\u0430 \u043d\u0430 25%\u00bb \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u043f\u043e \u043c\u0435\u0441\u044f\u0446\u0430\u043c\u00bb."}, {"a": 0, "o": ["\u0412\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u2014 \u0441\u0430\u043c\u044b\u0435 \u0441\u0438\u043b\u044c\u043d\u044b\u0435 \u0434\u043d\u0438: \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u0432 \u0431\u0443\u0434\u043d\u0438", "\u0412 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043c\u0435\u043d\u044c\u0448\u0435", "\u0420\u0430\u0437\u043d\u0438\u0446\u044b \u043d\u0435\u0442"], "q": "\u0427\u0442\u043e \u0442\u0432\u043e\u0439 \u043e\u0442\u0432\u0435\u0442 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043f\u0440\u043e \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435?", "why": "187 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0434\u0435\u043d\u044c \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u043f\u0440\u043e\u0442\u0438\u0432 144 \u0432 \u0431\u0443\u0434\u043d\u0438."}, {"a": 0, "o": ["\u041d\u0435\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u0434\u043d\u0435\u0439 \u043a\u0430\u0441\u0441\u0430 \u043d\u0435 \u0432\u044b\u0433\u0440\u0443\u0437\u0438\u043b\u0430\u0441\u044c, \u0438/\u0438\u043b\u0438 \u0438\u044e\u043d\u044c\u0441\u043a\u0438\u0439 \u0432\u0441\u043f\u043b\u0435\u0441\u043a \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0435\u0442\u0441\u044f \u0430\u043a\u0446\u0438\u0435\u0439", "\u041e\u0433\u043e\u0432\u043e\u0440\u043e\u043a \u043d\u0435\u0442", "\u0414\u0430\u043d\u043d\u044b\u0435 \u0432\u044b\u0434\u0443\u043c\u0430\u043d\u044b"], "q": "\u041a\u0430\u043a\u0443\u044e \u043e\u0433\u043e\u0432\u043e\u0440\u043a\u0443 \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "\u0411\u0430\u043d\u043a \u043c\u043e\u0436\u0435\u0442 \u0441\u043f\u0440\u043e\u0441\u0438\u0442\u044c \u043f\u0440\u043e \u043f\u0440\u043e\u0432\u0430\u043b\u044b \u0438 \u0432\u0441\u043f\u043b\u0435\u0441\u043a \u2014 \u043b\u0443\u0447\u0448\u0435 \u043e\u0442\u0432\u0435\u0442\u0438\u0442\u044c \u0437\u0430\u0440\u0430\u043d\u0435\u0435."}]}, "case_model": "\u0413\u0440\u0430\u0444\u0438\u043a 1 \u2014 \u00ab\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0432\u044b\u0440\u043e\u0441\u043b\u0430 \u043d\u0430 25% \u0437\u0430 9 \u043c\u0435\u0441\u044f\u0446\u0435\u0432\u00bb: \u0441 196,9 \u043c\u043b\u043d \u0441\u0443\u043c \u0432 \u044f\u043d\u0432\u0430\u0440\u0435 \u0434\u043e 246,4 \u043c\u043b\u043d \u0432 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u0435, \u0432\u0441\u043f\u043b\u0435\u0441\u043a \u0432 \u0438\u044e\u043d\u0435 \u2014 \u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0430\u044f \u0430\u043a\u0446\u0438\u044f. \u0413\u0440\u0430\u0444\u0438\u043a 2 \u2014 \u00ab\u0412\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u2014 \u0441\u0430\u043c\u044b\u0435 \u0441\u0438\u043b\u044c\u043d\u044b\u0435 \u0434\u043d\u0438\u00bb: \u0432 \u0441\u0443\u0431\u0431\u043e\u0442\u0443 \u0438 \u0432\u043e\u0441\u043a\u0440\u0435\u0441\u0435\u043d\u044c\u0435 \u0432 \u0441\u0440\u0435\u0434\u043d\u0435\u043c 187 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0434\u0435\u043d\u044c \u043f\u0440\u043e\u0442\u0438\u0432 144 \u0432 \u0431\u0443\u0434\u043d\u0438. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: 4 \u0434\u043d\u044f \u043a\u0430\u0441\u0441\u0430 \u043d\u0435 \u0432\u044b\u0433\u0440\u0443\u0437\u0438\u043b\u0430\u0441\u044c, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0441\u0443\u043c\u043c\u044b \u0437\u0430 \u044d\u0442\u0438 \u043c\u0435\u0441\u044f\u0446\u044b \u043d\u0435\u043c\u043d\u043e\u0433\u043e \u0437\u0430\u043d\u0438\u0436\u0435\u043d\u044b, \u0430 \u0438\u044e\u043d\u044c\u0441\u043a\u0438\u0439 \u0440\u043e\u0441\u0442 \u0447\u0430\u0441\u0442\u0438\u0447\u043d\u043e \u043e\u0431\u044a\u044f\u0441\u043d\u044f\u0435\u0442\u0441\u044f \u0430\u043a\u0446\u0438\u0435\u0439 \u0441 \u0440\u0435\u043a\u043b\u0430\u043c\u043e\u0439.", "case_xp": 30, "cheat": [["s.plot()", "\u043b\u0438\u043d\u0438\u044f (\u043f\u043e \u0443\u043c\u043e\u043b\u0447\u0430\u043d\u0438\u044e)"], ["s.plot(kind=\"bar\") / kind=\"barh\"", "\u0441\u0442\u043e\u043b\u0431\u0446\u044b"], ["s.plot(kind=\"hist\", bins=30)", "\u0433\u0438\u0441\u0442\u043e\u0433\u0440\u0430\u043c\u043c\u0430"], ["ax = s.plot(...); ax.set_title(\"\u0432\u044b\u0432\u043e\u0434\")", "\u0437\u0430\u0433\u043e\u043b\u043e\u0432\u043e\u043a"], ["ax.set_xlabel(...) / ax.set_ylabel(...)", "\u043f\u043e\u0434\u043f\u0438\u0441\u0438 \u043e\u0441\u0435\u0439"], ["fig, axes = plt.subplots(1, 2, figsize=(10, 3))", "\u0434\u0432\u0430 \u0433\u0440\u0430\u0444\u0438\u043a\u0430 \u0440\u044f\u0434\u043e\u043c"], ["s.plot(ax=axes[0])", "\u043d\u0430\u0440\u0438\u0441\u043e\u0432\u0430\u0442\u044c \u0432 \u043d\u0443\u0436\u043d\u043e\u0435 \u043c\u0435\u0441\u0442\u043e"], ["ax.axvline(x, linestyle=\"--\")", "\u043b\u0438\u043d\u0438\u044f-\u043e\u0442\u043c\u0435\u0442\u043a\u0430, \u043d\u0430\u043f\u0440\u0438\u043c\u0435\u0440 \u043c\u0435\u0434\u0438\u0430\u043d\u0430"]], "data": "../../data/", "datasets": ["sutli_sales.csv", "kitobxon_orders.csv"], "day": 20, "hint_cost": 5, "quiz": [1, 1, 2, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport matplotlib.pyplot as plt\nsales = pd.read_csv(\"sutli_sales.csv\", parse_dates=[\"date\"])\norders = pd.read_csv(\"kitobxon_orders.csv\", parse_dates=[\"order_date\"])", "tasks": [{"figure": true, "id": "t1", "keys": ["date", "2026-01-01 196.9", "2026-02-01 171.8", "2026-03-01 202.4", "2026-06-01 271.4", "2026-07-01 230.5", "2026-08-01 242.2", "2026-09-01 246.4"], "setup": "", "xp": 10}, {"figure": true, "id": "t2", "keys": ["category", "\u0411\u0438\u0437\u043d\u0435\u0441 41.97", "\u0423\u0447\u0435\u0431\u043d\u0430\u044f 57.81", "\u0414\u0435\u0442\u0441\u043a\u0430\u044f 73.83", "\u0425\u0443\u0434\u043e\u0436\u0435\u0441\u0442\u0432\u0435\u043d\u043d\u0430\u044f 106.24"], "setup": "", "xp": 10}, {"figure": true, "id": "t3", "keys": ["121000.0 237000.0"], "setup": "", "xp": 15}, {"figure": true, "id": "t4", "keys": ["date", "0 146.9", "1 145.1", "2 143.9", "3 141.0", "4 142.1", "5 184.5", "6 190.2"], "setup": "", "xp": 15}, {"figure": true, "id": "t5", "keys": ["186.4"], "setup": "", "xp": 20}, {"figure": true, "id": "t6", "keys": ["\u0412 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0430 30% \u0431\u043e\u043b\u044c\u0448\u0435, \u0447\u0435\u043c \u0432 \u0431\u0443\u0434\u043d\u0438"], "setup": "", "xp": 15}, {"figure": true, "id": "t7", "keys": ["48230 48170"], "setup": "", "xp": 25}], "theory": ["brief", "choose", "clean", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
-<script src="../../static/js/lesson.js?v=202611061848"></script>
+<script src="../../static/js/lesson.js?v=202611072255"></script>
 <span id="page-ready" hidden></span>
 </body>
 </html>

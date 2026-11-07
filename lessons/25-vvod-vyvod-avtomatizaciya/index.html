@@ -2,15 +2,16 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<script>try{var s=localStorage.getItem("pandas-sprint:skin");if(s==="cornflower")document.documentElement.setAttribute("data-skin",s)}catch(e){}</script>
 <style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Урок 25. Ввод-вывод и автоматизация отчёта — Pandas Sprint</title>
-<meta name="description" content="Урок 25 курса Pandas Sprint — Ввод-вывод и автоматизация отчёта. Читать и писать Excel, работать с SQL из pandas и собрать отчёт одним скриптом.">
+<meta name="description" content="Урок 25 курса Pandas Sprint — Ввод-вывод и автоматизация отчёта. Читать и писать Excel и CSV, делать SQL-запросы из pandas и собрать отчёт одним скриптом.">
 <link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/25-vvod-vyvod-avtomatizaciya/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Pandas Sprint">
 <meta property="og:title" content="Урок 25. Ввод-вывод и автоматизация отчёта — Pandas Sprint">
-<meta property="og:description" content="Урок 25 курса Pandas Sprint — Ввод-вывод и автоматизация отчёта. Читать и писать Excel, работать с SQL из pandas и собрать отчёт одним скриптом.">
+<meta property="og:description" content="Урок 25 курса Pandas Sprint — Ввод-вывод и автоматизация отчёта. Читать и писать Excel и CSV, делать SQL-запросы из pandas и собрать отчёт одним скриптом.">
 <meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/25-vvod-vyvod-avtomatizaciya/">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -18,17 +19,38 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="expect" href="#page-ready" blocking="render">
 <script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611061848">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611072255">
 </head>
 <body>
 <header class="site-head">
   <div class="in">
     <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
     <nav class="nav" aria-label="Разделы сайта">
-      <a href="../../program/">Программа</a>
+      <a href="../../program/"><span class="lg-only">Программа</span><span class="sm-only">Уроки</span></a>
       <a href="../../start/">Как начать</a>
       <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
     </nav>
+    <div class="prefs" data-prefs>
+      <button type="button" class="prefs-btn" aria-haspopup="true" aria-expanded="false" aria-label="Настройки" title="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <div class="prefs-pop" role="dialog" aria-label="Настройки" hidden>
+        <h3>Настройки</h3>
+        <div class="prefs-sec" role="radiogroup" aria-label="Фон">
+          <b>Фон</b>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="default" aria-checked="true">
+            <span class="pv" style="background:#0E0B22"><i style="left:6px;top:6px;width:24px;height:6px;background:#FFCA00"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#B9A8FF"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#FF5CB0"></i></span>
+            <span><b>Стандартный</b><small>тёмно-синий или светлый — как на устройстве</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="cornflower" aria-checked="false">
+            <span class="pv" style="background:#FDFDF5"><i style="left:6px;top:6px;width:24px;height:6px;background:#3D568F"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#9FBAF1"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#EAF3B2"></i></span>
+            <span><b>Васильковое поле</b><small>кремовый фон, васильковый и синий, лаймовые акценты</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
     <div class="auth" data-auth hidden>
       <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
       <div class="auth-pop" hidden>
@@ -97,20 +119,20 @@
 <button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
   <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
     <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">SQL прямо из pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
-    <p>Если ты знаешь SQL, в pandas им можно пользоваться напрямую — через базу или duckdb.</p>
+    <p>Если ты знаешь SQL, в pandas им можно пользоваться напрямую — через базу данных.</p>
     <div class="scroll"><table class="map">
       <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
-      <tbody><tr><td><code>SELECT * FROM orders</code></td><td><code>pd.read_sql(&#34;SELECT * FROM orders&#34;, con)</code></td><td>запрос к базе → DataFrame</td></tr><tr><td><code>INSERT INTO orders …</code></td><td><code>df.to_sql(&#34;orders&#34;, con, index=False)</code></td><td>таблицу pandas — в базу</td></tr><tr><td><code>SELECT city, COUNT(*) FROM df GROUP BY city</code></td><td><code>duckdb.sql(&#34;SELECT city, COUNT(*) FROM df GROUP BY city&#34;).df()</code></td><td>SQL прямо по DataFrame</td></tr><tr><td><code>выгрузка в Excel из BI</code></td><td><code>with pd.ExcelWriter(f) as w: t.to_excel(w, sheet_name=…)</code></td><td>Excel с листами</td></tr></tbody>
+      <tbody><tr><td><code>SELECT * FROM orders</code></td><td><code>pd.read_sql(&#34;SELECT * FROM orders&#34;, con)</code></td><td>запрос к базе → DataFrame</td></tr><tr><td><code>INSERT INTO orders …</code></td><td><code>df.to_sql(&#34;orders&#34;, con, index=False)</code></td><td>таблицу pandas — в базу</td></tr><tr><td><code>выгрузка CSV для бухгалтерии</code></td><td><code>t.to_csv(f, sep=&#34;;&#34;, decimal=&#34;,&#34;, encoding=&#34;utf-8-sig&#34;)</code></td><td>CSV для русского Excel</td></tr><tr><td><code>выгрузка в Excel из BI</code></td><td><code>with pd.ExcelWriter(f) as w: t.to_excel(w, sheet_name=…)</code></td><td>Excel с листами</td></tr></tbody>
     </table></div>
     <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
   </dialog>
 
   <main>
     <section id="top">
-      <div class="eyebrow">Урок 25 из 30 · Неделя 4 · Бизнес-кейсы</div>
+      <div class="eyebrow">Урок 25 из 30 · Неделя 4 · Реальные данные</div>
       <h1><mark>Ввод-вывод</mark> и автоматизация отчёта</h1>
       <p class="lead">Данные приходят из разных мест: CSV, Excel от бухгалтерии, база данных. А результат нужно отдать так, как удобно руководителю, — чаще всего в Excel с несколькими листами. Сегодня учимся читать и писать Excel, делать SQL-запросы прямо из pandas и превращать отчёт в функцию, которая сама собирает файл каждую неделю.</p>
-      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">Excel · SQL · duckdb</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">Excel · CSV · SQL</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
       <div class="goal">
         <div class="goal-main">
           <div class="eyebrow">Цель урока</div>
@@ -124,7 +146,7 @@
         <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
       </div>
       <h3>После урока ты сможешь</h3>
-      <ul class="can"><li>Читать только нужные колонки и даты через <code class="i">read_csv(usecols=…, parse_dates=…)</code></li><li>Писать Excel с несколькими листами через <code class="i">ExcelWriter</code> и читать его обратно</li><li>Делать SQL-запросы из pandas: <code class="i">sqlite3</code> + <code class="i">read_sql</code> и duckdb</li><li>Оборачивать отчёт в функцию с параметрами периода</li></ul>
+      <ul class="can"><li>Читать только нужные колонки и даты через <code class="i">read_csv(usecols=…, parse_dates=…)</code></li><li>Писать Excel с несколькими листами через <code class="i">ExcelWriter</code> и читать его обратно</li><li>Делать SQL-запросы из pandas: <code class="i">sqlite3</code> + <code class="i">read_sql</code></li><li>Сохранять CSV, который правильно открывает русский Excel</li><li>Оборачивать отчёт в функцию с параметрами периода</li></ul>
     </section>
 
     <section id="brief">
@@ -179,7 +201,7 @@ dtype: object</div><p class="plain"><b>Простыми словами:</b> из
     <li><code class="i">with pd.ExcelWriter("файл.xlsx") as w:</code> — «открой Excel-файл для записи». Внутри блока каждая таблица пишется на свой лист: <code class="i">table.to_excel(w, sheet_name="лист")</code>. Когда блок заканчивается, файл сохраняется.</li>
     <li><code class="i">pd.read_excel("файл.xlsx", sheet_name="лист")</code> — прочитать нужный лист. <code class="i">pd.ExcelFile(f).sheet_names</code> — список листов.</li>
     <li><b>sqlite3</b> — маленькая база данных прямо в Python. <code class="i">df.to_sql("orders", con)</code> кладёт таблицу в базу, <code class="i">pd.read_sql("SELECT …", con)</code> выполняет запрос и возвращает DataFrame.</li>
-    <li><b>duckdb</b> умеет выполнять SQL прямо по таблице pandas: <code class="i">duckdb.sql("SELECT … FROM df").df()</code>.</li>
+    <li><code class="i">to_csv(f, sep=";", decimal=",", encoding="utf-8-sig")</code> — CSV для русского Excel: колонки через точку с запятой, дроби через запятую, а <code class="i">utf-8-sig</code> подсказывает Excel, что в файле русские буквы.</li>
   </ul>
 </div>
 <div class="cards"><div class="card"><div class="q"><b>2. Отчёт в Excel с двумя листами.</b></div><pre class="code" data-cm>clean = df.assign(city=df[&quot;city&quot;].str.strip().str.capitalize())
@@ -209,14 +231,13 @@ pd.read_sql(&quot;SELECT status, COUNT(*) AS n FROM orders GROUP BY status&quot;
     <tr><td>ORDER BY n DESC</td><td>сортировка, DESC — по убыванию</td><td>.sort_values(ascending=False)</td></tr>
   </table></div>
 </div>
-<div class="cards"><div class="card"><div class="q"><b>5. Один вопрос — два языка.</b> Отмены по городам через SQL (duckdb) и через pandas.</div><pre class="code" data-cm>import duckdb
-sql = duckdb.sql(&quot;&quot;&quot;
+<div class="cards"><div class="card"><div class="q"><b>5. Один вопрос — два языка.</b> Отмены по городам через SQL и через pandas.</div><pre class="code" data-cm>sql = pd.read_sql(&quot;&quot;&quot;
     SELECT city, COUNT(*) AS n
-    FROM clean
+    FROM orders
     WHERE status = &#x27;cancelled&#x27;
     GROUP BY city
     ORDER BY n DESC
-&quot;&quot;&quot;).df()
+&quot;&quot;&quot;, con)
 pd_way = clean[clean[&quot;status&quot;] == &quot;cancelled&quot;].groupby(&quot;city&quot;).size().sort_values(ascending=False)
 print(sql)
 print(pd_way)</pre><div class="out">        city    n
@@ -229,7 +250,7 @@ city
 Самарканд     24
 Наманган      12
 Бухара        12
-dtype: int64</div><p class="plain"><b>Простыми словами:</b> ответы одинаковые. duckdb выполняет SQL прямо по таблице pandas — просто пишешь её имя после FROM. Текст в SQL берут в одинарные кавычки: 'cancelled'.</p></div>
+dtype: int64</div><p class="plain"><b>Простыми словами:</b> ответы одинаковые. Таблица orders уже лежит в базе con из примера 4. Текст в SQL берут в одинарные кавычки: 'cancelled'.</p></div>
 <div class="card"><div class="q"><b>6. Отчёт как функция.</b> Одна функция — любой период.</div><pre class="code" data-cm>def make_report(data, start, end):
     part = data[(data[&quot;order_date&quot;] &gt;= start) &amp; (data[&quot;order_date&quot;] &lt;= end)]
     return part.groupby(&quot;city&quot;).agg(orders=(&quot;order_id&quot;, &quot;count&quot;))
@@ -254,7 +275,7 @@ t.to_excel(w)          # файл не сохранён, пока не вызв�
       </div>
       <div class="cheat" id="cheat">
         <h3>Шпаргалка урока: ввод-вывод</h3>
-        <ol><li>pd.read_csv(f, usecols=[...], parse_dates=[&#34;d&#34;]) <span>— нужные колонки и даты</span></li><li>pd.read_csv(f, sep=&#34;;&#34;, decimal=&#34;,&#34;, encoding=&#34;cp1251&#34;) <span>— файл из русского Excel</span></li><li>with pd.ExcelWriter(&#34;r.xlsx&#34;) as w: t.to_excel(w, sheet_name=&#34;лист&#34;) <span>— Excel с листами</span></li><li>pd.read_excel(&#34;r.xlsx&#34;, sheet_name=&#34;лист&#34;, index_col=0) <span>— прочитать лист</span></li><li>pd.ExcelFile(&#34;r.xlsx&#34;).sheet_names <span>— список листов</span></li><li>df.to_sql(&#34;t&#34;, con, index=False); pd.read_sql(&#34;SELECT …&#34;, con) <span>— SQL через sqlite3</span></li><li>duckdb.sql(&#34;SELECT … FROM df&#34;).df() <span>— SQL прямо по таблице</span></li><li>def make_report(start, end): … <span>— отчёт как функция с параметрами</span></li></ol>
+        <ol><li>pd.read_csv(f, usecols=[...], parse_dates=[&#34;d&#34;]) <span>— нужные колонки и даты</span></li><li>pd.read_csv(f, sep=&#34;;&#34;, decimal=&#34;,&#34;, encoding=&#34;cp1251&#34;) <span>— файл из русского Excel</span></li><li>with pd.ExcelWriter(&#34;r.xlsx&#34;) as w: t.to_excel(w, sheet_name=&#34;лист&#34;) <span>— Excel с листами</span></li><li>pd.read_excel(&#34;r.xlsx&#34;, sheet_name=&#34;лист&#34;, index_col=0) <span>— прочитать лист</span></li><li>pd.ExcelFile(&#34;r.xlsx&#34;).sheet_names <span>— список листов</span></li><li>df.to_sql(&#34;t&#34;, con, index=False); pd.read_sql(&#34;SELECT …&#34;, con) <span>— SQL через sqlite3</span></li><li>t.to_csv(f, sep=&#34;;&#34;, decimal=&#34;,&#34;, encoding=&#34;utf-8-sig&#34;) <span>— CSV для русского Excel</span></li><li>def make_report(start, end): … <span>— отчёт как функция с параметрами</span></li></ol>
         <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
       </div>
     </section>
@@ -544,24 +565,31 @@ ORDER BY ___ DESC
         <article class="task" id="task-t6" data-task="t6" data-xp="15">
           <div class="task-head">
             <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
-            <h3>SQL прямо по таблице: duckdb</h3>
-            <ol class='steps-t'><li>Импортируй <code class='i'>duckdb</code>.</li> <li>Запросом к таблице <code class='i'>clean</code> посчитай по городу число отменённых заказов <code class='i'>cancelled</code> и всех заказов <code class='i'>orders</code>, по убыванию cancelled.</li> <li>Получи результат как DataFrame (<code class='i'>.df()</code>).</li></ol>
+            <h3>CSV для русского Excel</h3>
+            <p>Бухгалтерия открывает CSV в русском Excel: там колонки разделяются точкой с запятой, а дробная часть пишется через запятую.</p> <ol class='steps-t'><li>Сводка по городу <code class='i'>by_city</code>: <code class='i'>orders</code> — заказов, <code class='i'>avg_amount</code> — средний чек (1 знак).</li> <li>Сохрани её в файл <code class='i'>yetkaz_city.csv</code> с <code class='i'>sep=";"</code>, <code class='i'>decimal=","</code> и кодировкой <code class='i'>"utf-8-sig"</code>.</li> <li>Напечатай первые 3 строки файла как текст, потом прочитай файл обратно с теми же настройками и выведи таблицу.</li></ol>
 <details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>clean = df.assign(city=df[&#34;city&#34;].str.strip().str.capitalize())</pre></details>          </div>
           <div class="ide">
             <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 25 · задача 6</div>
-            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">import duckdb
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">by_city =
+# сохрани в yetkaz_city.csv
 
-duckdb.sql(&#34;&#34;&#34;
-    SELECT
-&#34;&#34;&#34;).df()
+with open(&#34;yetkaz_city.csv&#34;, encoding=&#34;utf-8-sig&#34;) as f:
+    print(&#34;&#34;.join(f.readlines()[:3]))
+
+# прочитай файл обратно
 </textarea>
             <div class="cmp">
               <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
-              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">        city  cancelled  orders
-0    Ташкент        122     882
-1  Самарканд         24     327
-2     Бухара         12     211
-3   Наманган         12     180</pre></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">city;orders;avg_amount
+Бухара;211;75034,3
+Наманган;180;74706,6
+
+           orders  avg_amount
+city
+Бухара        211     75034.3
+Наманган      180     74706.6
+Самарканд     327     76720.6
+Ташкент       882     90247.9</pre></div>
             </div>
             <div class="actions">
               <button type="button" class="b-run" data-act="run">▶ Запустить</button>
@@ -572,24 +600,21 @@ duckdb.sql(&#34;&#34;&#34;
               <span class="note" data-runnote>Ctrl+Enter — запустить</span>
             </div>
           </div>
-          <template data-starter>import duckdb
+          <template data-starter>by_city =
+# сохрани в yetkaz_city.csv
 
-duckdb.sql(&#34;&#34;&#34;
-    SELECT
-&#34;&#34;&#34;).df()
+with open(&#34;yetkaz_city.csv&#34;, encoding=&#34;utf-8-sig&#34;) as f:
+    print(&#34;&#34;.join(f.readlines()[:3]))
+
+# прочитай файл обратно
 </template>
           <div class="verdict" data-verdict role="status" hidden></div>
           <div class="hint" data-hint hidden>
             <div class="hint-h">💡 Подсказка</div>
-            <p><b>С чего начать.</b> duckdb умеет выполнять SQL прямо по таблице pandas — просто напиши её имя после FROM. Отмены считаются условным подсчётом: «посчитай строки, где статус — отмена».</p>
-<p><b>Чем это сделать.</b> <code class="i">COUNT(*) FILTER (WHERE status = 'cancelled')</code> — сколько отмен. <code class="i">duckdb.sql(запрос).df()</code> — результат в DataFrame.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>duckdb.sql(&#34;&#34;&#34;
-    SELECT city,
-           COUNT(*) FILTER (WHERE status = &#39;___&#39;) AS cancelled,
-           COUNT(*) AS ___
-    FROM ___
-    GROUP BY ___
-    ORDER BY cancelled DESC
-&#34;&#34;&#34;).df()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> В SQL текст пишется в одинарных кавычках: <code class="i">'cancelled'</code>.</p>          </div>
+            <p><b>С чего начать.</b> Сначала обычная сводка по городам. Потом её нужно сохранить так, как ждёт русский Excel: другой разделитель колонок, запятая в дробях и кодировка, по которой Excel узнает русские буквы. Прочитать обратно — с теми же настройками.</p>
+<p><b>Чем это сделать.</b> <code class="i">t.to_csv("файл.csv", sep=";", decimal=",", encoding="utf-8-sig")</code> — запись. <code class="i">pd.read_csv("файл.csv", sep=";", decimal=",", encoding="utf-8-sig", index_col="city")</code> — чтение, где колонка city снова станет подписями строк.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>by_city = clean.groupby(&#34;city&#34;).agg(orders=(&#34;order_id&#34;, &#34;___&#34;), avg_amount=(&#34;amount&#34;, &#34;___&#34;)).round(1)
+by_city.to_csv(&#34;yetkaz_city.csv&#34;, sep=&#34;___&#34;, decimal=&#34;___&#34;, encoding=&#34;utf-8-sig&#34;)
+pd.read_csv(&#34;yetkaz_city.csv&#34;, sep=&#34;___&#34;, decimal=&#34;___&#34;, encoding=&#34;utf-8-sig&#34;, index_col=&#34;___&#34;)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если прочитать файл без <code class="i">sep=";"</code>, вся строка окажется в одной колонке, а без <code class="i">decimal=","</code> средний чек станет текстом.</p>          </div>
         </article>
         <article class="task" id="task-t7" data-task="t7" data-xp="25">
           <div class="task-head">
@@ -703,14 +728,14 @@ weeks = {&#34;05–11.10&#34;: (&#34;2026-10-05&#34;, &#34;2026-10-11&#34;), &#3
   </div>
 </footer>
 <div class="toast" id="toast" hidden></div>
-<script src="../../static/js/site.js?v=202611061848"></script>
+<script src="../../static/js/site.js?v=202611072255"></script>
 <script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
-<script type="module" src="../../static/js/auth.js?v=202611061848"></script>
-<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0437\u0430 \u043f\u0435\u0440\u0432\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e", "value": 817}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0437\u0430 \u0432\u0442\u043e\u0440\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e", "value": 783}], "logic": [{"a": 0, "o": ["\u0421\u0430\u043c, \u043e\u0434\u043d\u043e\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u043e\u0439: \u0441\u043a\u0440\u0438\u043f\u0442 \u0447\u0438\u0442\u0430\u0435\u0442 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443, \u0447\u0438\u0441\u0442\u0438\u0442 \u0434\u0430\u043d\u043d\u044b\u0435 \u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 Excel", "\u0412\u0440\u0443\u0447\u043d\u0443\u044e \u0432 Excel, \u043a\u0430\u043a \u0440\u0430\u043d\u044c\u0448\u0435", "\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a \u043f\u0435\u0440\u0435\u0441\u044b\u043b\u0430\u0435\u0442 \u0446\u0438\u0444\u0440\u044b \u0432 \u0447\u0430\u0442"], "q": "\u041a\u0430\u043a, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0442\u0435\u043f\u0435\u0440\u044c \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u043e\u0442\u0447\u0451\u0442?", "why": "\u0413\u043b\u0430\u0432\u043d\u0430\u044f \u043f\u043e\u043b\u044c\u0437\u0430 \u2014 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u043e\u0441\u0442\u044c: \u043a\u0430\u0436\u0434\u044b\u0439 \u043f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a \u043e\u0434\u043d\u0430 \u0438 \u0442\u0430 \u0436\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u0430."}, {"a": 0, "o": ["\u0415\u0441\u043b\u0438 \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0442\u0441\u044f \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u0438\u043b\u0438 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u043d\u043e\u0432\u043e\u0435 \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430, \u043e\u0442\u0447\u0451\u0442 \u0441\u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f \u2014 \u043d\u0443\u0436\u043d\u0430 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0432 \u043d\u0430\u0447\u0430\u043b\u0435", "\u0420\u0438\u0441\u043a\u043e\u0432 \u043d\u0435\u0442: \u0441\u043a\u0440\u0438\u043f\u0442 \u0432\u0441\u0435\u0433\u0434\u0430 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442", "Excel \u043c\u043e\u0436\u0435\u0442 \u043d\u0435 \u043e\u0442\u043a\u0440\u044b\u0442\u044c\u0441\u044f \u043d\u0430 \u0442\u0435\u043b\u0435\u0444\u043e\u043d\u0435"], "q": "\u041a\u0430\u043a\u043e\u0439 \u0440\u0438\u0441\u043a \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "\u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u043e\u0442\u0447\u0451\u0442 \u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f \u0442\u0438\u0445\u043e, \u0435\u0441\u043b\u0438 \u0434\u0430\u043d\u043d\u044b\u0435 \u043f\u0440\u0438\u0448\u043b\u0438 \u0432 \u0434\u0440\u0443\u0433\u043e\u043c \u0432\u0438\u0434\u0435. \u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u043e\u043b\u043e\u043d\u043e\u043a \u0437\u0430\u0449\u0438\u0449\u0430\u0435\u0442 \u043e\u0442 \u044d\u0442\u043e\u0433\u043e."}]}, "case_model": "\u041e\u0439\u0431\u0435\u043a, \u043f\u0440\u0438\u0432\u0435\u0442! \u0422\u0435\u043f\u0435\u0440\u044c \u043e\u0442\u0447\u0451\u0442 \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u043e\u0434\u043d\u043e\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u043e\u0439: \u0441\u043a\u0440\u0438\u043f\u0442 \u0447\u0438\u0442\u0430\u0435\u0442 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443, \u0447\u0438\u0441\u0442\u0438\u0442 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0433\u043e\u0440\u043e\u0434\u043e\u0432 \u0438 \u0441\u0430\u043c \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 Excel-\u0444\u0430\u0439\u043b. \u0412 \u0444\u0430\u0439\u043b\u0435 \u043f\u043e \u043b\u0438\u0441\u0442\u0443 \u043d\u0430 \u043a\u0430\u0436\u0434\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e \u0441 \u0437\u0430\u043a\u0430\u0437\u0430\u043c\u0438 \u0438 \u0432\u044b\u0440\u0443\u0447\u043a\u043e\u0439 \u043f\u043e \u0433\u043e\u0440\u043e\u0434\u0430\u043c \u0438 \u043b\u0438\u0441\u0442 \u0441 \u043e\u0442\u043c\u0435\u043d\u0430\u043c\u0438. \u0417\u0430 \u043f\u0435\u0440\u0432\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e (5\u201311 \u043e\u043a\u0442\u044f\u0431\u0440\u044f) \u2014 817 \u0437\u0430\u043a\u0430\u0437\u043e\u0432, \u0437\u0430 \u0432\u0442\u043e\u0440\u0443\u044e \u2014 783; \u043b\u0438\u0434\u0435\u0440 \u043f\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0435 \u2014 \u0422\u0430\u0448\u043a\u0435\u043d\u0442. \u041a\u0430\u0436\u0434\u044b\u0439 \u043f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a \u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u043f\u043e\u043b\u043e\u0436\u0438\u0442\u044c \u043d\u043e\u0432\u0443\u044e \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443 \u0432 \u043f\u0430\u043f\u043a\u0443 \u0438 \u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u043a\u043e\u043c\u0430\u043d\u0434\u0443 python report.py \u2014 \u043c\u043e\u0436\u043d\u043e \u043f\u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u044d\u0442\u043e \u0432 \u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0449\u0438\u043a, \u0447\u0442\u043e\u0431\u044b \u0444\u0430\u0439\u043b \u043f\u043e\u044f\u0432\u043b\u044f\u043b\u0441\u044f \u0441\u0430\u043c. \u0420\u0438\u0441\u043a: \u0435\u0441\u043b\u0438 \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0442\u0441\u044f \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u043a\u043e\u043b\u043e\u043d\u043e\u043a \u0438\u043b\u0438 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u043d\u043e\u0432\u044b\u0439 \u0432\u0430\u0440\u0438\u0430\u043d\u0442 \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u0433\u043e\u0440\u043e\u0434\u0430, \u043e\u0442\u0447\u0451\u0442 \u043d\u0443\u0436\u043d\u043e \u0431\u0443\u0434\u0435\u0442 \u043f\u043e\u043f\u0440\u0430\u0432\u0438\u0442\u044c, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0432 \u043d\u0430\u0447\u0430\u043b\u0435 \u0441\u043a\u0440\u0438\u043f\u0442\u0430 \u0441\u0442\u043e\u0438\u0442 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u043e\u043b\u043e\u043d\u043e\u043a.", "case_xp": 30, "cheat": [["pd.read_csv(f, usecols=[...], parse_dates=[\"d\"])", "\u043d\u0443\u0436\u043d\u044b\u0435 \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u0438 \u0434\u0430\u0442\u044b"], ["pd.read_csv(f, sep=\";\", decimal=\",\", encoding=\"cp1251\")", "\u0444\u0430\u0439\u043b \u0438\u0437 \u0440\u0443\u0441\u0441\u043a\u043e\u0433\u043e Excel"], ["with pd.ExcelWriter(\"r.xlsx\") as w: t.to_excel(w, sheet_name=\"\u043b\u0438\u0441\u0442\")", "Excel \u0441 \u043b\u0438\u0441\u0442\u0430\u043c\u0438"], ["pd.read_excel(\"r.xlsx\", sheet_name=\"\u043b\u0438\u0441\u0442\", index_col=0)", "\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u043b\u0438\u0441\u0442"], ["pd.ExcelFile(\"r.xlsx\").sheet_names", "\u0441\u043f\u0438\u0441\u043e\u043a \u043b\u0438\u0441\u0442\u043e\u0432"], ["df.to_sql(\"t\", con, index=False); pd.read_sql(\"SELECT \u2026\", con)", "SQL \u0447\u0435\u0440\u0435\u0437 sqlite3"], ["duckdb.sql(\"SELECT \u2026 FROM df\").df()", "SQL \u043f\u0440\u044f\u043c\u043e \u043f\u043e \u0442\u0430\u0431\u043b\u0438\u0446\u0435"], ["def make_report(start, end): \u2026", "\u043e\u0442\u0447\u0451\u0442 \u043a\u0430\u043a \u0444\u0443\u043d\u043a\u0446\u0438\u044f \u0441 \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u0430\u043c\u0438"]], "data": "../../data/", "datasets": ["yetkaz_orders.csv"], "day": 25, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport sqlite3\ndf = pd.read_csv(\"yetkaz_orders.csv\", parse_dates=[\"order_date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["(1600, 5)", "order_id int64", "order_date datetime64", "amount float64"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["orders revenue_mln", "city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 882 64.71", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 327 22.48", "\u0411\u0443\u0445\u0430\u0440\u0430 211 14.31", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 180 11.66"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["[\u0027\u0433\u043e\u0440\u043e\u0434\u0430\u0027, \u0027\u043e\u0442\u043c\u0435\u043d\u044b\u0027]"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())\nby_city = (clean.assign(paid=lambda d: d[\"amount\"].where(d[\"status\"] == \"delivered\"))\n           .groupby(\"city\").agg(orders=(\"order_id\", \"count\"), revenue_mln=(\"paid\", \"sum\"))\n           .assign(revenue_mln=lambda d: (d[\"revenue_mln\"] / 1e6).round(2))\n           .sort_values(\"revenue_mln\", ascending=False))", "xp": 15}, {"figure": false, "id": "t4", "keys": ["(170, 12)", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 122", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 24"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())\nby_city = (clean.assign(paid=lambda d: d[\"amount\"].where(d[\"status\"] == \"delivered\"))\n           .groupby(\"city\").agg(orders=(\"order_id\", \"count\"), revenue_mln=(\"paid\", \"sum\"))\n           .assign(revenue_mln=lambda d: (d[\"revenue_mln\"] / 1e6).round(2))\n           .sort_values(\"revenue_mln\", ascending=False))\nwith pd.ExcelWriter(\"yetkaz_report.xlsx\") as w:\n    by_city.to_excel(w, sheet_name=\"\u0433\u043e\u0440\u043e\u0434\u0430\")\n    clean[clean[\"status\"] == \"cancelled\"].to_excel(w, sheet_name=\"\u043e\u0442\u043c\u0435\u043d\u044b\", index=False)", "xp": 15}, {"figure": false, "id": "t5", "keys": ["channel n avg_amount", "0 app 986 86711.0", "1 telegram 319 72710.0", "2 web 295 85197.0"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 20}, {"figure": false, "id": "t6", "keys": ["\u0422\u0430\u0448\u043a\u0435\u043d\u0442 122 882", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 24 327", "\u0411\u0443\u0445\u0430\u0440\u0430 12 211", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 12 180"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 15}, {"figure": false, "id": "t7", "keys": ["05\u201311.10 817", "12\u201318.10 783"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 25}], "theory": ["brief", "read", "excel-sql", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script type="module" src="../../static/js/auth.js?v=202611072255"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0437\u0430 \u043f\u0435\u0440\u0432\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e", "value": 817}, {"name": "\u0417\u0430\u043a\u0430\u0437\u043e\u0432 \u0437\u0430 \u0432\u0442\u043e\u0440\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e", "value": 783}], "logic": [{"a": 0, "o": ["\u0421\u0430\u043c, \u043e\u0434\u043d\u043e\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u043e\u0439: \u0441\u043a\u0440\u0438\u043f\u0442 \u0447\u0438\u0442\u0430\u0435\u0442 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443, \u0447\u0438\u0441\u0442\u0438\u0442 \u0434\u0430\u043d\u043d\u044b\u0435 \u0438 \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 Excel", "\u0412\u0440\u0443\u0447\u043d\u0443\u044e \u0432 Excel, \u043a\u0430\u043a \u0440\u0430\u043d\u044c\u0448\u0435", "\u0410\u043d\u0430\u043b\u0438\u0442\u0438\u043a \u043f\u0435\u0440\u0435\u0441\u044b\u043b\u0430\u0435\u0442 \u0446\u0438\u0444\u0440\u044b \u0432 \u0447\u0430\u0442"], "q": "\u041a\u0430\u043a, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u0442\u0435\u043f\u0435\u0440\u044c \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u043e\u0442\u0447\u0451\u0442?", "why": "\u0413\u043b\u0430\u0432\u043d\u0430\u044f \u043f\u043e\u043b\u044c\u0437\u0430 \u2014 \u043f\u043e\u0432\u0442\u043e\u0440\u044f\u0435\u043c\u043e\u0441\u0442\u044c: \u043a\u0430\u0436\u0434\u044b\u0439 \u043f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a \u043e\u0434\u043d\u0430 \u0438 \u0442\u0430 \u0436\u0435 \u043a\u043e\u043c\u0430\u043d\u0434\u0430."}, {"a": 0, "o": ["\u0415\u0441\u043b\u0438 \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0442\u0441\u044f \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u0438\u043b\u0438 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u043d\u043e\u0432\u043e\u0435 \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u0435 \u0433\u043e\u0440\u043e\u0434\u0430, \u043e\u0442\u0447\u0451\u0442 \u0441\u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f \u2014 \u043d\u0443\u0436\u043d\u0430 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u0432 \u043d\u0430\u0447\u0430\u043b\u0435", "\u0420\u0438\u0441\u043a\u043e\u0432 \u043d\u0435\u0442: \u0441\u043a\u0440\u0438\u043f\u0442 \u0432\u0441\u0435\u0433\u0434\u0430 \u0440\u0430\u0431\u043e\u0442\u0430\u0435\u0442", "Excel \u043c\u043e\u0436\u0435\u0442 \u043d\u0435 \u043e\u0442\u043a\u0440\u044b\u0442\u044c\u0441\u044f \u043d\u0430 \u0442\u0435\u043b\u0435\u0444\u043e\u043d\u0435"], "q": "\u041a\u0430\u043a\u043e\u0439 \u0440\u0438\u0441\u043a \u0442\u044b \u043d\u0430\u0437\u044b\u0432\u0430\u0435\u0448\u044c?", "why": "\u0410\u0432\u0442\u043e\u043c\u0430\u0442\u0438\u0447\u0435\u0441\u043a\u0438\u0439 \u043e\u0442\u0447\u0451\u0442 \u043b\u043e\u043c\u0430\u0435\u0442\u0441\u044f \u0442\u0438\u0445\u043e, \u0435\u0441\u043b\u0438 \u0434\u0430\u043d\u043d\u044b\u0435 \u043f\u0440\u0438\u0448\u043b\u0438 \u0432 \u0434\u0440\u0443\u0433\u043e\u043c \u0432\u0438\u0434\u0435. \u041f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u043e\u043b\u043e\u043d\u043e\u043a \u0437\u0430\u0449\u0438\u0449\u0430\u0435\u0442 \u043e\u0442 \u044d\u0442\u043e\u0433\u043e."}]}, "case_model": "\u041e\u0439\u0431\u0435\u043a, \u043f\u0440\u0438\u0432\u0435\u0442! \u0422\u0435\u043f\u0435\u0440\u044c \u043e\u0442\u0447\u0451\u0442 \u0441\u043e\u0431\u0438\u0440\u0430\u0435\u0442\u0441\u044f \u043e\u0434\u043d\u043e\u0439 \u043a\u043e\u043c\u0430\u043d\u0434\u043e\u0439: \u0441\u043a\u0440\u0438\u043f\u0442 \u0447\u0438\u0442\u0430\u0435\u0442 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443, \u0447\u0438\u0441\u0442\u0438\u0442 \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u0433\u043e\u0440\u043e\u0434\u043e\u0432 \u0438 \u0441\u0430\u043c \u0441\u043e\u0445\u0440\u0430\u043d\u044f\u0435\u0442 Excel-\u0444\u0430\u0439\u043b. \u0412 \u0444\u0430\u0439\u043b\u0435 \u043f\u043e \u043b\u0438\u0441\u0442\u0443 \u043d\u0430 \u043a\u0430\u0436\u0434\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e \u0441 \u0437\u0430\u043a\u0430\u0437\u0430\u043c\u0438 \u0438 \u0432\u044b\u0440\u0443\u0447\u043a\u043e\u0439 \u043f\u043e \u0433\u043e\u0440\u043e\u0434\u0430\u043c \u0438 \u043b\u0438\u0441\u0442 \u0441 \u043e\u0442\u043c\u0435\u043d\u0430\u043c\u0438. \u0417\u0430 \u043f\u0435\u0440\u0432\u0443\u044e \u043d\u0435\u0434\u0435\u043b\u044e (5\u201311 \u043e\u043a\u0442\u044f\u0431\u0440\u044f) \u2014 817 \u0437\u0430\u043a\u0430\u0437\u043e\u0432, \u0437\u0430 \u0432\u0442\u043e\u0440\u0443\u044e \u2014 783; \u043b\u0438\u0434\u0435\u0440 \u043f\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0435 \u2014 \u0422\u0430\u0448\u043a\u0435\u043d\u0442. \u041a\u0430\u0436\u0434\u044b\u0439 \u043f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a \u0434\u043e\u0441\u0442\u0430\u0442\u043e\u0447\u043d\u043e \u043f\u043e\u043b\u043e\u0436\u0438\u0442\u044c \u043d\u043e\u0432\u0443\u044e \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0443 \u0432 \u043f\u0430\u043f\u043a\u0443 \u0438 \u0437\u0430\u043f\u0443\u0441\u0442\u0438\u0442\u044c \u043a\u043e\u043c\u0430\u043d\u0434\u0443 python report.py \u2014 \u043c\u043e\u0436\u043d\u043e \u043f\u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u044d\u0442\u043e \u0432 \u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0449\u0438\u043a, \u0447\u0442\u043e\u0431\u044b \u0444\u0430\u0439\u043b \u043f\u043e\u044f\u0432\u043b\u044f\u043b\u0441\u044f \u0441\u0430\u043c. \u0420\u0438\u0441\u043a: \u0435\u0441\u043b\u0438 \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 \u0438\u0437\u043c\u0435\u043d\u044f\u0442\u0441\u044f \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u043a\u043e\u043b\u043e\u043d\u043e\u043a \u0438\u043b\u0438 \u043f\u043e\u044f\u0432\u0438\u0442\u0441\u044f \u043d\u043e\u0432\u044b\u0439 \u0432\u0430\u0440\u0438\u0430\u043d\u0442 \u043d\u0430\u043f\u0438\u0441\u0430\u043d\u0438\u044f \u0433\u043e\u0440\u043e\u0434\u0430, \u043e\u0442\u0447\u0451\u0442 \u043d\u0443\u0436\u043d\u043e \u0431\u0443\u0434\u0435\u0442 \u043f\u043e\u043f\u0440\u0430\u0432\u0438\u0442\u044c, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0432 \u043d\u0430\u0447\u0430\u043b\u0435 \u0441\u043a\u0440\u0438\u043f\u0442\u0430 \u0441\u0442\u043e\u0438\u0442 \u043f\u0440\u043e\u0432\u0435\u0440\u043a\u0430 \u043a\u043e\u043b\u043e\u043d\u043e\u043a.", "case_xp": 30, "cheat": [["pd.read_csv(f, usecols=[...], parse_dates=[\"d\"])", "\u043d\u0443\u0436\u043d\u044b\u0435 \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u0438 \u0434\u0430\u0442\u044b"], ["pd.read_csv(f, sep=\";\", decimal=\",\", encoding=\"cp1251\")", "\u0444\u0430\u0439\u043b \u0438\u0437 \u0440\u0443\u0441\u0441\u043a\u043e\u0433\u043e Excel"], ["with pd.ExcelWriter(\"r.xlsx\") as w: t.to_excel(w, sheet_name=\"\u043b\u0438\u0441\u0442\")", "Excel \u0441 \u043b\u0438\u0441\u0442\u0430\u043c\u0438"], ["pd.read_excel(\"r.xlsx\", sheet_name=\"\u043b\u0438\u0441\u0442\", index_col=0)", "\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c \u043b\u0438\u0441\u0442"], ["pd.ExcelFile(\"r.xlsx\").sheet_names", "\u0441\u043f\u0438\u0441\u043e\u043a \u043b\u0438\u0441\u0442\u043e\u0432"], ["df.to_sql(\"t\", con, index=False); pd.read_sql(\"SELECT \u2026\", con)", "SQL \u0447\u0435\u0440\u0435\u0437 sqlite3"], ["t.to_csv(f, sep=\";\", decimal=\",\", encoding=\"utf-8-sig\")", "CSV \u0434\u043b\u044f \u0440\u0443\u0441\u0441\u043a\u043e\u0433\u043e Excel"], ["def make_report(start, end): \u2026", "\u043e\u0442\u0447\u0451\u0442 \u043a\u0430\u043a \u0444\u0443\u043d\u043a\u0446\u0438\u044f \u0441 \u043f\u0430\u0440\u0430\u043c\u0435\u0442\u0440\u0430\u043c\u0438"]], "data": "../../data/", "datasets": ["yetkaz_orders.csv"], "day": 25, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport sqlite3\ndf = pd.read_csv(\"yetkaz_orders.csv\", parse_dates=[\"order_date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["(1600, 5)", "order_id int64", "order_date datetime64", "amount float64"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["orders revenue_mln", "city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 882 64.71", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 327 22.48", "\u0411\u0443\u0445\u0430\u0440\u0430 211 14.31", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 180 11.66"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["[\u0027\u0433\u043e\u0440\u043e\u0434\u0430\u0027, \u0027\u043e\u0442\u043c\u0435\u043d\u044b\u0027]"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())\nby_city = (clean.assign(paid=lambda d: d[\"amount\"].where(d[\"status\"] == \"delivered\"))\n           .groupby(\"city\").agg(orders=(\"order_id\", \"count\"), revenue_mln=(\"paid\", \"sum\"))\n           .assign(revenue_mln=lambda d: (d[\"revenue_mln\"] / 1e6).round(2))\n           .sort_values(\"revenue_mln\", ascending=False))", "xp": 15}, {"figure": false, "id": "t4", "keys": ["(170, 12)", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 122", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 24"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())\nby_city = (clean.assign(paid=lambda d: d[\"amount\"].where(d[\"status\"] == \"delivered\"))\n           .groupby(\"city\").agg(orders=(\"order_id\", \"count\"), revenue_mln=(\"paid\", \"sum\"))\n           .assign(revenue_mln=lambda d: (d[\"revenue_mln\"] / 1e6).round(2))\n           .sort_values(\"revenue_mln\", ascending=False))\nwith pd.ExcelWriter(\"yetkaz_report.xlsx\") as w:\n    by_city.to_excel(w, sheet_name=\"\u0433\u043e\u0440\u043e\u0434\u0430\")\n    clean[clean[\"status\"] == \"cancelled\"].to_excel(w, sheet_name=\"\u043e\u0442\u043c\u0435\u043d\u044b\", index=False)", "xp": 15}, {"figure": false, "id": "t5", "keys": ["channel n avg_amount", "0 app 986 86711.0", "1 telegram 319 72710.0", "2 web 295 85197.0"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 20}, {"figure": false, "id": "t6", "keys": ["city;orders;avg_amount", "\u0411\u0443\u0445\u0430\u0440\u0430;211;75034,3", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d;180;74706,6", "orders avg_amount", "\u0411\u0443\u0445\u0430\u0440\u0430 211 75034.3", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 180 74706.6", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 327 76720.6", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 882 90247.9"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 15}, {"figure": false, "id": "t7", "keys": ["05\u201311.10 817", "12\u201318.10 783"], "setup": "clean = df.assign(city=df[\"city\"].str.strip().str.capitalize())", "xp": 25}], "theory": ["brief", "read", "excel-sql", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
-<script src="../../static/js/lesson.js?v=202611061848"></script>
+<script src="../../static/js/lesson.js?v=202611072255"></script>
 <span id="page-ready" hidden></span>
 </body>
 </html>

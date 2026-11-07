@@ -1,0 +1,735 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<script>try{var s=localStorage.getItem("pandas-sprint:skin");if(s==="cornflower")document.documentElement.setAttribute("data-skin",s)}catch(e){}</script>
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 18. Индекс и MultiIndex — Pandas Sprint</title>
+<meta name="description" content="Урок 18 курса Pandas Sprint — Индекс и MultiIndex. Управлять подписями строк и разбирать таблицы с индексом в несколько этажей.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/18-indeks-multiindex/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 18. Индекс и MultiIndex — Pandas Sprint">
+<meta property="og:description" content="Урок 18 курса Pandas Sprint — Индекс и MultiIndex. Управлять подписями строк и разбирать таблицы с индексом в несколько этажей.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/18-indeks-multiindex/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611072255">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/"><span class="lg-only">Программа</span><span class="sm-only">Уроки</span></a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="prefs" data-prefs>
+      <button type="button" class="prefs-btn" aria-haspopup="true" aria-expanded="false" aria-label="Настройки" title="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <div class="prefs-pop" role="dialog" aria-label="Настройки" hidden>
+        <h3>Настройки</h3>
+        <div class="prefs-sec" role="radiogroup" aria-label="Фон">
+          <b>Фон</b>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="default" aria-checked="true">
+            <span class="pv" style="background:#0E0B22"><i style="left:6px;top:6px;width:24px;height:6px;background:#FFCA00"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#B9A8FF"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#FF5CB0"></i></span>
+            <span><b>Стандартный</b><small>тёмно-синий или светлый — как на устройстве</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="cornflower" aria-checked="false">
+            <span class="pv" style="background:#FDFDF5"><i style="left:6px;top:6px;width:24px;height:6px;background:#3D568F"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#9FBAF1"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#EAF3B2"></i></span>
+            <span><b>Васильковое поле</b><small>кремовый фон, васильковый и синий, лаймовые акценты</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="18">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#index"><span class="dot">✓</span>Индекс</a></li><li><a href="#multi"><span class="dot">✓</span>MultiIndex</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Индекс и MultiIndex: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В SQL нет индекса строк: группы всегда остаются обычными колонками. Вот как одно и то же выглядит в pandas.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT region, store, SUM(revenue) … GROUP BY region, store</code></td><td><code>df.groupby([&#34;region&#34;, &#34;store&#34;])[&#34;revenue&#34;].sum()</code></td><td>MultiIndex из двух уровней</td></tr><tr><td><code>… WHERE region = &#39;Бухара&#39;</code></td><td><code>rs.loc[&#34;Бухара&#34;]</code></td><td>строки верхнего уровня</td></tr><tr><td><code>… WHERE category = &#39;Электроника&#39;</code></td><td><code>rc.xs(&#34;Электроника&#34;, level=&#34;category&#34;)</code></td><td>срез по нижнему уровню</td></tr><tr><td><code>календарная таблица + LEFT JOIN</code></td><td><code>s.reindex(pd.date_range(…), fill_value=0)</code></td><td>добавить пропущенные дни</td></tr><tr><td><code>результат GROUP BY как обычная таблица</code></td><td><code>….reset_index()</code></td><td>подписи → колонки</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 18 из 30 · Неделя 3 · Время и структура</div>
+      <h1><mark>Индекс и MultiIndex</mark>: подписи строк в несколько этажей</h1>
+      <p class="lead">У каждой таблицы pandas есть подписи строк — индекс. Пока мы почти не обращали на него внимания, но после groupby по двум колонкам или pivot_table pandas сам строит индекс в несколько этажей. Сегодня учимся управлять индексом: ставить и убирать его, доставать строки по подписям, дополнять пропущенные даты и работать с MultiIndex.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Разобрать продажи сети магазинов Chakana за третий квартал по регионам, магазинам и категориям: найти лидеров и отстающих, посчитать долю электроники в каждом регионе и честно учесть неделю, когда магазин был закрыт на ремонт.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Ставить и убирать индекс: <code class="i">set_index</code>, <code class="i">reset_index</code>, <code class="i">sort_index</code></li><li>Дополнять пропущенные подписи через <code class="i">reindex</code></li><li>Доставать строки из MultiIndex через <code class="i">.loc</code> и <code class="i">xs</code></li><li>Считать итоги по уровню индекса и «сплющивать» многоэтажные названия колонок</li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Кто тянет сеть вверх, а кто вниз</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Н</span>Нилуфар <small>директор по продажам Chakana · 09:10</small></div>
+          <p>Привет! Готовлю итоги квартала для собственников. Нужно понять, какие регионы и магазины дают основную выручку, где сильна электроника и как сильно на цифры повлиял ремонт в Когоне. Выгрузила продажи за июль–сентябрь.</p>
+<div class="file">▤ chakana_sales.csv · продажи по дням, магазинам и категориям</div>        </div>
+      </div>
+      <p class="note">Chakana — учебная сеть, данные сгенерированы. Одна строка — продажи одной категории в одном магазине за один день: дата, регион, магазин, категория, штук продано (units) и выручка в сумах (revenue). Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/chakana_sales.csv" download>Скачать chakana_sales.csv</a><span class="note">4 565 строк · 303 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+df = pd.read_csv(&#34;chakana_sales.csv&#34;, parse_dates=[&#34;date&#34;])</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена в <code class="i">df</code>.</p>
+      </div>
+    </section>
+
+    <section id="index">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Индекс — подписи строк</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Представь журнал в школе. Слева — фамилии учеников, справа — оценки. Фамилии не оценки, это <b>подписи строк</b>: по ним ищут нужную строку. В pandas такие подписи называются <b>индексом</b>.</p>
+  <ul>
+    <li>Когда ты читаешь CSV, индекс — просто номера 0, 1, 2… Он есть всегда, даже если ты его не видишь.</li>
+    <li>После <code class="i">groupby("store")</code> индексом становятся названия магазинов: по ним удобно искать — <code class="i">by_store.loc["Chilonzor"]</code>.</li>
+    <li><code class="i">set_index("колонка")</code> делает колонку подписями строк, <code class="i">reset_index()</code> — возвращает подписи обратно в обычную колонку.</li>
+    <li>При сложении и делении двух таблиц pandas сопоставляет строки <b>по подписям</b>, а не по порядку (это ты уже видел в уроке 9).</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Как выглядят данные.</b></div><pre class="code" data-cm>print(df.head(3))
+print()
+print(len(df), &quot;строк,&quot;, df[&quot;store&quot;].nunique(), &quot;магазинов,&quot;, df[&quot;date&quot;].min().date(), &quot;—&quot;, df[&quot;date&quot;].max().date())</pre><div class="out">        date   region      store       category  units   revenue
+0 2026-07-01  Ташкент  Chilonzor       Продукты    427  11160000
+1 2026-07-01  Ташкент  Chilonzor  Бытовая химия     81   3207000
+2 2026-07-01  Ташкент  Chilonzor        Напитки    254   3627000
+
+4565 строк, 10 магазинов, 2026-07-01 — 2026-09-30</div><p class="plain"><b>Простыми словами:</b> каждая строка — день × магазин × категория. Индекс здесь — номера 0, 1, 2…: они ничего не значат, просто порядковые.</p></div>
+<div class="card"><div class="q"><b>2. Индекс после groupby.</b> Названия магазинов стали подписями строк.</div><pre class="code" data-cm>by_store = df.groupby(&quot;store&quot;)[&quot;revenue&quot;].sum()
+print(by_store.index)
+round(by_store.loc[&quot;Chilonzor&quot;] / 1e6, 1)</pre><div class="out">Index([&#x27;Ark&#x27;, &#x27;Chilonzor&#x27;, &#x27;Gijduvon&#x27;, &#x27;Kogon&#x27;, &#x27;Markaz&#x27;, &#x27;Quvasoy&#x27;, &#x27;Registon&#x27;, &#x27;Sergeli&#x27;, &#x27;Siyob&#x27;, &#x27;Yunusobod&#x27;], dtype=&#x27;str&#x27;, name=&#x27;store&#x27;)
+3320.1</div><p class="plain"><b>Простыми словами:</b> <code class="i">.loc["Chilonzor"]</code> — «дай строку с подписью Chilonzor». Не нужно помнить, на каком она месте: ищем по имени, как фамилию в журнале.</p></div>
+<div class="card"><div class="q"><b>3. set_index и reset_index — туда и обратно.</b></div><pre class="code" data-cm>t = by_store.reset_index()             # подписи → обычная колонка store
+print(t.head(3))
+print()
+t.set_index(&quot;store&quot;).head(3)           # колонка store → снова подписи</pre><div class="out">       store     revenue
+0        Ark  1540200600
+1  Chilonzor  3320092700
+2   Gijduvon   875041300
+
+              revenue
+store
+Ark        1540200600
+Chilonzor  3320092700
+Gijduvon    875041300</div><p class="plain"><b>Простыми словами:</b> <code class="i">reset_index()</code> нужен, когда результат группировки надо сохранить в файл, соединить через merge или отсортировать по магазину как по колонке. <code class="i">set_index</code> — обратное действие.</p></div>
+<div class="card"><div class="q"><b>4. sort_index — сортировка по подписям.</b></div><pre class="code" data-cm>by_store.sort_index(ascending=False).head(3)</pre><div class="out">store
+Yunusobod    2892818200
+Siyob        1772685700
+Sergeli      2209537400
+Name: revenue, dtype: int64</div><p class="plain"><b>Простыми словами:</b> <code class="i">sort_values</code> сортирует по значениям (выручке), <code class="i">sort_index</code> — по подписям (названиям). По убыванию алфавита первым идёт Yunusobod.</p></div></div>
+<div class="simple"><span class="tag">Пропущенные подписи: reindex</span>
+  <p>Если магазин был закрыт, в выгрузке за эти дни <b>просто нет строк</b>. Среднее «за день» тогда посчитается только по рабочим дням, а на графике дни ремонта исчезнут. <code class="i">reindex(список)</code> выстраивает строки строго по готовому списку подписей: чего не было — появится с NaN, а <code class="i">fill_value=0</code> поставит ноль.</p>
+  <ol class="flow">
+    <li><code class="i">kogon</code><span>выручка магазина Kogon по дням: дней с данными 85 из 92</span></li>
+    <li><code class="i">pd.date_range(...)</code><span>полный календарь: каждый день без пропусков</span></li>
+    <li><code class="i">kogon.reindex(дни, fill_value=0)</code><span>дни ремонта стали нулями — их 7 в августе</span></li>
+  </ol>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>5. reindex: найти дни, которых нет в данных.</b></div><pre class="code" data-cm>kogon = df[df[&quot;store&quot;] == &quot;Kogon&quot;].groupby(&quot;date&quot;)[&quot;revenue&quot;].sum()
+aug = pd.date_range(&quot;2026-08-01&quot;, &quot;2026-08-31&quot;)
+full = kogon.reindex(aug, fill_value=0)
+print(len(kogon.loc[&quot;2026-08&quot;]), &quot;дней в данных за август,&quot;, len(full), &quot;дней в календаре&quot;)
+full[full == 0].index.strftime(&quot;%d.%m&quot;).tolist()</pre><div class="out">24 дней в данных за август, 31 дней в календаре
+[&#x27;10.08&#x27;, &#x27;11.08&#x27;, &#x27;12.08&#x27;, &#x27;13.08&#x27;, &#x27;14.08&#x27;, &#x27;15.08&#x27;, &#x27;16.08&#x27;]</div><p class="plain"><b>Простыми словами:</b> <code class="i">pd.date_range(start, end)</code> делает список всех дней подряд. После reindex у каждого дня августа есть строка, а дни ремонта видны как нули.</p></div></div>
+    </section>
+    <section id="multi">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>MultiIndex — подписи в несколько этажей</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Адрес на конверте: страна → город → улица. Это подпись в несколько этажей. Когда ты группируешь по двум колонкам, pandas подписывает строки так же: <b>регион → магазин</b>. Это и есть <b>MultiIndex</b>.</p>
+  <ul>
+    <li>Этажи называются <b>уровнями</b> (level). У <code class="i">groupby(["region", "store"])</code> уровень 0 — region, уровень 1 — store.</li>
+    <li><code class="i">.loc["Бухара"]</code> — все строки верхнего уровня «Бухара». <code class="i">.loc[("Бухара", "Ark")]</code> — одна строка по полному адресу.</li>
+    <li><code class="i">xs("Электроника", level="category")</code> — «срез» по нижнему уровню: все строки, где категория — Электроника.</li>
+    <li><code class="i">groupby(level="region").sum()</code> — итог по верхнему уровню без повторной группировки исходных данных.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>6. MultiIndex после группировки по двум колонкам.</b></div><pre class="code" data-cm>rs = (df.groupby([&quot;region&quot;, &quot;store&quot;])[&quot;revenue&quot;].sum() / 1e6).round(1)
+print(rs.index.names)
+rs</pre><div class="out">[&#x27;region&#x27;, &#x27;store&#x27;]
+region     store
+Бухара     Ark          1540.2
+           Gijduvon      875.0
+           Kogon         998.1
+Самарканд  Registon     2381.8
+           Siyob        1772.7
+Ташкент    Chilonzor    3320.1
+           Sergeli      2209.5
+           Yunusobod    2892.8
+Фергана    Markaz       1879.8
+           Quvasoy      1235.9
+Name: revenue, dtype: float64</div><p class="plain"><b>Простыми словами:</b> слева два этажа подписей. Pandas не повторяет название региона в каждой строке — так таблицу легче читать.</p></div>
+<div class="card"><div class="q"><b>7. .loc по верхнему уровню и по полному адресу.</b></div><pre class="code" data-cm>print(rs.loc[&quot;Бухара&quot;])
+print()
+rs.loc[(&quot;Ташкент&quot;, &quot;Chilonzor&quot;)]</pre><div class="out">store
+Ark         1540.2
+Gijduvon     875.0
+Kogon        998.1
+Name: revenue, dtype: float64
+
+3320.1</div><p class="plain"><b>Простыми словами:</b> <code class="i">rs.loc["Бухара"]</code> вернул все магазины Бухары, а верхний этаж пропал — он одинаковый. Полный адрес пишут кортежем в круглых скобках.</p></div>
+<div class="card"><div class="q"><b>8. xs — срез по нижнему уровню.</b> Выручка электроники в каждом регионе.</div><pre class="code" data-cm>rc = df.groupby([&quot;region&quot;, &quot;category&quot;])[&quot;revenue&quot;].sum()
+(rc.xs(&quot;Электроника&quot;, level=&quot;category&quot;) / 1e6).round(1)</pre><div class="out">region
+Бухара        385.0
+Самарканд     731.8
+Ташкент      2055.3
+Фергана       473.7
+Name: revenue, dtype: float64</div><p class="plain"><b>Простыми словами:</b> через .loc нижний уровень так просто не достать, а xs (cross-section, «поперечный срез») берёт нужное значение на любом этаже.</p></div>
+<div class="card"><div class="q"><b>9. Итог по уровню и доля внутри группы.</b></div><pre class="code" data-cm>region_total = rc.groupby(level=&quot;region&quot;).sum()
+share = rc / region_total * 100
+share.round(1).head(5)</pre><div class="out">region  category
+Бухара  Бытовая химия     14.1
+        Детские товары    19.2
+        Напитки           11.2
+        Продукты          44.1
+        Электроника       11.3
+Name: revenue, dtype: float64</div><p class="plain"><b>Простыми словами:</b> <code class="i">rc / region_total</code> — деление «по подписям»: у rc два этажа, у region_total один, и pandas сам подставит итог региона в каждую его строку. Получилась доля категории внутри своего региона.</p></div></div>
+<div class="simple"><span class="tag">Многоэтажные названия колонок</span>
+  <p>Если в <code class="i">agg</code> передать словарь «колонка → список функций», то этажи появятся уже у <b>названий колонок</b>: сверху units и revenue, снизу sum, mean, max. Такую таблицу неудобно сохранять и по ней трудно обращаться к колонкам, поэтому этажи «сплющивают» в одну строку: <code class="i">units_sum</code>, <code class="i">revenue_max</code>.</p>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>10. Сплющить MultiIndex у колонок.</b></div><pre class="code" data-cm>t = df.groupby(&quot;region&quot;).agg({&quot;units&quot;: [&quot;sum&quot;, &quot;mean&quot;], &quot;revenue&quot;: [&quot;sum&quot;, &quot;max&quot;]})
+print(t.columns.tolist())
+t.columns = [&quot;_&quot;.join(c) for c in t.columns]
+t.round(1)</pre><div class="out">[(&#x27;units&#x27;, &#x27;sum&#x27;), (&#x27;units&#x27;, &#x27;mean&#x27;), (&#x27;revenue&#x27;, &#x27;sum&#x27;), (&#x27;revenue&#x27;, &#x27;max&#x27;)]
+           units_sum  units_mean  revenue_sum  revenue_max
+region
+Бухара        104384        77.6   3413311100      9821900
+Самарканд     113959       123.9   4154448300     12113000
+Ташкент       220492       159.8   8422448300     16045700
+Фергана        93598       101.7   3115657600     10469300</div><p class="plain"><b>Простыми словами:</b> <code class="i">t.columns</code> — список пар («units», «sum»). <code class="i">"_".join(пара)</code> склеивает пару через подчёркивание. Именованная агрегация из урока 8 (<code class="i">agg(units_sum=("units", "sum"))</code>) даёт плоские названия сразу — поэтому её и советуют.</p></div></div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">04 · Ловушки</div>
+      <h2>Пять ловушек индекса</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Потерянная колонка после set_index</h3><div class="bad">t = df.set_index(&#34;store&#34;)
+t[&#34;store&#34;]          # KeyError: store теперь не колонка</div><div class="good">t.index             # подписи строк
+t.reset_index()     # store снова колонка</div><p>После set_index колонка уходит в подписи строк. Обращаться к ней как к колонке нельзя, пока не сделаешь reset_index.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Дни, которых нет</h3><p>Если в какие-то дни продаж не было, строк за них нет совсем. Среднее «за день» окажется завышенным, а пропуски не будут видны. Дополняй календарь через <code class="i">reindex(pd.date_range(...), fill_value=0)</code>.</p></div>
+        <div class="trap"><span class="n">3</span><h3>Полный адрес без кортежа</h3><div class="bad">rs.loc[&#34;Ташкент&#34;, &#34;Chilonzor&#34;]   # у DataFrame это читается как «строка, колонка»</div><div class="good">rs.loc[(&#34;Ташкент&#34;, &#34;Chilonzor&#34;)]</div><p>У Series запись через запятую сработает, а у DataFrame вторая часть будет считаться колонкой. Полный адрес в MultiIndex надёжнее писать кортежем в круглых скобках.</p></div>
+        <div class="trap"><span class="n">4</span><h3>reset_index в цепочке забыли</h3><p>merge и to_csv работают с колонками. Если таблица после группировки уходит дальше в merge или в файл, сделай <code class="i">.reset_index()</code> — иначе ключи останутся в индексе.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Многоэтажные колонки в файле</h3><p>Таблица с MultiIndex в колонках сохраняется в CSV двумя строками заголовков, и Excel покажет её неудобно. Перед сохранением сплющи названия: <code class="i">t.columns = ["_".join(c) for c in t.columns]</code>.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: индекс и MultiIndex</h3>
+        <ol><li>df.set_index(&#34;store&#34;) / t.reset_index() <span>— колонка ↔ подписи строк</span></li><li>s.loc[&#34;Chilonzor&#34;] <span>— строка по подписи</span></li><li>s.sort_index() <span>— сортировка по подписям</span></li><li>s.reindex(pd.date_range(a, b), fill_value=0) <span>— дополнить пропущенные дни</span></li><li>rs.loc[&#34;Бухара&#34;] / rs.loc[(&#34;Бухара&#34;, &#34;Ark&#34;)] <span>— MultiIndex: уровень / полный адрес</span></li><li>rc.xs(&#34;Электроника&#34;, level=&#34;category&#34;) <span>— срез по нижнему уровню</span></li><li>rc.groupby(level=&#34;region&#34;).sum() <span>— итог по уровню</span></li><li>t.columns = [&#34;_&#34;.join(c) for c in t.columns] <span>— сплющить названия колонок</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">05 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что делает <code>reset_index()</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удаляет таблицу</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Возвращает подписи строк обратно в обычную колонку</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сортирует строки</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Удаляет пропуски</span></button></div>
+          <div class="why" hidden>Подписи (например, названия магазинов) становятся колонкой, а индексом снова становятся номера 0, 1, 2…</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Какой индекс будет у результата <code>df.groupby(["region", "store"])["revenue"].sum()</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Номера строк</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>MultiIndex: region → store</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Только region</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Только store</span></button></div>
+          <div class="why" hidden>Группировка по двум колонкам даёт подписи в два этажа.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Как взять все категории региона «Бухара» из Series с MultiIndex region → category?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>rc["Бухара"][0]</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>rc.loc["Бухара"]</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>rc.xs("Бухара", level="category")</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>rc.iloc["Бухара"]</span></button></div>
+          <div class="why" hidden>.loc по значению верхнего уровня возвращает все его строки.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Магазин не работал 7 дней, и в выгрузке за эти дни нет строк. Что сделать перед подсчётом выручки по дням?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничего, так правильно</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>reindex по полному календарю с fill_value=0</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>dropna()</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>sort_index()</span></button></div>
+          <div class="why" hidden>reindex добавит недостающие дни, и они станут видны как нули.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Чем <code>sort_index</code> отличается от <code>sort_values</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>sort_index сортирует по подписям строк, sort_values — по значениям</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>sort_index быстрее</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>sort_values сортирует только числа</span></button></div>
+          <div class="why" hidden>Одна сортирует по названиям (индексу), другая — по содержимому.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">06 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Выручка по магазинам</h3>
+            <ol class='steps-t'><li>Посчитай выручку по магазинам → Series <code class='i'>by_store</code> (индекс — название магазина).</li> <li>Напечатай в одну строку: выручку магазина <b>Registon</b> в млн сум (1 знак) через <code class='i'>.loc</code> и название магазина с самой большой выручкой.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 18 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">by_store =
+
+# выручка Registon, млн, и лучший магазин
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">2381.8 Chilonzor</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>by_store =
+
+# выручка Registon, млн, и лучший магазин
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> После группировки по магазину названия магазинов становятся подписями строк. По подписи строку достают так же, как фамилию в журнале, — не важно, на каком она месте.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.loc["подпись"]</code> — значение по подписи строки. <code class="i">s.idxmax()</code> — подпись самого большого значения. Пример на других данных: <code class="i">ages.loc["Анвар"]</code>, <code class="i">ages.idxmax()</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>by_store = df.groupby(&#34;___&#34;)[&#34;revenue&#34;].sum()
+print(round(by_store.loc[&#34;___&#34;] / 1e6, 1), by_store.___())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">by_store["Registon"]</code> тоже сработает, но <code class="i">by_store.iloc["Registon"]</code> — нет: iloc ищет по номеру места, а не по подписи.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Из подписей — в колонку</h3>
+            <ol class='steps-t'><li>Преврати выручку по магазинам в обычную таблицу <code class='i'>t</code> с колонками <code class='i'>store</code> и <code class='i'>revenue_mln</code> (млн, 1 знак).</li> <li>Отсортируй по выручке по убыванию и выведи первые 3 строки.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 18 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">t = (
+    df.groupby(&#34;store&#34;)[&#34;revenue&#34;].sum()
+    # твой код
+)
+t.head(3)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">       store  revenue_mln
+1  Chilonzor       3320.1
+9  Yunusobod       2892.8
+6   Registon       2381.8</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>t = (
+    df.groupby(&#34;store&#34;)[&#34;revenue&#34;].sum()
+    # твой код
+)
+t.head(3)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Подписи строк нужно вернуть в обычную колонку. У Series это делает reset_index, и ему можно сразу сказать, как назвать колонку со значениями.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.reset_index(name="новое_имя")</code> — Series превращается в таблицу: подписи → колонка, значения → колонка с новым именем. Сортировка: <code class="i">.sort_values("колонка", ascending=False)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>t = (
+    (df.groupby(&#34;store&#34;)[&#34;revenue&#34;].sum() / 1e6).round(1)
+    .reset_index(name=&#34;___&#34;)
+    .sort_values(&#34;___&#34;, ascending=___)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если сначала сделать reset_index без name, колонка значений будет называться revenue — тогда переименуй её или сразу передай <code class="i">name="revenue_mln"</code>.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Регион → магазин</h3>
+            <ol class='steps-t'><li>Посчитай выручку в млн (1 знак) по паре регион → магазин → <code class='i'>rs</code>.</li> <li>Выведи все магазины <b>Самарканда</b> через <code class='i'>.loc</code>.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 18 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">rs =
+
+# магазины Самарканда
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">store
+Registon    2381.8
+Siyob       1772.7
+Name: revenue, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>rs =
+
+# магазины Самарканда
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Группировка по двум колонкам даёт подписи в два этажа: регион → магазин. Значение верхнего этажа выбирает сразу все строки этого региона.</p>
+<p><b>Чем это сделать.</b> <code class="i">df.groupby(["a", "b"])["x"].sum()</code> — MultiIndex a → b. <code class="i">rs.loc["значение_a"]</code> — все строки этого значения a.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>rs = (df.groupby([&#34;___&#34;, &#34;___&#34;])[&#34;revenue&#34;].sum() / 1e6).round(1)
+rs.loc[&#34;___&#34;]</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Порядок колонок в groupby важен: <code class="i">["store", "region"]</code> поставит магазин на верхний этаж, и .loc["Самарканд"] ничего не найдёт.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Доля электроники в регионе</h3>
+            <ol class='steps-t'><li>Посчитай выручку по паре регион → категория → <code class='i'>rc</code>.</li> <li>Достань выручку категории <b>Электроника</b> через <code class='i'>xs</code> и раздели на итог региона.</li> <li>Выведи долю в процентах (1 знак) от большей к меньшей.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 18 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">rc =
+el =
+region_total =
+
+# доля электроники, %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">region
+Ташкент      24.4
+Самарканд    17.6
+Фергана      15.2
+Бухара       11.3
+Name: revenue, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>rc =
+el =
+region_total =
+
+# доля электроники, %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Нужны два числа для каждого региона: выручка электроники и вся выручка региона. Электронику достают срезом по нижнему этажу, итог региона — суммой по верхнему этажу.</p>
+<p><b>Чем это сделать.</b> <code class="i">rc.xs("значение", level="имя_уровня")</code> — срез по любому этажу. <code class="i">rc.groupby(level="имя_уровня").sum()</code> — итог по этажу. Деление двух Series идёт по подписям.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>rc = df.groupby([&#34;region&#34;, &#34;category&#34;])[&#34;revenue&#34;].sum()
+el = rc.xs(&#34;___&#34;, level=&#34;___&#34;)
+region_total = rc.groupby(level=&#34;___&#34;).sum()
+(el / region_total * 100).round(1).sort_values(ascending=___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Делить на всю выручку сети (<code class="i">rc.sum()</code>) нельзя — получится доля в сети, а не внутри региона.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Таблица регион × категория</h3>
+            <ol class='steps-t'><li>Из выручки по паре регион → категория сделай широкую таблицу: строки — регионы, колонки — категории, значения — млн сум (1 знак).</li> <li>Отсортируй регионы по алфавиту (<code class='i'>sort_index</code>) и выведи таблицу.</li></ol> <p class='rule-t'>Нижний уровень индекса превращается в колонки методом <code class='i'>unstack()</code> из урока 12.</p>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 18 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">wide = (
+    df.groupby([&#34;region&#34;, &#34;category&#34;])[&#34;revenue&#34;].sum()
+    # твой код
+)
+wide
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category   Бытовая химия  Детские товары  Напитки  Продукты  Электроника
+region
+Бухара             482.4           657.0    383.5    1505.3        385.0
+Самарканд          534.7           925.1    439.2    1523.7        731.8
+Ташкент           1053.3          1460.3    847.9    3005.7       2055.3
+Фергана            431.7           588.5    410.5    1211.2        473.7</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>wide = (
+    df.groupby([&#34;region&#34;, &#34;category&#34;])[&#34;revenue&#34;].sum()
+    # твой код
+)
+wide
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Таблица «регионы × категории» — это тот же результат группировки, только нижний этаж подписей уехал в названия колонок.</p>
+<p><b>Чем это сделать.</b> <code class="i">.unstack()</code> переносит нижний уровень индекса в колонки. <code class="i">.div(1e6)</code> — деление, <code class="i">.sort_index()</code> — порядок строк по подписям.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>wide = (
+    df.groupby([&#34;region&#34;, &#34;category&#34;])[&#34;revenue&#34;].sum()
+    .___()
+    .div(1e6)
+    .round(___)
+    .___()
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">.stack()</code> делает обратное — переносит колонки в индекс. Нужен именно unstack.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Дни ремонта в Когоне</h3>
+            <ol class='steps-t'><li>Посчитай выручку магазина <b>Kogon</b> по дням → <code class='i'>kogon</code>.</li> <li>Дополни август до полного календаря (<code class='i'>pd.date_range</code> + <code class='i'>reindex</code>, нули вместо пропусков) → <code class='i'>aug</code>.</li> <li>Напечатай в одну строку: сколько дней магазин не работал, первую и последнюю дату закрытия.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 18 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">kogon =
+aug =
+
+# дней закрыт, первая и последняя дата
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">7 2026-08-10 2026-08-16</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>kogon =
+aug =
+
+# дней закрыт, первая и последняя дата
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> В дни ремонта строк в выгрузке просто нет. Чтобы их увидеть, выстрой выручку по полному календарю августа: недостающие дни появятся с нулями.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.date_range("2026-08-01", "2026-08-31")</code> — все дни месяца. <code class="i">s.reindex(дни, fill_value=0)</code> — строки строго по этому списку, пропуски — нули. <code class="i">.index.min()</code> / <code class="i">.max()</code> — первая и последняя подпись.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>kogon = df[df[&#34;store&#34;] == &#34;___&#34;].groupby(&#34;date&#34;)[&#34;revenue&#34;].sum()
+aug = kogon.reindex(pd.date_range(&#34;___&#34;, &#34;___&#34;), fill_value=___)
+closed = aug[aug == 0].index
+print(len(closed), closed.min().date(), closed.___().date())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если считать дни закрытия как <code class="i">31 - len(kogon)</code>, получишь число за весь квартал неверно: kogon содержит дни с июля по сентябрь. Сначала ограничь август через reindex.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Сводка по регионам с плоскими колонками</h3>
+            <ol class='steps-t'><li>Сгруппируй по региону и через <code class='i'>agg</code> со словарём посчитай: units — sum и mean, revenue — sum и max.</li> <li>Сплющи названия колонок в вид <code class='i'>units_sum</code>, <code class='i'>units_mean</code>, <code class='i'>revenue_sum</code>, <code class='i'>revenue_max</code>.</li> <li>Отсортируй по <code class='i'>revenue_sum</code> по убыванию, округли до 1 знака и выведи.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 18 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">t = df.groupby(&#34;region&#34;).agg({
+    # твой код
+})
+t.columns =
+t
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">           units_sum  units_mean  revenue_sum  revenue_max
+region
+Ташкент       220492       159.8   8422448300     16045700
+Самарканд     113959       123.9   4154448300     12113000
+Бухара        104384        77.6   3413311100      9821900
+Фергана        93598       101.7   3115657600     10469300</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>t = df.groupby(&#34;region&#34;).agg({
+    # твой код
+})
+t.columns =
+t
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Если в agg передать словарь «колонка → список функций», у названий колонок появятся два этажа. Их нужно склеить в одно название через подчёркивание.</p>
+<p><b>Чем это сделать.</b> <code class="i">agg({"x": ["sum", "mean"]})</code> — колонки ("x", "sum") и ("x", "mean"). <code class="i">["_".join(c) for c in t.columns]</code> — список склеенных названий.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>t = df.groupby(&#34;region&#34;).agg({
+    &#34;units&#34;: [&#34;___&#34;, &#34;___&#34;],
+    &#34;revenue&#34;: [&#34;___&#34;, &#34;___&#34;],
+})
+t.columns = [&#34;_&#34;.join(c) for c in t.___]
+t = t.sort_values(&#34;___&#34;, ascending=False).round(1)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Сортируй уже после того, как сплющил колонки: до этого колонка называется ("revenue", "sum"), а не revenue_sum.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">07 · Бизнес-кейс · 30 XP</div>
+      <h2>Итоги квартала для Нилуфар</h2>
+      <div class="case">
+        <p>Напиши ответ Нилуфар. Не больше 6 предложений. Структура: <b>выручка сети и доля Ташкента → лучший и худший магазин → где сильнее всего электроника → сколько дней был закрыт Kogon и сколько примерно потеряли → 1 оговорка → 1 рекомендация</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Выручка сети за квартал</span><span class="fact-chip">Доля Ташкента</span><span class="fact-chip">Доля электроники в Ташкенте</span><span class="fact-chip">Дней ремонта Kogon</span><span class="fact-chip">Недополученная выручка Kogon</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Нилуфар, привет! Итоги июля–сентября: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Как ты оцениваешь потери Kogon от ремонта?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Дни закрытия × средняя выручка обычного дня августа</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Вся выручка Kogon за квартал</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Потерь нет, ведь строк за эти дни нет</span></button></div>
+            <div class="why" hidden>Дни без строк — это дни без продаж. Их 7, а обычный день августа приносил около 12,5 млн.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Где электроника занимает самую большую долю выручки?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>В Ташкенте</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В Бухаре</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Во всех регионах одинаково</span></button></div>
+            <div class="why" hidden>Доля электроники внутри региона: Ташкент 24,4%, Бухара 11,3%.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Почему долю считают внутри региона, а не от всей сети?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Иначе Ташкент всегда будет «лидером» просто потому, что он самый большой</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Так короче код</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Доля от сети всегда больше</span></button></div>
+            <div class="why" hidden>Доля внутри региона показывает спрос, а не размер региона.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Нилуфар, привет! За июль–сентябрь сеть продала на 19,1 млрд сум, из них Ташкент дал 44,1%. Лучший магазин — Chilonzor (3 320,1 млн), слабее всех — Gijduvon (875,0 млн). Электроника сильнее всего в регионе Ташкент — 24,4% его выручки, слабее всего в регионе Бухара (11,3%). Kogon был закрыт на ремонт 7 дней в августе: при обычной выручке 12,5 млн в день это примерно 87,6 млн недополученной выручки. Оговорка: потерю считаю по среднему дню августа, без учёта того, что часть покупателей могла уйти в соседние магазины. Рекомендация: в следующий раз планировать ремонт на будни начала месяца и заранее предупреждать покупателей.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Выручка сети и доля Ташкента</li><li>Лучший и худший магазин с цифрами</li><li>Регион с самой большой долей электроники</li><li>Дни ремонта Kogon и оценка потерь</li><li>Оговорка и рекомендация</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">08 · Завершить урок</div>
+        <h2>Закрыть урок 18</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/17-okonnye-funkcii/"><small>← Урок 17</small><b>Оконные функции в pandas</b></a><a class="nx" href="../../lessons/19-kategorii-intervaly/"><small>Урок 19 →</small><b>Категории и интервалы: cut, qcut</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611072255"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611072255"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0412\u044b\u0440\u0443\u0447\u043a\u0430 \u0441\u0435\u0442\u0438 \u0437\u0430 \u043a\u0432\u0430\u0440\u0442\u0430\u043b", "value": 19100000000}, {"name": "\u0414\u043e\u043b\u044f \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0430", "pct": true, "value": 44.1}, {"name": "\u0414\u043e\u043b\u044f \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0438 \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435", "pct": true, "value": 24.4}, {"name": "\u0414\u043d\u0435\u0439 \u0440\u0435\u043c\u043e\u043d\u0442\u0430 Kogon", "value": 7}, {"name": "\u041d\u0435\u0434\u043e\u043f\u043e\u043b\u0443\u0447\u0435\u043d\u043d\u0430\u044f \u0432\u044b\u0440\u0443\u0447\u043a\u0430 Kogon", "value": 87600000}], "logic": [{"a": 0, "o": ["\u0414\u043d\u0438 \u0437\u0430\u043a\u0440\u044b\u0442\u0438\u044f \u00d7 \u0441\u0440\u0435\u0434\u043d\u044f\u044f \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u043e\u0431\u044b\u0447\u043d\u043e\u0433\u043e \u0434\u043d\u044f \u0430\u0432\u0433\u0443\u0441\u0442\u0430", "\u0412\u0441\u044f \u0432\u044b\u0440\u0443\u0447\u043a\u0430 Kogon \u0437\u0430 \u043a\u0432\u0430\u0440\u0442\u0430\u043b", "\u041f\u043e\u0442\u0435\u0440\u044c \u043d\u0435\u0442, \u0432\u0435\u0434\u044c \u0441\u0442\u0440\u043e\u043a \u0437\u0430 \u044d\u0442\u0438 \u0434\u043d\u0438 \u043d\u0435\u0442"], "q": "\u041a\u0430\u043a \u0442\u044b \u043e\u0446\u0435\u043d\u0438\u0432\u0430\u0435\u0448\u044c \u043f\u043e\u0442\u0435\u0440\u0438 Kogon \u043e\u0442 \u0440\u0435\u043c\u043e\u043d\u0442\u0430?", "why": "\u0414\u043d\u0438 \u0431\u0435\u0437 \u0441\u0442\u0440\u043e\u043a \u2014 \u044d\u0442\u043e \u0434\u043d\u0438 \u0431\u0435\u0437 \u043f\u0440\u043e\u0434\u0430\u0436. \u0418\u0445 7, \u0430 \u043e\u0431\u044b\u0447\u043d\u044b\u0439 \u0434\u0435\u043d\u044c \u0430\u0432\u0433\u0443\u0441\u0442\u0430 \u043f\u0440\u0438\u043d\u043e\u0441\u0438\u043b \u043e\u043a\u043e\u043b\u043e 12,5 \u043c\u043b\u043d."}, {"a": 0, "o": ["\u0412 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435", "\u0412 \u0411\u0443\u0445\u0430\u0440\u0435", "\u0412\u043e \u0432\u0441\u0435\u0445 \u0440\u0435\u0433\u0438\u043e\u043d\u0430\u0445 \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u043e"], "q": "\u0413\u0434\u0435 \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430 \u0437\u0430\u043d\u0438\u043c\u0430\u0435\u0442 \u0441\u0430\u043c\u0443\u044e \u0431\u043e\u043b\u044c\u0448\u0443\u044e \u0434\u043e\u043b\u044e \u0432\u044b\u0440\u0443\u0447\u043a\u0438?", "why": "\u0414\u043e\u043b\u044f \u044d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0438 \u0432\u043d\u0443\u0442\u0440\u0438 \u0440\u0435\u0433\u0438\u043e\u043d\u0430: \u0422\u0430\u0448\u043a\u0435\u043d\u0442 24,4%, \u0411\u0443\u0445\u0430\u0440\u0430 11,3%."}, {"a": 0, "o": ["\u0418\u043d\u0430\u0447\u0435 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u0432\u0441\u0435\u0433\u0434\u0430 \u0431\u0443\u0434\u0435\u0442 \u00ab\u043b\u0438\u0434\u0435\u0440\u043e\u043c\u00bb \u043f\u0440\u043e\u0441\u0442\u043e \u043f\u043e\u0442\u043e\u043c\u0443, \u0447\u0442\u043e \u043e\u043d \u0441\u0430\u043c\u044b\u0439 \u0431\u043e\u043b\u044c\u0448\u043e\u0439", "\u0422\u0430\u043a \u043a\u043e\u0440\u043e\u0447\u0435 \u043a\u043e\u0434", "\u0414\u043e\u043b\u044f \u043e\u0442 \u0441\u0435\u0442\u0438 \u0432\u0441\u0435\u0433\u0434\u0430 \u0431\u043e\u043b\u044c\u0448\u0435"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u0434\u043e\u043b\u044e \u0441\u0447\u0438\u0442\u0430\u044e\u0442 \u0432\u043d\u0443\u0442\u0440\u0438 \u0440\u0435\u0433\u0438\u043e\u043d\u0430, \u0430 \u043d\u0435 \u043e\u0442 \u0432\u0441\u0435\u0439 \u0441\u0435\u0442\u0438?", "why": "\u0414\u043e\u043b\u044f \u0432\u043d\u0443\u0442\u0440\u0438 \u0440\u0435\u0433\u0438\u043e\u043d\u0430 \u043f\u043e\u043a\u0430\u0437\u044b\u0432\u0430\u0435\u0442 \u0441\u043f\u0440\u043e\u0441, \u0430 \u043d\u0435 \u0440\u0430\u0437\u043c\u0435\u0440 \u0440\u0435\u0433\u0438\u043e\u043d\u0430."}]}, "case_model": "\u041d\u0438\u043b\u0443\u0444\u0430\u0440, \u043f\u0440\u0438\u0432\u0435\u0442! \u0417\u0430 \u0438\u044e\u043b\u044c\u2013\u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c \u0441\u0435\u0442\u044c \u043f\u0440\u043e\u0434\u0430\u043b\u0430 \u043d\u0430 19,1 \u043c\u043b\u0440\u0434 \u0441\u0443\u043c, \u0438\u0437 \u043d\u0438\u0445 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u0434\u0430\u043b 44,1%. \u041b\u0443\u0447\u0448\u0438\u0439 \u043c\u0430\u0433\u0430\u0437\u0438\u043d \u2014 Chilonzor (3 320,1 \u043c\u043b\u043d), \u0441\u043b\u0430\u0431\u0435\u0435 \u0432\u0441\u0435\u0445 \u2014 Gijduvon (875,0 \u043c\u043b\u043d). \u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430 \u0441\u0438\u043b\u044c\u043d\u0435\u0435 \u0432\u0441\u0435\u0433\u043e \u0432 \u0440\u0435\u0433\u0438\u043e\u043d\u0435 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 24,4% \u0435\u0433\u043e \u0432\u044b\u0440\u0443\u0447\u043a\u0438, \u0441\u043b\u0430\u0431\u0435\u0435 \u0432\u0441\u0435\u0433\u043e \u0432 \u0440\u0435\u0433\u0438\u043e\u043d\u0435 \u0411\u0443\u0445\u0430\u0440\u0430 (11,3%). Kogon \u0431\u044b\u043b \u0437\u0430\u043a\u0440\u044b\u0442 \u043d\u0430 \u0440\u0435\u043c\u043e\u043d\u0442 7 \u0434\u043d\u0435\u0439 \u0432 \u0430\u0432\u0433\u0443\u0441\u0442\u0435: \u043f\u0440\u0438 \u043e\u0431\u044b\u0447\u043d\u043e\u0439 \u0432\u044b\u0440\u0443\u0447\u043a\u0435 12,5 \u043c\u043b\u043d \u0432 \u0434\u0435\u043d\u044c \u044d\u0442\u043e \u043f\u0440\u0438\u043c\u0435\u0440\u043d\u043e 87,6 \u043c\u043b\u043d \u043d\u0435\u0434\u043e\u043f\u043e\u043b\u0443\u0447\u0435\u043d\u043d\u043e\u0439 \u0432\u044b\u0440\u0443\u0447\u043a\u0438. \u041e\u0433\u043e\u0432\u043e\u0440\u043a\u0430: \u043f\u043e\u0442\u0435\u0440\u044e \u0441\u0447\u0438\u0442\u0430\u044e \u043f\u043e \u0441\u0440\u0435\u0434\u043d\u0435\u043c\u0443 \u0434\u043d\u044e \u0430\u0432\u0433\u0443\u0441\u0442\u0430, \u0431\u0435\u0437 \u0443\u0447\u0451\u0442\u0430 \u0442\u043e\u0433\u043e, \u0447\u0442\u043e \u0447\u0430\u0441\u0442\u044c \u043f\u043e\u043a\u0443\u043f\u0430\u0442\u0435\u043b\u0435\u0439 \u043c\u043e\u0433\u043b\u0430 \u0443\u0439\u0442\u0438 \u0432 \u0441\u043e\u0441\u0435\u0434\u043d\u0438\u0435 \u043c\u0430\u0433\u0430\u0437\u0438\u043d\u044b. \u0420\u0435\u043a\u043e\u043c\u0435\u043d\u0434\u0430\u0446\u0438\u044f: \u0432 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0438\u0439 \u0440\u0430\u0437 \u043f\u043b\u0430\u043d\u0438\u0440\u043e\u0432\u0430\u0442\u044c \u0440\u0435\u043c\u043e\u043d\u0442 \u043d\u0430 \u0431\u0443\u0434\u043d\u0438 \u043d\u0430\u0447\u0430\u043b\u0430 \u043c\u0435\u0441\u044f\u0446\u0430 \u0438 \u0437\u0430\u0440\u0430\u043d\u0435\u0435 \u043f\u0440\u0435\u0434\u0443\u043f\u0440\u0435\u0436\u0434\u0430\u0442\u044c \u043f\u043e\u043a\u0443\u043f\u0430\u0442\u0435\u043b\u0435\u0439.", "case_xp": 30, "cheat": [["df.set_index(\"store\") / t.reset_index()", "\u043a\u043e\u043b\u043e\u043d\u043a\u0430 \u2194 \u043f\u043e\u0434\u043f\u0438\u0441\u0438 \u0441\u0442\u0440\u043e\u043a"], ["s.loc[\"Chilonzor\"]", "\u0441\u0442\u0440\u043e\u043a\u0430 \u043f\u043e \u043f\u043e\u0434\u043f\u0438\u0441\u0438"], ["s.sort_index()", "\u0441\u043e\u0440\u0442\u0438\u0440\u043e\u0432\u043a\u0430 \u043f\u043e \u043f\u043e\u0434\u043f\u0438\u0441\u044f\u043c"], ["s.reindex(pd.date_range(a, b), fill_value=0)", "\u0434\u043e\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043f\u0440\u043e\u043f\u0443\u0449\u0435\u043d\u043d\u044b\u0435 \u0434\u043d\u0438"], ["rs.loc[\"\u0411\u0443\u0445\u0430\u0440\u0430\"] / rs.loc[(\"\u0411\u0443\u0445\u0430\u0440\u0430\", \"Ark\")]", "MultiIndex: \u0443\u0440\u043e\u0432\u0435\u043d\u044c / \u043f\u043e\u043b\u043d\u044b\u0439 \u0430\u0434\u0440\u0435\u0441"], ["rc.xs(\"\u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430\", level=\"category\")", "\u0441\u0440\u0435\u0437 \u043f\u043e \u043d\u0438\u0436\u043d\u0435\u043c\u0443 \u0443\u0440\u043e\u0432\u043d\u044e"], ["rc.groupby(level=\"region\").sum()", "\u0438\u0442\u043e\u0433 \u043f\u043e \u0443\u0440\u043e\u0432\u043d\u044e"], ["t.columns = [\"_\".join(c) for c in t.columns]", "\u0441\u043f\u043b\u044e\u0449\u0438\u0442\u044c \u043d\u0430\u0437\u0432\u0430\u043d\u0438\u044f \u043a\u043e\u043b\u043e\u043d\u043e\u043a"]], "data": "../../data/", "datasets": ["chakana_sales.csv"], "day": 18, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\ndf = pd.read_csv(\"chakana_sales.csv\", parse_dates=[\"date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["2381.8 Chilonzor"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["store revenue_mln", "1 Chilonzor 3320.1", "9 Yunusobod 2892.8", "6 Registon 2381.8"], "setup": "", "xp": 10}, {"figure": false, "id": "t3", "keys": ["store", "Registon 2381.8", "Siyob 1772.7"], "setup": "", "xp": 15}, {"figure": false, "id": "t4", "keys": ["region", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 24.4", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 17.6", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 15.2", "\u0411\u0443\u0445\u0430\u0440\u0430 11.3"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["category \u0411\u044b\u0442\u043e\u0432\u0430\u044f \u0445\u0438\u043c\u0438\u044f \u0414\u0435\u0442\u0441\u043a\u0438\u0435 \u0442\u043e\u0432\u0430\u0440\u044b \u041d\u0430\u043f\u0438\u0442\u043a\u0438 \u041f\u0440\u043e\u0434\u0443\u043a\u0442\u044b \u042d\u043b\u0435\u043a\u0442\u0440\u043e\u043d\u0438\u043a\u0430", "region", "\u0411\u0443\u0445\u0430\u0440\u0430 482.4 657.0 383.5 1505.3 385.0", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 534.7 925.1 439.2 1523.7 731.8", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 1053.3 1460.3 847.9 3005.7 2055.3", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 431.7 588.5 410.5 1211.2 473.7"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["7 2026-08-10 2026-08-16"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["units_sum units_mean revenue_sum revenue_max", "region", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 220492 159.8 8422448300 16045700", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 113959 123.9 4154448300 12113000", "\u0411\u0443\u0445\u0430\u0440\u0430 104384 77.6 3413311100 9821900", "\u0424\u0435\u0440\u0433\u0430\u043d\u0430 93598 101.7 3115657600 10469300"], "setup": "", "xp": 25}], "theory": ["brief", "index", "multi", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611072255"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

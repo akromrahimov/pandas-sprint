@@ -24,6 +24,8 @@ const thr = (i, max) => Math.ceil(R[i].min * max - 1e-9);
 const rankOf = (p, x) => { let r = 0; for (let i = 1; i < R.length; i++) if (x >= thr(i, p.max)) r = i; return r; };
 
 const SHORT = { lesson: "урок", proj: "проект", exam: "экзамен" };
+// цвета графиков и пути берутся из темы (переменные --pc-* в progress.css): при смене фона в «Настройках» всё перекрашивается
+const PC = (k, d) => getComputedStyle(document.documentElement).getPropertyValue("--pc-" + k).trim() || d;
 const ON = { lesson: "уроке", proj: "проекте", exam: "экзамене" };       // «15 мин на уроке 3 / на проекте 7»
 const name = p => `${p.label} ${p.day}`;
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
@@ -226,20 +228,27 @@ const logDates = Object.keys(xpLog).filter(k => dayXp(k) !== 0).sort();
     s?.addEventListener("error", () => { empty.hidden = false; canvas.hidden = true; empty.textContent = "График не загрузился: проверь интернет и обнови страницу."; });
   };
   withChart(() => {
-  if (cum.length > 1) {
-    new Chart(document.getElementById("spark"), { type: "line", data: { labels, datasets: [{ data: cum, borderColor: "#FFCA00", borderWidth: 2, pointRadius: 0, tension: .35 }] },
+  let sp = null;
+  const spark = () => {
+    if (cum.length < 2) { document.getElementById("spark")?.remove(); return; }
+    sp?.destroy();
+    sp = new Chart(document.getElementById("spark"), { type: "line", data: { labels, datasets: [{ data: cum, borderColor: PC("spark", "#FFCA00"), borderWidth: 2, pointRadius: 0, tension: .35 }] },
       options: { responsive: false, animation: false, plugins: { legend: { display: false }, tooltip: { enabled: false } }, scales: { x: { display: false }, y: { display: false } } } });
-  } else document.getElementById("spark")?.remove();
+  };
+  spark();
 
-  const grid = "#2A2552", tick = "#A6A2C7";
+  let grid, tick;
   // пунктирные границы рангов — позади столбиков
   const thresholds = { id: "thr", beforeDatasetsDraw(c) {
     if (c.config._mode !== "less") return;
     const y = c.scales.y, { left, right } = c.chartArea, g = c.ctx;
     R.slice(1).forEach(t => { const yy = y.getPixelForValue(t.min * 100); g.save(); g.strokeStyle = t.c; g.setLineDash([5, 5]); g.globalAlpha = .6; g.beginPath(); g.moveTo(left, yy); g.lineTo(right, yy); g.stroke(); g.restore(); });
   } };
-  let ch, first = true;
+  let ch, first = true, mode0 = "cum";
   function draw(mode) {
+    mode0 = mode;
+    grid = PC("grid", "#2A2552"); tick = PC("tick", "#A6A2C7");
+    const line = PC("chart", "#FF5CB0"), fill = PC("chart-fill", "rgba(255,92,176,.45)"), fill0 = PC("chart-fill0", "rgba(255,92,176,0)");
     // первый график появляется сразу, без «вырастания»; при переключении режимов — короткая анимация
     const animation = first ? false : { duration: 350 };
     first = false;
@@ -269,22 +278,24 @@ const logDates = Object.keys(xpLog).filter(k => dayXp(k) !== 0).sort();
     }
     const data = mode === "cum" ? cum : perDay;
     // заливка считается по реальной высоте графика, поэтому доходит до низа при любом размере
-    const grad = c => { const a = c.chart.chartArea; if (!a) return "rgba(255,92,176,.2)"; const gr = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); gr.addColorStop(0, "rgba(255,92,176,.45)"); gr.addColorStop(1, "rgba(255,92,176,0)"); return gr; };
+    const grad = c => { const a = c.chart.chartArea; if (!a) return fill; const gr = c.chart.ctx.createLinearGradient(0, a.top, 0, a.bottom); gr.addColorStop(0, fill); gr.addColorStop(1, fill0); return gr; };
     ch = new Chart(canvas, { type: "line",
-      data: { labels, datasets: [{ data, borderColor: "#FF5CB0", backgroundColor: grad, fill: true, tension: .35, borderWidth: 3,
-        pointRadius: legendDay.map(u => (u ? 8 : 4)), pointBackgroundColor: legendDay.map(u => (u ? "#FFCA00" : "#FF5CB0")), pointBorderColor: "#17133A", pointBorderWidth: 2, pointHoverRadius: 10 }] },
+      data: { labels, datasets: [{ data, borderColor: line, backgroundColor: grad, fill: true, tension: .35, borderWidth: 3,
+        pointRadius: legendDay.map(u => (u ? 8 : 4)), pointBackgroundColor: legendDay.map(u => (u ? "#FFCA00" : line)), pointBorderColor: PC("ptborder", "#17133A"), pointBorderWidth: 2, pointHoverRadius: 10 }] },
       options: { animation, responsive: true, maintainAspectRatio: false, interaction: { mode: "index", intersect: false }, plugins: { legend: { display: false },
         tooltip: { backgroundColor: "#fff", titleColor: "#150458", bodyColor: "#150458", padding: 10,
           callbacks: { label: c => (mode === "cum" ? `всего ${c.raw} XP (+${perDay[c.dataIndex]} за день)` : `${c.raw} XP за день`),
             afterLabel: c => (legendDay[c.dataIndex] ? "👑 получена «Легенда»" : "") } } },
         scales: { x: { ticks: { color: tick }, grid: { display: false } }, y: { ticks: { color: tick }, grid: { color: grid }, beginAtZero: true } } } });
-    leg.innerHTML = `<span><i style="background:#FF5CB0"></i>${mode === "cum" ? "накопленный XP" : "XP за день"}</span><span><i style="background:#FFCA00;border-radius:50%"></i>день, когда получена «Легенда»</span>`;
+    leg.innerHTML = `<span><i style="background:${line}"></i>${mode === "cum" ? "накопленный XP" : "XP за день"}</span><span><i style="background:#FFCA00;border-radius:50%"></i>день, когда получена «Легенда»</span>`;
   }
   draw("cum");
   document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => {
     document.querySelectorAll(".seg button").forEach(x => x.setAttribute("aria-pressed", x === b));
     draw(b.dataset.m);
   }));
+  // сменили фон в «Настройках» — перерисовываем графики в новых цветах
+  addEventListener("skinchange", () => { spark(); first = true; draw(mode0); });
   });
 })();
 
@@ -421,24 +432,27 @@ function goalPlan(p) {
 /* ================= Путь по курсу ================= */
 (function path() {
   const svg = document.getElementById("path"), tipEl = document.getElementById("ptip"), pts = [];
+  function render() {
   for (let i = 0; i < DAYS.length; i++) { const row = Math.floor(i / 10), col = i % 10; pts.push([row % 2 ? 970 - col * 100 : 70 + col * 100, 55 + row * 85]); }
   const hereI = next ? DAYS.indexOf(next) : DAYS.length;                     // сколько уроков подряд пройдено с начала
   const poly = p => p.map(q => q.join(",")).join(" ");
   let len = 0; for (let i = 1; i < hereI; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
+  const C = { line: PC("path-line", "#3B3566"), empty: PC("empty", "#110E2C"), emptyText: PC("empty-text", "#A6A2C7"), halo: PC("halo", "#A78BFA"),
+    here: PC("here", "#FFCA00"), hereFill: PC("here-fill", "#2A2170"), label: PC("label", "#FFCA00"), labelInk: PC("label-ink", "#150458"), okStroke: PC("ok-stroke", "#F1EEFF") };
   let s = "";
-  s += `<polyline points="${poly(pts.slice(Math.max(0, hereI - 1)))}" fill="none" stroke="#3B3566" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round"/>`;
+  s += `<polyline points="${poly(pts.slice(Math.max(0, hereI - 1)))}" fill="none" stroke="${C.line}" stroke-width="4" stroke-dasharray="2 10" stroke-linecap="round"/>`;
   if (hereI > 1) s += `<defs><linearGradient id="trail" x1="0" x2="1"><stop offset="0" stop-color="#43D19B"/><stop offset=".5" stop-color="#A78BFA"/><stop offset="1" stop-color="#FF5CB0"/></linearGradient></defs>` +
     `<polyline class="done-line" style="--len:${len}" points="${poly(pts.slice(0, hereI))}" fill="none" stroke="url(#trail)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>`;
   DAYS.forEach((p, i) => {
     const [x, y] = pts[i], st = S(p.day), ok = !!st?.finished, r = ok ? rankOf(p, st.xp || 0) : 0, rad = p.max > 160 ? 24 : 19, last = i === DAYS.length - 1, here = p === next;
-    const col = ok ? R[r].c : "#110E2C";
+    const col = ok ? R[r].c : C.empty;
     s += `<g class="st ${r === 5 ? "lg-st" : ""}" data-i="${i}" style="transform-origin:${x}px ${y}px">` +
-      `<circle class="halo" cx="${x}" cy="${y}" r="${rad + 10}" fill="${ok ? R[r].c : "#A78BFA"}"/>` +
-      (here ? `<circle class="here" cx="${x}" cy="${y}" r="${rad}" fill="none" stroke="#FFCA00" stroke-width="3"/>` : "") +
+      `<circle class="halo" cx="${x}" cy="${y}" r="${rad + 10}" fill="${ok ? R[r].c : C.halo}"/>` +
+      (here ? `<circle class="here" cx="${x}" cy="${y}" r="${rad}" fill="none" stroke="${C.here}" stroke-width="3"/>` : "") +
       (ok && r < 5 ? `<circle cx="${x}" cy="${y}" r="${rad + 4}" fill="none" stroke="${R[r].c}" stroke-width="2" opacity=".55"/>` : "") +
-      `<circle cx="${x}" cy="${y}" r="${rad}" fill="${here ? "#2A2170" : col}" stroke="${ok ? (r === 5 ? "#FFF3B0" : "#F1EEFF") : here ? "#FFCA00" : "#3B3566"}" stroke-width="${r === 5 || here ? 4 : ok ? 2.5 : 2}" ${ok || here ? "" : 'stroke-dasharray="4 4"'}/>` +
-      `<text x="${x}" y="${y + 5}" text-anchor="middle" font-family="Unbounded" font-weight="700" font-size="${r === 5 || last ? 17 : 13}" fill="${ok ? "#0E0B22" : here ? "#FFCA00" : "#A6A2C7"}">${r === 5 ? "👑" : last ? "🏆" : p.day}</text>` +
-      (here ? `<g class="here-lab"><rect x="${x - 44}" y="${y - rad - 34}" width="88" height="22" rx="11" fill="#FFCA00"/><text x="${x}" y="${y - rad - 19}" text-anchor="middle" font-family="Golos Text" font-weight="700" font-size="12" fill="#150458">Ты здесь</text></g>` : "") +
+      `<circle cx="${x}" cy="${y}" r="${rad}" fill="${here ? C.hereFill : col}" stroke="${ok ? (r === 5 ? "#FFF3B0" : C.okStroke) : here ? C.here : C.line}" stroke-width="${r === 5 || here ? 4 : ok ? 2.5 : 2}" ${ok || here ? "" : 'stroke-dasharray="4 4"'}/>` +
+      `<text x="${x}" y="${y + 5}" text-anchor="middle" font-family="Unbounded" font-weight="700" font-size="${r === 5 || last ? 17 : 13}" fill="${ok ? "#0E0B22" : here ? C.here : C.emptyText}">${r === 5 ? "👑" : last ? "🏆" : p.day}</text>` +
+      (here ? `<g class="here-lab"><rect x="${x - 44}" y="${y - rad - 34}" width="88" height="22" rx="11" fill="${C.label}"/><text x="${x}" y="${y - rad - 19}" text-anchor="middle" font-family="Golos Text" font-weight="700" font-size="12" fill="${C.labelInk}">Ты здесь</text></g>` : "") +
       `</g>`;
   });
   svg.innerHTML = s;
@@ -455,8 +469,11 @@ function goalPlan(p) {
     g.addEventListener("click", () => {
       const c = document.createElementNS("http://www.w3.org/2000/svg", "circle"), st = S(p.day);
       c.setAttribute("cx", x); c.setAttribute("cy", y); c.setAttribute("r", 22); c.setAttribute("fill", "none");
-      c.setAttribute("stroke", st?.finished ? R[rankOf(p, st.xp || 0)].c : "#A78BFA"); c.setAttribute("stroke-width", "3"); c.setAttribute("class", "ring-fx");
+      c.setAttribute("stroke", st?.finished ? R[rankOf(p, st.xp || 0)].c : PC("halo", "#A78BFA")); c.setAttribute("stroke-width", "3"); c.setAttribute("class", "ring-fx");
       svg.appendChild(c); setTimeout(() => c.remove(), 650);
     });
   });
+  }
+  render();
+  addEventListener("skinchange", render);   // новый фон — станции и линия в новых цветах
 })();

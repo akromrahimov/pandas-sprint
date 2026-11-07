@@ -81,7 +81,7 @@ kbd{font:12px var(--f-mono);background:var(--sunk);border:1px solid var(--line);
 @media (max-width:520px){.auth-lab{display:none}.auth-btn{padding:4px}}
 /* на узком телефоне пункт меню короче: «Прогресс» вместо «Мой прогресс», чтобы рядом поместилась кнопка входа */
 .nav .sm-only{display:none}
-@media (max-width:420px){.nav .lg-only{display:none}.nav .sm-only{display:inline}.site-head .in{gap:8px}.nav a{padding:7px 8px}}
+@media (max-width:420px){.nav .lg-only{display:none}.nav .sm-only{display:inline}.site-head .in{gap:6px}.nav{gap:4px}.nav a{padding:7px 7px}}
 /* на телефоне три ссылки меню не помещаются рядом с названием: остаётся только значок, название читают экранные дикторы */
 @media (max-width:520px){.brand span{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}.brand i{margin-right:5px}}
 .site-foot{border-top:1px solid var(--line);margin-top:40px}
@@ -611,3 +611,113 @@ button.busy::after{content:"";position:absolute;inset:0;margin:auto;width:16px;h
 .pager .nx{text-align:right}
 .pager b{color:var(--ink)}
 .toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:20}
+
+/* ---------- Настройки (шестерёнка в шапке) ---------- */
+.prefs{position:relative;flex:none}
+.prefs-btn{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;background:var(--surface);border:1px solid var(--line);color:var(--fg);cursor:pointer;padding:0;transition:border-color .15s,transform .3s}
+.prefs-btn:hover{border-color:var(--accent)}
+.prefs-btn[aria-expanded="true"]{border-color:var(--accent)}
+.prefs-btn[aria-expanded="true"] svg{transform:rotate(60deg)}
+.prefs-btn svg{width:19px;height:19px;transition:transform .35s ease}
+.prefs-pop{position:absolute;right:0;top:calc(100% + 10px);width:min(340px,calc(100vw - 24px));background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;box-shadow:0 18px 40px -16px rgba(0,0,0,.45);z-index:21;display:flex;flex-direction:column;gap:12px}
+.prefs-pop[hidden]{display:none}
+.prefs-pop h3{margin:0;font:600 16px var(--f-body);color:var(--ink);display:flex;align-items:center;gap:8px}
+.prefs-sec{display:flex;flex-direction:column;gap:8px}
+.prefs-sec > b{font:600 12px var(--f-mono);letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.skin-opt{display:grid;grid-template-columns:62px minmax(0,1fr) 20px;align-items:center;gap:12px;width:100%;text-align:left;padding:8px;border-radius:12px;border:1.5px solid var(--line);background:var(--bg);color:var(--fg);cursor:pointer;font:inherit;transition:border-color .15s,transform .15s}
+.skin-opt:hover{border-color:var(--accent)}
+.skin-opt:active{transform:scale(.98)}
+.skin-opt[aria-checked="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.skin-opt .pv{height:44px;border-radius:8px;position:relative;overflow:hidden;border:1px solid var(--line)}
+.skin-opt .pv i{position:absolute;border-radius:3px}
+.skin-opt b{display:block;font:600 14px/1.25 var(--f-body);color:var(--ink)}
+.skin-opt small{display:block;font-size:12px;line-height:1.35;color:var(--muted)}
+.skin-opt .ck{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font-size:12px;color:transparent}
+.skin-opt[aria-checked="true"] .ck{background:var(--accent);border-color:var(--accent);color:var(--accent-fg)}
+@media (max-width:420px){.prefs-btn{width:32px;height:32px}.prefs-btn svg{width:17px;height:17px}}
+
+/* ---------- Тема «Васильковое поле»: кремовый фон, васильковый и тёмно-синий, лайм ----------
+   Палитра: #FDFDF5 (крем) · #9FBAF1 (василёк) · #3D568F (синий) · #EAF3B2 (лайм).
+   Меняет все блоки сайта, включая иллюстрации на главной. Не меняются только поле кода, окна вывода,
+   шпаргалка с кодом, команды терминала и цвета рангов I–V — они одинаковые во всех темах. */
+html:root[data-skin="cornflower"]{
+  --bg:#FDFDF5; --surface:#FFFFFF; --sunk:#F1F5FD; --fg:#2C3D66; --ink:#22335E; --muted:#5E6E92; --line:#D9E3F7;
+  --accent:#3D568F; --accent-fg:#FFFFFF; --hi:#EAF3B2; --hi-soft:#F4F8D6; --pink:#4A6BC4; --pink-soft:#E6EDFC;
+  --ok:#2F8A5B; --ok-soft:#E1F3E8; --warn:#8A6100; --warn-soft:#FBF0D4; --bad:#C2365A; --bad-soft:#FBE3EA;
+  --gold:#5E6B12; --acc-soft:#E3EBFC;
+  --navy:#2F4475; --navy-2:#3D568F; --navy-fg:#FDFDF5; --navy-muted:#C9D6F2;
+  --code-bg:#13102E; --code-fg:#E7E5F6; --code-line:#2A2552; --code-muted:#8E89B8;
+  --cf-ink-on-lime:#2F3B0E; color-scheme:light}
+/* текст на лаймовых кнопках и плашках — тёмно-оливковый (вместо прежнего тёмно-фиолетового) */
+[data-skin="cornflower"] :is(.btn.y,.chip.y,.auth-go,.auth.in .auth-ava,.navy-card .go,.setup-step,.b-run,.xl-arrow,.anat thead .ser,.anat thead .ser .dt){color:var(--cf-ink-on-lime)}
+[data-skin="cornflower"] .setup-step::before{color:var(--cf-ink-on-lime)}
+[data-skin="cornflower"] button.busy::after{border-color:var(--cf-ink-on-lime);border-right-color:transparent}
+[data-skin="cornflower"] .b-check.busy::after{border-color:#fff;border-right-color:transparent}
+[data-skin="cornflower"] .site-head{background:color-mix(in srgb,var(--bg) 92%,transparent)}
+/* главная: верхний блок, «30 дней», рамки иллюстраций */
+[data-skin="cornflower"] .hero{color:#EEF3FF;background:radial-gradient(70% 90% at 100% 100%,rgba(159,186,241,.45) 0%,transparent 60%),
+  radial-gradient(60% 70% at 0% 0%,rgba(234,243,178,.16) 0%,transparent 60%),linear-gradient(140deg,#3D568F 0%,#2F4475 55%,#22335E 100%)}
+[data-skin="cornflower"] .hero h1{color:#FFFFFF}
+[data-skin="cornflower"] .hero .lead{color:#DCE6FB}
+[data-skin="cornflower"] .hero .chip{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);color:#F2F6FF}
+[data-skin="cornflower"] .navy-card .big{color:#3A5287}
+[data-skin="cornflower"] .hero .navy-card .big{color:rgba(255,255,255,.08)}
+[data-skin="cornflower"] .navy-card .fn span{color:#F2F6FF}
+[data-skin="cornflower"] .learn-card .check{background:linear-gradient(135deg,#3D568F,#9FBAF1)}
+[data-skin="cornflower"] .learn-stat{background:radial-gradient(120% 120% at 100% 100%,#9FBAF1 0%,transparent 55%),linear-gradient(135deg,#3D568F,#2F4475)}
+[data-skin="cornflower"] .learn-stat p{color:#E6EDFC}
+[data-skin="cornflower"] .who-art{background:radial-gradient(90% 90% at 100% 0%,rgba(234,243,178,.55),transparent 60%),linear-gradient(160deg,#E3EBFC,#C9D8F7)}
+[data-skin="cornflower"] .who-card:hover .who-art{box-shadow:0 14px 30px -18px #3D568F}
+/* иллюстрации: окна «ноутбук», «собеседование», «Excel → pandas» — светлые, в цветах темы */
+[data-skin="cornflower"] .mock{background:#FFFFFF;border-color:#C9D8F7;color:#22335E;box-shadow:0 10px 24px -14px rgba(34,51,94,.45)}
+[data-skin="cornflower"] .mock-bar{background:#F1F5FD;border-bottom-color:#D9E3F7;color:#5E6E92}
+[data-skin="cornflower"] .mock-bar i{background:#C9D8F7}
+[data-skin="cornflower"] .mock-bar i:first-child{background:#F28BA8}[data-skin="cornflower"] .mock-bar i:nth-child(2){background:#E2CF5A}[data-skin="cornflower"] .mock-bar i:nth-child(3){background:#7CC59A}
+[data-skin="cornflower"] .nb-in{color:#7D8BB0}
+[data-skin="cornflower"] .nb-code{color:#3D568F}
+[data-skin="cornflower"] .nb-code.typing::after{color:#9FBAF1}
+[data-skin="cornflower"] .nb-out{border-top-color:#D9E3F7}
+[data-skin="cornflower"] .hb span{color:#2C3D66}
+[data-skin="cornflower"] .hb b{background:#EEF3FC}
+[data-skin="cornflower"] .hb i{background:linear-gradient(90deg,#9FBAF1,#3D568F)}
+[data-skin="cornflower"] .hb:first-child i{background:linear-gradient(90deg,#C8DA6A,#8FA82A)}
+[data-skin="cornflower"] .hb em{color:#3D568F}
+[data-skin="cornflower"] .iv-tag{color:#4A6BC4}
+[data-skin="cornflower"] .iv-score{color:#3F4A12;background:#EAF3B2}
+[data-skin="cornflower"] .iv-progress i{background:#DCE5F7}
+[data-skin="cornflower"] .iv-progress i.on{background:#3D568F}
+[data-skin="cornflower"] .iv-progress i.cur{background:#9FBAF1}
+[data-skin="cornflower"] .iv-list li{background:#F6F8FE;border-color:#D9E3F7}
+[data-skin="cornflower"] .iv-list .t{color:#22335E}
+[data-skin="cornflower"] .iv-list em{color:#7D8BB0}
+[data-skin="cornflower"] .iv-list .c{border-color:#AFC3EC;color:#FFFFFF}
+[data-skin="cornflower"] .iv-list .done .c{background:#3D568F;border-color:#3D568F}
+[data-skin="cornflower"] .iv-list .done .t{color:#5E6E92}
+[data-skin="cornflower"] .iv-list .now{border-color:#9FBAF1;background:#EEF3FD}
+[data-skin="cornflower"] .iv-list .now .c{border-color:#4A6BC4}
+[data-skin="cornflower"] .iv-list .now em{color:#4A6BC4}
+[data-skin="cornflower"] .who-card:hover .iv-list .now{border-color:#8FA82A;background:#F4F8D6}
+[data-skin="cornflower"] .who-card:hover .iv-list .now .c{background:#8FA82A;border-color:#8FA82A}
+[data-skin="cornflower"] .who-card:hover .iv-list .now em{color:#5E6B12}
+[data-skin="cornflower"] .xl-lab{color:#4A6BC4}
+[data-skin="cornflower"] .xl-note{color:#5E6B12}
+[data-skin="cornflower"] .xl-arrow{background:#EAF3B2}
+[data-skin="cornflower"] .xl-py{background:#FFFFFF;border-color:#C9D8F7}
+[data-skin="cornflower"] .xl-py code{color:#3D568F}
+[data-skin="cornflower"] .xl-py th,[data-skin="cornflower"] .xl-py td{border-bottom-color:#E3EBFC}
+[data-skin="cornflower"] .xl-py th{color:#7D8BB0}
+[data-skin="cornflower"] .xl-py tr th:first-child{color:#22335E}
+[data-skin="cornflower"] .xl-py td{color:#3D568F}
+@keyframes scanCf{20%{background:#F4F8D6}60%{background:#F4F8D6}100%{background:transparent}}
+/* урок: цель урока, «Завершить» */
+[data-skin="cornflower"] .ring{background:radial-gradient(closest-side,var(--navy) 78%,transparent 79% 100%),conic-gradient(var(--hi) calc(var(--p) * 1%),#4A64A0 0)}
+[data-skin="cornflower"] .goal-steps a:hover{background:#4A64A0}
+[data-skin="cornflower"] .goal-steps i{background:#24365F}
+[data-skin="cornflower"] .goal-steps a.full em{background:#EAF3B2}
+[data-skin="cornflower"] .goal-steps a.full b::before{color:#EAF3B2}
+[data-skin="cornflower"] .finish .b-ghost{border-color:#6E86C2}
+[data-skin="cornflower"] .cmd:hover{border-color:#9FBAF1}
+[data-skin="cornflower"] .sqldlg::backdrop{background:rgba(34,51,94,.45)}
+[data-skin="cornflower"] .who-card.in .xl-sheet tr.r td{animation-name:scanCf}
+/* на телефоне окошко настроек — по ширине экрана, чтобы не вылезало за край */
+@media (max-width:520px){.prefs-pop{position:fixed;left:12px;right:12px;top:62px;width:auto}}

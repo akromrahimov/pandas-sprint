@@ -1,0 +1,744 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<script>try{var s=localStorage.getItem("pandas-sprint:skin");if(s==="cornflower")document.documentElement.setAttribute("data-skin",s)}catch(e){}</script>
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 23. Время, продвинутый уровень: merge_asof, expanding, ewm — Pandas Sprint</title>
+<meta name="description" content="Урок 23 курса Pandas Sprint — Время, продвинутый уровень: merge_asof, expanding, ewm. Заполнять дыры в календаре и соединять таблицы по ближайшей прошлой дате.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/23-vremya-prodvinutyj/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 23. Время, продвинутый уровень: merge_asof, expanding, ewm — Pandas Sprint">
+<meta property="og:description" content="Урок 23 курса Pandas Sprint — Время, продвинутый уровень: merge_asof, expanding, ewm. Заполнять дыры в календаре и соединять таблицы по ближайшей прошлой дате.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/23-vremya-prodvinutyj/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611072255">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/"><span class="lg-only">Программа</span><span class="sm-only">Уроки</span></a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="prefs" data-prefs>
+      <button type="button" class="prefs-btn" aria-haspopup="true" aria-expanded="false" aria-label="Настройки" title="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <div class="prefs-pop" role="dialog" aria-label="Настройки" hidden>
+        <h3>Настройки</h3>
+        <div class="prefs-sec" role="radiogroup" aria-label="Фон">
+          <b>Фон</b>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="default" aria-checked="true">
+            <span class="pv" style="background:#0E0B22"><i style="left:6px;top:6px;width:24px;height:6px;background:#FFCA00"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#B9A8FF"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#FF5CB0"></i></span>
+            <span><b>Стандартный</b><small>тёмно-синий или светлый — как на устройстве</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="cornflower" aria-checked="false">
+            <span class="pv" style="background:#FDFDF5"><i style="left:6px;top:6px;width:24px;height:6px;background:#3D568F"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#9FBAF1"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#EAF3B2"></i></span>
+            <span><b>Васильковое поле</b><small>кремовый фон, васильковый и синий, лаймовые акценты</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="23">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#calendar"><span class="dot">✓</span>Календарь</a></li><li><a href="#asof"><span class="dot">✓</span>merge_asof</a></li><li><a href="#windows"><span class="dot">✓</span>Окна и Grouper</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Время, продвинутый уровень: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В SQL такие задачи решают через календарные таблицы и оконные функции. Вот соответствия.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>generate_series(start, end, &#39;1 day&#39;) + LEFT JOIN</code></td><td><code>s.asfreq(&#34;D&#34;)</code></td><td>полный календарь</td></tr><tr><td><code>LAST_VALUE(... IGNORE NULLS) OVER (ORDER BY date)</code></td><td><code>s.ffill()</code></td><td>последнее известное значение</td></tr><tr><td><code>LEFT JOIN LATERAL (… WHERE r.date &lt;= o.date ORDER BY r.date DESC LIMIT 1)</code></td><td><code>pd.merge_asof(o, r, left_on=…, right_on=…)</code></td><td>ближайшая прошлая дата</td></tr><tr><td><code>MAX(x) OVER (ORDER BY date ROWS UNBOUNDED PRECEDING)</code></td><td><code>s.expanding().max()</code></td><td>накопленный рекорд</td></tr><tr><td><code>… GROUP BY date_trunc(&#39;month&#39;, d), category</code></td><td><code>groupby([pd.Grouper(key=&#34;d&#34;, freq=&#34;MS&#34;), &#34;category&#34;])</code></td><td>месяц и категория вместе</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 23 из 30 · Неделя 4 · Реальные данные</div>
+      <h1><mark>Время, продвинутый уровень</mark>: календарь, merge_asof, expanding и ewm</h1>
+      <p class="lead">В уроках 15–17 ты научился разбирать даты, считать по неделям и месяцам и строить скользящие окна. Сегодня — то, что встречается в реальной работе чуть реже, но без чего не обойтись: дыры в календаре, соединение двух таблиц «по ближайшей прошлой дате», накопленные рекорды и сглаживание, которое быстрее реагирует на свежие данные.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Пересчитать продажи книжного магазина Kitobxon в доллары по курсу дня заказа, заполнить пропуски в курсе за выходные и праздники, найти лучший месяц и показать тренд без дневного шума.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Строить полный календарь и заполнять пропуски: <code class="i">asfreq</code>, <code class="i">ffill</code>, <code class="i">interpolate</code></li><li>Соединять таблицы по ближайшей прошлой дате: <code class="i">pd.merge_asof</code></li><li>Считать накопленные рекорды и средние: <code class="i">expanding</code>; сглаживать через <code class="i">ewm</code></li><li>Группировать по периодам вместе с другими колонками: <code class="i">pd.Grouper</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Книги покупаем за доллары</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">М</span>Мадина <small>владелица Kitobxon · 16:40</small></div>
+          <p>Привет! Книги мы закупаем у издательств за доллары, а продаём за сумы. Хочу видеть продажи в долларах по курсу того дня, когда был заказ, — так понятнее, сколько книг я смогу закупить. Курс беру с сайта Центробанка, но там нет выходных и праздников. И ещё: какой месяц был лучшим и что сейчас с трендом?</p>
+<div class="file">▤ kitobxon_orders.csv · заказы января–сентября</div><div class="file">▤ valyuta_kurs.csv · курс доллара по рабочим дням</div>        </div>
+      </div>
+      <p class="note">Kitobxon — учебный книжный онлайн-магазин, данные сгенерированы. В заказах — номер, клиент, дата, категория книги и сумма в сумах. В курсе — дата и курс доллара (сумов за 1 доллар) только по рабочим дням: в выходные и праздники Центробанк курс не публикует, действует последний опубликованный. Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/kitobxon_orders.csv" download>Скачать kitobxon_orders.csv</a><a class="btn main" href="../../data/valyuta_kurs.csv" download>Скачать valyuta_kurs.csv</a><span class="note">2 072 заказа · 190 дней курса</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+orders = pd.read_csv(&#34;kitobxon_orders.csv&#34;, parse_dates=[&#34;order_date&#34;])
+rate = pd.read_csv(&#34;valyuta_kurs.csv&#34;, parse_dates=[&#34;date&#34;])</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="calendar">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>Дыры в календаре: asfreq, ffill и interpolate</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>Курс доллара публикуют только по рабочим дням. В субботу курс не исчез — просто действует пятничный. Но в таблице субботы <b>нет совсем</b>: нет строки — нет и курса. Если в субботу был заказ, сопоставить его не с чем.</p>
+  <ul>
+    <li><code class="i">s.asfreq("D")</code> — выстроить ряд по полному календарю: каждый день получает строку, у пропущенных — NaN. Это то же, что <code class="i">reindex(pd.date_range(...))</code> из урока 18, только короче. Дата должна быть в индексе.</li>
+    <li><code class="i">ffill()</code> — заполнить пропуск последним известным значением («действует пятничный курс»). Для курса валют это правильно.</li>
+    <li><code class="i">interpolate(method="time")</code> — провести прямую между соседними известными точками. Подходит для того, что меняется плавно и непрерывно (температура, вес), но не для официального курса.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Как выглядят данные.</b></div><pre class="code" data-cm>print(orders.head(3))
+print()
+print(rate.head(3))
+print(len(rate), &quot;дней с курсом из&quot;, (rate[&quot;date&quot;].max() - rate[&quot;date&quot;].min()).days + 1)</pre><div class="out">   order_id  customer_id order_date        category  amount
+0     70001        10133 2026-01-01  Художественная   91000
+1     70002        10189 2026-01-01         Учебная   36000
+2     70003        10498 2026-01-01  Художественная   18000
+
+        date   usd_uzs
+0 2026-01-02  12649.90
+1 2026-01-05  12658.21
+2 2026-01-06  12638.39
+190 дней с курсом из 272</div><p class="plain"><b>Простыми словами:</b> в курсе нет 3–4 января (выходные), а данных меньше, чем дней в календаре: выходные и праздники пропущены.</p></div>
+<div class="card"><div class="q"><b>2. asfreq: полный календарь.</b></div><pre class="code" data-cm>r = rate.set_index(&quot;date&quot;)[&quot;usd_uzs&quot;]
+daily = r.asfreq(&quot;D&quot;)
+print(len(daily), &quot;дней, пропусков:&quot;, daily.isna().sum())
+daily.loc[&quot;2026-01-02&quot;:&quot;2026-01-06&quot;]</pre><div class="out">272 дней, пропусков: 82
+date
+2026-01-02    12649.90
+2026-01-03         NaN
+2026-01-04         NaN
+2026-01-05    12658.21
+2026-01-06    12638.39
+Freq: D, Name: usd_uzs, dtype: float64</div><p class="plain"><b>Простыми словами:</b> суббота и воскресенье появились, но с NaN. Пропусков всего 82: это выходные и праздники.</p></div>
+<div class="card"><div class="q"><b>3. ffill и interpolate на одних и тех же днях.</b> 20–23 марта — праздники и выходные подряд.</div><pre class="code" data-cm>pd.DataFrame({&quot;ffill&quot;: daily.ffill(), &quot;interpolate&quot;: daily.interpolate(method=&quot;time&quot;)}).loc[&quot;2026-03-19&quot;:&quot;2026-03-24&quot;].round(2)</pre><div class="out">               ffill  interpolate
+date
+2026-03-19  12764.38     12764.38
+2026-03-20  12764.38     12765.31
+2026-03-21  12764.38     12766.25
+2026-03-22  12764.38     12767.18
+2026-03-23  12764.38     12768.12
+2026-03-24  12769.05     12769.05</div><p class="plain"><b>Простыми словами:</b> ffill держит четверговый курс до вторника — так и было на самом деле. interpolate «придумал» плавный рост в праздники, которого не было. Для курса валют бери ffill.</p></div></div>
+    </section>
+    <section id="asof">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>merge_asof: соединение по ближайшей прошлой дате</h2>
+      <div class="simple"><span class="tag">Как это работает</span>
+  <p>Обычный merge соединяет строки, только если ключи совпадают точно. А заказ в субботу должен получить <b>последний курс до него</b> — пятничный. Это делает <code class="i">pd.merge_asof</code>:</p>
+  <ol class="flow">
+    <li><code class="i">left</code><span>заказы, отсортированные по дате</span></li>
+    <li><code class="i">right</code><span>курс, отсортированный по дате</span></li>
+    <li><code class="i">direction="backward"</code><span>(по умолчанию) — взять последнюю строку справа, у которой дата ≤ даты заказа</span></li>
+  </ol>
+  <p>Если раньше заказа курса нет совсем, получится NaN. Тогда можно взять ближайший с любой стороны: <code class="i">direction="nearest"</code>. Обе таблицы обязательно сортируют по ключу, иначе pandas выдаст ошибку.</p>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>4. merge_asof на игрушечном примере.</b></div><pre class="code" data-cm>sales = pd.DataFrame({&quot;day&quot;: pd.to_datetime([&quot;2026-03-02&quot;, &quot;2026-03-07&quot;, &quot;2026-03-09&quot;]), &quot;uzs&quot;: [127000, 254000, 63500]})
+fx = pd.DataFrame({&quot;day&quot;: pd.to_datetime([&quot;2026-03-02&quot;, &quot;2026-03-06&quot;, &quot;2026-03-09&quot;]), &quot;rate&quot;: [12700, 12710, 12735]})
+pd.merge_asof(sales, fx, on=&quot;day&quot;)</pre><div class="out">         day     uzs   rate
+0 2026-03-02  127000  12700
+1 2026-03-07  254000  12710
+2 2026-03-09   63500  12735</div><p class="plain"><b>Простыми словами:</b> заказ в субботу 7 марта получил курс пятницы 6 марта — последний известный до него. Если ключ называется одинаково в обеих таблицах, пишут <code class="i">on=</code>.</p></div>
+<div class="card"><div class="q"><b>5. Заказы и курс: заказы без курса.</b></div><pre class="code" data-cm>o = orders.sort_values(&quot;order_date&quot;)
+back = pd.merge_asof(o, rate, left_on=&quot;order_date&quot;, right_on=&quot;date&quot;)
+print(back[&quot;usd_uzs&quot;].isna().sum(), &quot;заказов без курса&quot;)
+back[back[&quot;usd_uzs&quot;].isna()][[&quot;order_id&quot;, &quot;order_date&quot;, &quot;usd_uzs&quot;]]</pre><div class="out">3 заказов без курса
+   order_id order_date  usd_uzs
+0     70001 2026-01-01      NaN
+1     70002 2026-01-01      NaN
+2     70003 2026-01-01      NaN</div><p class="plain"><b>Простыми словами:</b> заказы 1 января оказались раньше первого курса в таблице (2 января), и последнего известного курса для них нет. В задаче 4 их решим через <code class="i">direction="nearest"</code>.</p></div></div>
+    </section>
+    <section id="windows">
+      <div class="eyebrow">04 · Теория</div>
+      <h2>expanding, ewm и pd.Grouper</h2>
+      <div class="simple"><span class="tag">Три вида окон</span>
+  <ul>
+    <li><code class="i">rolling(7)</code> — окно фиксированной длины: среднее за последние 7 дней (урок 16).</li>
+    <li><code class="i">expanding()</code> — растущее окно: от начала данных до текущей строки. <code class="i">expanding().max()</code> — «лучший результат на сегодняшний день», рекорд.</li>
+    <li><code class="i">ewm(span=7)</code> — экспоненциальное сглаживание: свежие дни весят больше старых. Линия гладкая, как у rolling, но быстрее замечает перелом тренда.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>6. expanding: рекорд на каждый момент.</b></div><pre class="code" data-cm>s = pd.Series([3, 5, 4, 8, 6], index=[&quot;пн&quot;, &quot;вт&quot;, &quot;ср&quot;, &quot;чт&quot;, &quot;пт&quot;])
+pd.DataFrame({&quot;value&quot;: s, &quot;record&quot;: s.expanding().max(), &quot;avg_so_far&quot;: s.expanding().mean().round(2)})</pre><div class="out">    value  record  avg_so_far
+пн      3     3.0         3.0
+вт      5     5.0         4.0
+ср      4     5.0         4.0
+чт      8     8.0         5.0
+пт      6     8.0         5.2</div><p class="plain"><b>Простыми словами:</b> в каждой строке рекорд — самое большое значение с начала до этой строки. В четверг рекорд обновился до 8 и держится.</p></div>
+<div class="card"><div class="q"><b>7. rolling против ewm на дневной выручке.</b></div><pre class="code" data-cm>day = orders.set_index(&quot;order_date&quot;)[&quot;amount&quot;].resample(&quot;D&quot;).sum()
+pd.DataFrame({&quot;day&quot;: day, &quot;rolling_7&quot;: day.rolling(7).mean(), &quot;ewm_7&quot;: day.ewm(span=7).mean()}).div(1e6).round(2).tail(4)</pre><div class="out">             day  rolling_7  ewm_7
+order_date
+2026-09-27  0.82       0.63   0.70
+2026-09-28  0.00       0.54   0.52
+2026-09-29  1.13       0.62   0.67
+2026-09-30  0.36       0.59   0.60</div><p class="plain"><b>Простыми словами:</b> обе линии сглаживают дневные скачки. ewm сильнее учитывает последние дни, поэтому чуть быстрее реагирует на изменения.</p></div>
+<div class="card"><div class="q"><b>8. pd.Grouper: месяц + категория в одной группировке.</b></div><pre class="code" data-cm>(orders.groupby([pd.Grouper(key=&quot;order_date&quot;, freq=&quot;MS&quot;), &quot;category&quot;])[&quot;amount&quot;].sum()
+       .unstack().div(1e6).round(1).tail(3))</pre><div class="out">category    Бизнес  Детская  Учебная  Художественная
+order_date
+2026-07-01     5.4      8.8      6.9            12.8
+2026-08-01     3.8      5.8      4.5            11.4
+2026-09-01     2.6      3.8      3.7             6.5</div><p class="plain"><b>Простыми словами:</b> resample умеет группировать только по времени. <code class="i">pd.Grouper(key="order_date", freq="MS")</code> — «месяц из колонки order_date» — можно поставить в groupby рядом с обычными колонками.</p></div></div>
+<div class="callout"><b>Часовые пояса — коротко.</b> Время из приложений часто приходит в UTC. <code class="i">s.dt.tz_localize("UTC").dt.tz_convert("Asia/Tashkent")</code> переводит его в ташкентское (+5 часов). Без этого заказ в 22:00 по Ташкенту может «уехать» в другой день.</div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">05 · Ловушки</div>
+      <h2>Пять ловушек времени</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>merge_asof без сортировки</h3><div class="bad">pd.merge_asof(orders, rate, left_on=&#34;order_date&#34;, right_on=&#34;date&#34;)   # ошибка: keys must be sorted</div><div class="good">pd.merge_asof(orders.sort_values(&#34;order_date&#34;), rate.sort_values(&#34;date&#34;), left_on=&#34;order_date&#34;, right_on=&#34;date&#34;)</div><p>merge_asof ищет «последнюю строку до» и требует, чтобы обе таблицы были отсортированы по ключу.</p></div>
+        <div class="trap"><span class="n">2</span><h3>interpolate для курса валют</h3><p>interpolate рисует плавную линию между точками. Официальный курс в выходные не меняется, поэтому для него правильный способ — ffill.</p></div>
+        <div class="trap"><span class="n">3</span><h3>asfreq без даты в индексе</h3><p>asfreq и resample работают по индексу. Сначала <code class="i">set_index("date")</code>, иначе pandas не поймёт, по какой колонке строить календарь.</p></div>
+        <div class="trap"><span class="n">4</span><h3>Неполная последняя неделя</h3><p>Если данные заканчиваются в среду, последняя группа <code class="i">freq="W"</code> будет за 3 дня и «упадёт». Подписывай это в отчёте или отрезай неполный период.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Рекорд по сглаженному ряду</h3><p>expanding().max() по ewm или rolling покажет рекорд сглаженной линии, а не реальный лучший день. Решай заранее, какой рекорд тебе нужен.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: время, продвинутый уровень</h3>
+        <ol><li>s.asfreq(&#34;D&#34;) / pd.date_range(a, b) <span>— полный календарь</span></li><li>s.ffill() / s.interpolate(method=&#34;time&#34;) <span>— заполнить пропуски</span></li><li>pd.merge_asof(left, right, left_on=&#34;d1&#34;, right_on=&#34;d2&#34;) <span>— ближайшая прошлая дата</span></li><li>merge_asof(..., direction=&#34;nearest&#34;) <span>— ближайшая с любой стороны</span></li><li>s.expanding().max() / .mean() <span>— накопленный рекорд / среднее</span></li><li>s.ewm(span=7).mean() <span>— экспоненциальное сглаживание</span></li><li>groupby([pd.Grouper(key=&#34;d&#34;, freq=&#34;MS&#34;), &#34;cat&#34;]) <span>— месяц + категория</span></li><li>s.dt.tz_localize(&#34;UTC&#34;).dt.tz_convert(&#34;Asia/Tashkent&#34;) <span>— часовой пояс</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">06 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Курс опубликован в пятницу, в субботу его нет. Какой курс действует в субботу?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Никакой</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Пятничный — его даёт ffill</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Среднее пятницы и понедельника</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Нулевой</span></button></div>
+          <div class="why" hidden>Официальный курс действует до публикации следующего, поэтому пропуск заполняют последним известным значением.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. Что делает <code>pd.merge_asof</code> с direction="backward"?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ищет точное совпадение ключей</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Берёт последнюю строку справа, у которой ключ ≤ ключа слева</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Берёт следующую строку</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Удаляет строки без пары</span></button></div>
+          <div class="why" hidden>Это «ближайшая прошлая дата»: заказ получает последний курс до момента заказа.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Значения 3, 5, 4, 8. Что вернёт <code>expanding().max()</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>3, 5, 4, 8</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>3, 5, 5, 8</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>8, 8, 8, 8</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>3, 8, 8, 8</span></button></div>
+          <div class="why" hidden>Каждая строка — максимум с начала до неё: 3, затем 5, затем всё ещё 5, затем 8.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Чем ewm отличается от rolling?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В ewm свежие значения весят больше, чем старые</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>ewm считает сумму, rolling — среднее</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>ewm работает только с датами</span></button></div>
+          <div class="why" hidden>Экспоненциальные веса делают ewm чувствительнее к последним изменениям.</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Нужна выручка по месяцам и категориям одной группировкой. Что поставить в groupby?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>resample("MS")</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>[pd.Grouper(key="order_date", freq="MS"), "category"]</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>["order_date", "category"]</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>pd.date_range</span></button></div>
+          <div class="why" hidden>Grouper задаёт период по колонке с датой и сочетается с обычными колонками.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">07 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Календарь курса</h3>
+            <ol class='steps-t'><li>Сделай Series курса <code class='i'>r</code>: индекс — дата, значения — usd_uzs.</li> <li>Растяни её до полного календаря по дням → <code class='i'>daily</code>.</li> <li>Напечатай в одну строку: сколько дней в календаре и сколько из них без курса.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">r =
+daily =
+
+# дней и пропусков
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">272 82</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>r =
+daily =
+
+# дней и пропусков
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Календарь строят по индексу, поэтому сначала дату нужно сделать подписями строк. Потом одна команда растянет ряд на каждый день подряд, а пропущенные дни получат NaN.</p>
+<p><b>Чем это сделать.</b> <code class="i">t.set_index("date")["колонка"]</code> — Series с датой в индексе. <code class="i">s.asfreq("D")</code> — по строке на каждый день. <code class="i">s.isna().sum()</code> — сколько пропусков.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>r = rate.set_index(&#34;___&#34;)[&#34;usd_uzs&#34;]
+daily = r.asfreq(&#34;___&#34;)
+print(len(daily), daily.___().sum())</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">rate.asfreq("D")</code> без set_index не сработает: у таблицы индекс — номера строк, а не даты.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Курс на любой день</h3>
+            <p>Ряд <code class='i'>daily</code> из задачи 1 уже готов.</p> <ol class='steps-t'><li>Заполни пропуски последним известным курсом → <code class='i'>filled</code>.</li> <li>Напечатай в одну строку курс на 1 сентября (праздник) и на 6 сентября (воскресенье).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>daily = rate.set_index(&#34;date&#34;)[&#34;usd_uzs&#34;].asfreq(&#34;D&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2">filled =
+
+# курс 1 и 6 сентября
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">13104.2 13107.39</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>filled =
+
+# курс 1 и 6 сентября
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> В выходные действует последний опубликованный курс. Значит, каждый пропуск нужно заполнить предыдущим известным значением.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.ffill()</code> — протянуть последнее известное значение вперёд. <code class="i">s.loc["2026-09-01"]</code> — значение по дате.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>filled = daily.___()
+print(filled.loc[&#34;___&#34;], filled.loc[&#34;___&#34;])</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">bfill()</code> возьмёт курс следующего рабочего дня — в выходные он ещё не был известен.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>ffill против interpolate</h3>
+            <ol class='steps-t'><li>Сделай таблицу с двумя колонками: <code class='i'>ffill</code> — пропуски заполнены последним значением, <code class='i'>interp</code> — заполнены через <code class='i'>interpolate(method="time")</code>.</li> <li>Выведи строки с 7 по 11 мая включительно, округлив до 2 знаков.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>daily = rate.set_index(&#34;date&#34;)[&#34;usd_uzs&#34;].asfreq(&#34;D&#34;)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3">t = pd.DataFrame({
+    # твой код
+})
+t.loc[&#34;2026-05-07&#34;:&#34;2026-05-11&#34;]
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">               ffill    interp
+date
+2026-05-07  12935.99  12935.99
+2026-05-08  12933.93  12933.93
+2026-05-09  12933.93  12936.86
+2026-05-10  12933.93  12939.80
+2026-05-11  12942.73  12942.73</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>t = pd.DataFrame({
+    # твой код
+})
+t.loc[&#34;2026-05-07&#34;:&#34;2026-05-11&#34;]
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Нужно сравнить два способа заполнения на одних и тех же днях. Собери оба ряда в одну таблицу и вырежи нужные даты.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.interpolate(method="time")</code> — прямая между соседними точками с учётом расстояния по времени. Срез по датам <code class="i">t.loc["a":"b"]</code> включает обе границы.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>t = pd.DataFrame({
+    &#34;ffill&#34;: daily.___(),
+    &#34;interp&#34;: daily.interpolate(method=&#34;___&#34;),
+}).round(2)
+t.loc[&#34;2026-05-___&#34;:&#34;2026-05-___&#34;]</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">.loc["2026-05-07":"2026-05-10"]</code> не захватит 11 мая — проверь вторую границу.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Продажи в долларах</h3>
+            <ol class='steps-t'><li>Отсортируй заказы по дате и соедини с курсом через <code class='i'>pd.merge_asof</code> (последний курс до даты заказа). Напечатай, сколько заказов осталось без курса.</li> <li>Сделай то же с <code class='i'>direction="nearest"</code> → <code class='i'>m</code>, добавь колонку <code class='i'>usd</code> = amount / usd_uzs.</li> <li>Напечатай сумму продаж в долларах, целое число.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">o = orders.sort_values(&#34;order_date&#34;)
+back =
+# заказов без курса
+
+m =
+m[&#34;usd&#34;] =
+# всего в долларах
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">3
+21667</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>o = orders.sort_values(&#34;order_date&#34;)
+back =
+# заказов без курса
+
+m =
+m[&#34;usd&#34;] =
+# всего в долларах
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Каждому заказу нужен последний курс на дату заказа. Это соединение «по ближайшей прошлой дате», и обе таблицы должны быть отсортированы. Заказы раньше первого курса останутся без пары — для них возьми ближайший курс с любой стороны.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.merge_asof(left, right, left_on="d1", right_on="d2")</code> — по умолчанию direction="backward". <code class="i">direction="nearest"</code> — ближайшая дата с любой стороны.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>o = orders.sort_values(&#34;___&#34;)
+back = pd.merge_asof(o, rate, left_on=&#34;order_date&#34;, right_on=&#34;___&#34;)
+print(back[&#34;usd_uzs&#34;].isna().___())
+m = pd.merge_asof(o, rate, left_on=&#34;order_date&#34;, right_on=&#34;date&#34;, direction=&#34;___&#34;)
+m[&#34;usd&#34;] = m[&#34;amount&#34;] / m[&#34;___&#34;]
+print(round(m[&#34;usd&#34;].sum()))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Обычный <code class="i">merge(on=дата)</code> потеряет все заказы выходных и праздников: в эти дни курса в таблице нет.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Месяцы × категории</h3>
+            <ol class='steps-t'><li>Одной группировкой посчитай продажи в сумах по месяцу (<code class='i'>pd.Grouper</code>, начало месяца) и категории.</li> <li>Сделай широкую таблицу: строки — месяцы, колонки — категории, значения — млн сум, 1 знак.</li> <li>Выведи таблицу.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">t = (
+    orders
+    # твой код
+)
+t
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category    Бизнес  Детская  Учебная  Художественная
+order_date
+2026-01-01     3.5      4.4      5.5             9.1
+2026-02-01     3.1      5.3      5.9             8.9
+2026-03-01     3.9      9.7      7.3            11.3
+2026-04-01     5.6      9.4      7.6            15.4
+2026-05-01     6.1     12.8      7.1            14.1
+2026-06-01     7.8     13.7      9.2            16.9
+2026-07-01     5.4      8.8      6.9            12.8
+2026-08-01     3.8      5.8      4.5            11.4
+2026-09-01     2.6      3.8      3.7             6.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>t = (
+    orders
+    # твой код
+)
+t
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Нужно сгруппировать сразу по месяцу и по категории. resample так не умеет, а специальный «ключ времени» можно поставить в groupby рядом с обычной колонкой.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.Grouper(key="колонка_с_датой", freq="MS")</code> — месяц (метка — первое число). <code class="i">.unstack()</code> — категории в колонки.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>t = (
+    orders
+    .groupby([pd.Grouper(key=&#34;___&#34;, freq=&#34;___&#34;), &#34;___&#34;])[&#34;amount&#34;].sum()
+    .unstack()
+    .div(1e6)
+    .round(1)
+)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">freq="M"</code> в pandas 3 выдаёт ошибку — для конца месяца пишут "ME", для начала — "MS".</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Тренд без шума</h3>
+            <ol class='steps-t'><li>Посчитай выручку по дням (<code class='i'>resample("D")</code>) → <code class='i'>day</code>.</li> <li>Таблица: <code class='i'>day</code>, <code class='i'>rolling_7</code> — среднее за 7 дней, <code class='i'>ewm_7</code> — <code class='i'>ewm(span=7)</code>. Всё в млн сум, 2 знака.</li> <li>Выведи последние 5 дней сентября.</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">day =
+t = pd.DataFrame({
+    # твой код
+})
+t.tail(5)
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">             day  rolling_7  ewm_7
+order_date
+2026-09-26  1.04       0.59   0.65
+2026-09-27  0.82       0.63   0.70
+2026-09-28  0.00       0.54   0.52
+2026-09-29  1.13       0.62   0.67
+2026-09-30  0.36       0.59   0.60</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>day =
+t = pd.DataFrame({
+    # твой код
+})
+t.tail(5)
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Сначала получи выручку по каждому дню, потом два сглаживания: обычное скользящее среднее и экспоненциальное.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.resample("D").sum()</code> — по дням (дата в индексе). <code class="i">s.rolling(7).mean()</code> и <code class="i">s.ewm(span=7).mean()</code>. <code class="i">.div(1e6).round(2)</code> — в миллионы.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>day = orders.set_index(&#34;___&#34;)[&#34;amount&#34;].resample(&#34;___&#34;).sum()
+t = pd.DataFrame({
+    &#34;day&#34;: day,
+    &#34;rolling_7&#34;: day.rolling(___).mean(),
+    &#34;ewm_7&#34;: day.ewm(span=___).mean(),
+}).div(1e6).round(2)
+t.tail(5)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">groupby("order_date").sum()</code> пропустит дни без заказов, и окно в 7 строк окажется длиннее 7 дней.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Рекорды месяцев в долларах</h3>
+            <p>Таблица <code class='i'>m</code> из задачи 4 (с колонкой usd) уже готова.</p> <ol class='steps-t'><li>Посчитай продажи в долларах по месяцам → <code class='i'>mon</code>.</li> <li>Таблица: <code class='i'>usd</code> — продажи месяца, <code class='i'>record</code> — лучший месяц на этот момент, <code class='i'>avg_so_far</code> — среднее месяцев с начала года. Всё целыми числами.</li> <li>Выведи таблицу и напечатай, на сколько процентов последний месяц ниже рекорда (1 знак).</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>m = pd.merge_asof(orders.sort_values(&#34;order_date&#34;), rate, left_on=&#34;order_date&#34;, right_on=&#34;date&#34;, direction=&#34;nearest&#34;)
+m[&#34;usd&#34;] = m[&#34;amount&#34;] / m[&#34;usd_uzs&#34;]</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 23 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">mon =
+t = pd.DataFrame({
+    # твой код
+})
+print(t)
+# насколько последний месяц ниже рекорда, %
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">             usd  record  avg_so_far
+order_date
+2026-01-01  1780    1780        1780
+2026-02-01  1834    1834        1807
+2026-03-01  2529    2529        2048
+2026-04-01  2964    2964        2277
+2026-05-01  3097    3097        2441
+2026-06-01  3661    3661        2644
+2026-07-01  2602    3661        2638
+2026-08-01  1936    3661        2550
+2026-09-01  1264    3661        2407
+65.5</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>mon =
+t = pd.DataFrame({
+    # твой код
+})
+print(t)
+# насколько последний месяц ниже рекорда, %
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> «Лучший месяц на этот момент» — это максимум в растущем окне от начала года до текущего месяца. Средний месяц «с начала года» — среднее в таком же окне.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.expanding().max()</code> и <code class="i">s.expanding().mean()</code>. Целые числа: <code class="i">.round().astype(int)</code>. Падение от рекорда: <code class="i">1 - последний / максимум</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>mon = m.set_index(&#34;order_date&#34;)[&#34;usd&#34;].resample(&#34;___&#34;).sum()
+t = pd.DataFrame({
+    &#34;usd&#34;: mon,
+    &#34;record&#34;: mon.expanding().___(),
+    &#34;avg_so_far&#34;: mon.expanding().___(),
+}).round().astype(int)
+print(t)
+print(round((1 - mon.iloc[___] / mon.max()) * 100, 1))</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">mon.max()</code> без expanding даст одно число на весь год, а не рекорд на каждый момент.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">08 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Мадине: продажи в долларах</h2>
+      <div class="case">
+        <p>Напиши ответ Мадине. Не больше 6 предложений. Структура: <b>продажи за январь–сентябрь в сумах и в долларах → как изменился курс → лучший месяц в долларах → где сейчас последний месяц относительно рекорда → что показывает сглаженный тренд → 1 оговорка</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Продажи в долларах за январь–сентябрь</span><span class="fact-chip">Рост курса</span><span class="fact-chip">Лучший месяц в долларах</span><span class="fact-chip">Сентябрь ниже рекорда</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Мадина, привет! Продажи в долларах: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Какой курс ты берёшь для заказов в выходные?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Последний опубликованный (пятничный)</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Курс следующего понедельника</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Среднее за неделю</span></button></div>
+            <div class="why" hidden>Официальный курс действует до публикации следующего — это ffill или merge_asof с direction="backward".</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Какой месяц, по твоему ответу, лучший?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Июнь</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Сентябрь</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Январь</span></button></div>
+            <div class="why" hidden>В июне продажи 3 661 долл. — максимум, после него рекорд не обновлялся.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. Почему в долларах спад заметнее, чем в сумах?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Курс вырос, и за те же сумы получается меньше долларов</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>В долларах меньше заказов</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Из-за округления</span></button></div>
+            <div class="why" hidden>За период курс вырос на 4,3%: одинаковая выручка в сумах к сентябрю стоит меньше долларов.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Мадина, привет! За январь–сентябрь Kitobxon продал книг на 279,9 млн сум — по курсу дня каждого заказа это 21 667 долл. Курс за это время вырос на 4,3%, поэтому в долларах падение последних месяцев чуть заметнее, чем в сумах. Лучший месяц — июнь: 3 661 долл., а сентябрь (1 264 долл.) на 65,5% ниже этого рекорда. Сглаженный тренд к концу сентября — около 0,60 млн сум в день, то есть спад после лета продолжается. Для выходных и праздников взят последний опубликованный курс, а 3 заказа 1 января посчитаны по курсу 2 января — раньше данных нет.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Продажи в сумах и в долларах</li><li>Рост курса за период</li><li>Лучший месяц и сумма</li><li>Последний месяц относительно рекорда</li><li>Оговорка про выходные и 1 января</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">09 · Завершить урок</div>
+        <h2>Закрыть урок 23</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/22-vlozhennye-dannye/"><small>← Урок 22</small><b>Вложенные данные: JSON, explode, apply</b></a><a class="nx" href="../../lessons/24-vektorizaciya/"><small>Урок 24 →</small><b>Скорость: векторизация вместо циклов и apply</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611072255"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611072255"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u041f\u0440\u043e\u0434\u0430\u0436\u0438 \u0432 \u0434\u043e\u043b\u043b\u0430\u0440\u0430\u0445 \u0437\u0430 \u044f\u043d\u0432\u0430\u0440\u044c\u2013\u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c", "value": 21667}, {"name": "\u0420\u043e\u0441\u0442 \u043a\u0443\u0440\u0441\u0430", "pct": true, "value": 4.3}, {"name": "\u041b\u0443\u0447\u0448\u0438\u0439 \u043c\u0435\u0441\u044f\u0446 \u0432 \u0434\u043e\u043b\u043b\u0430\u0440\u0430\u0445", "value": 3661}, {"name": "\u0421\u0435\u043d\u0442\u044f\u0431\u0440\u044c \u043d\u0438\u0436\u0435 \u0440\u0435\u043a\u043e\u0440\u0434\u0430", "pct": true, "value": 65.5}], "logic": [{"a": 0, "o": ["\u041f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u043d\u044b\u0439 (\u043f\u044f\u0442\u043d\u0438\u0447\u043d\u044b\u0439)", "\u041a\u0443\u0440\u0441 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u0433\u043e \u043f\u043e\u043d\u0435\u0434\u0435\u043b\u044c\u043d\u0438\u043a\u0430", "\u0421\u0440\u0435\u0434\u043d\u0435\u0435 \u0437\u0430 \u043d\u0435\u0434\u0435\u043b\u044e"], "q": "\u041a\u0430\u043a\u043e\u0439 \u043a\u0443\u0440\u0441 \u0442\u044b \u0431\u0435\u0440\u0451\u0448\u044c \u0434\u043b\u044f \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u0432 \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0435?", "why": "\u041e\u0444\u0438\u0446\u0438\u0430\u043b\u044c\u043d\u044b\u0439 \u043a\u0443\u0440\u0441 \u0434\u0435\u0439\u0441\u0442\u0432\u0443\u0435\u0442 \u0434\u043e \u043f\u0443\u0431\u043b\u0438\u043a\u0430\u0446\u0438\u0438 \u0441\u043b\u0435\u0434\u0443\u044e\u0449\u0435\u0433\u043e \u2014 \u044d\u0442\u043e ffill \u0438\u043b\u0438 merge_asof \u0441 direction=\"backward\"."}, {"a": 0, "o": ["\u0418\u044e\u043d\u044c", "\u0421\u0435\u043d\u0442\u044f\u0431\u0440\u044c", "\u042f\u043d\u0432\u0430\u0440\u044c"], "q": "\u041a\u0430\u043a\u043e\u0439 \u043c\u0435\u0441\u044f\u0446, \u043f\u043e \u0442\u0432\u043e\u0435\u043c\u0443 \u043e\u0442\u0432\u0435\u0442\u0443, \u043b\u0443\u0447\u0448\u0438\u0439?", "why": "\u0412 \u0438\u044e\u043d\u0435 \u043f\u0440\u043e\u0434\u0430\u0436\u0438 3 661 \u0434\u043e\u043b\u043b. \u2014 \u043c\u0430\u043a\u0441\u0438\u043c\u0443\u043c, \u043f\u043e\u0441\u043b\u0435 \u043d\u0435\u0433\u043e \u0440\u0435\u043a\u043e\u0440\u0434 \u043d\u0435 \u043e\u0431\u043d\u043e\u0432\u043b\u044f\u043b\u0441\u044f."}, {"a": 0, "o": ["\u041a\u0443\u0440\u0441 \u0432\u044b\u0440\u043e\u0441, \u0438 \u0437\u0430 \u0442\u0435 \u0436\u0435 \u0441\u0443\u043c\u044b \u043f\u043e\u043b\u0443\u0447\u0430\u0435\u0442\u0441\u044f \u043c\u0435\u043d\u044c\u0448\u0435 \u0434\u043e\u043b\u043b\u0430\u0440\u043e\u0432", "\u0412 \u0434\u043e\u043b\u043b\u0430\u0440\u0430\u0445 \u043c\u0435\u043d\u044c\u0448\u0435 \u0437\u0430\u043a\u0430\u0437\u043e\u0432", "\u0418\u0437-\u0437\u0430 \u043e\u043a\u0440\u0443\u0433\u043b\u0435\u043d\u0438\u044f"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u0432 \u0434\u043e\u043b\u043b\u0430\u0440\u0430\u0445 \u0441\u043f\u0430\u0434 \u0437\u0430\u043c\u0435\u0442\u043d\u0435\u0435, \u0447\u0435\u043c \u0432 \u0441\u0443\u043c\u0430\u0445?", "why": "\u0417\u0430 \u043f\u0435\u0440\u0438\u043e\u0434 \u043a\u0443\u0440\u0441 \u0432\u044b\u0440\u043e\u0441 \u043d\u0430 4,3%: \u043e\u0434\u0438\u043d\u0430\u043a\u043e\u0432\u0430\u044f \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0432 \u0441\u0443\u043c\u0430\u0445 \u043a \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044e \u0441\u0442\u043e\u0438\u0442 \u043c\u0435\u043d\u044c\u0448\u0435 \u0434\u043e\u043b\u043b\u0430\u0440\u043e\u0432."}]}, "case_model": "\u041c\u0430\u0434\u0438\u043d\u0430, \u043f\u0440\u0438\u0432\u0435\u0442! \u0417\u0430 \u044f\u043d\u0432\u0430\u0440\u044c\u2013\u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c Kitobxon \u043f\u0440\u043e\u0434\u0430\u043b \u043a\u043d\u0438\u0433 \u043d\u0430 279,9 \u043c\u043b\u043d \u0441\u0443\u043c \u2014 \u043f\u043e \u043a\u0443\u0440\u0441\u0443 \u0434\u043d\u044f \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0437\u0430\u043a\u0430\u0437\u0430 \u044d\u0442\u043e 21 667 \u0434\u043e\u043b\u043b. \u041a\u0443\u0440\u0441 \u0437\u0430 \u044d\u0442\u043e \u0432\u0440\u0435\u043c\u044f \u0432\u044b\u0440\u043e\u0441 \u043d\u0430 4,3%, \u043f\u043e\u044d\u0442\u043e\u043c\u0443 \u0432 \u0434\u043e\u043b\u043b\u0430\u0440\u0430\u0445 \u043f\u0430\u0434\u0435\u043d\u0438\u0435 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0445 \u043c\u0435\u0441\u044f\u0446\u0435\u0432 \u0447\u0443\u0442\u044c \u0437\u0430\u043c\u0435\u0442\u043d\u0435\u0435, \u0447\u0435\u043c \u0432 \u0441\u0443\u043c\u0430\u0445. \u041b\u0443\u0447\u0448\u0438\u0439 \u043c\u0435\u0441\u044f\u0446 \u2014 \u0438\u044e\u043d\u044c: 3 661 \u0434\u043e\u043b\u043b., \u0430 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044c (1 264 \u0434\u043e\u043b\u043b.) \u043d\u0430 65,5% \u043d\u0438\u0436\u0435 \u044d\u0442\u043e\u0433\u043e \u0440\u0435\u043a\u043e\u0440\u0434\u0430. \u0421\u0433\u043b\u0430\u0436\u0435\u043d\u043d\u044b\u0439 \u0442\u0440\u0435\u043d\u0434 \u043a \u043a\u043e\u043d\u0446\u0443 \u0441\u0435\u043d\u0442\u044f\u0431\u0440\u044f \u2014 \u043e\u043a\u043e\u043b\u043e 0,60 \u043c\u043b\u043d \u0441\u0443\u043c \u0432 \u0434\u0435\u043d\u044c, \u0442\u043e \u0435\u0441\u0442\u044c \u0441\u043f\u0430\u0434 \u043f\u043e\u0441\u043b\u0435 \u043b\u0435\u0442\u0430 \u043f\u0440\u043e\u0434\u043e\u043b\u0436\u0430\u0435\u0442\u0441\u044f. \u0414\u043b\u044f \u0432\u044b\u0445\u043e\u0434\u043d\u044b\u0445 \u0438 \u043f\u0440\u0430\u0437\u0434\u043d\u0438\u043a\u043e\u0432 \u0432\u0437\u044f\u0442 \u043f\u043e\u0441\u043b\u0435\u0434\u043d\u0438\u0439 \u043e\u043f\u0443\u0431\u043b\u0438\u043a\u043e\u0432\u0430\u043d\u043d\u044b\u0439 \u043a\u0443\u0440\u0441, \u0430 3 \u0437\u0430\u043a\u0430\u0437\u0430 1 \u044f\u043d\u0432\u0430\u0440\u044f \u043f\u043e\u0441\u0447\u0438\u0442\u0430\u043d\u044b \u043f\u043e \u043a\u0443\u0440\u0441\u0443 2 \u044f\u043d\u0432\u0430\u0440\u044f \u2014 \u0440\u0430\u043d\u044c\u0448\u0435 \u0434\u0430\u043d\u043d\u044b\u0445 \u043d\u0435\u0442.", "case_xp": 30, "cheat": [["s.asfreq(\"D\") / pd.date_range(a, b)", "\u043f\u043e\u043b\u043d\u044b\u0439 \u043a\u0430\u043b\u0435\u043d\u0434\u0430\u0440\u044c"], ["s.ffill() / s.interpolate(method=\"time\")", "\u0437\u0430\u043f\u043e\u043b\u043d\u0438\u0442\u044c \u043f\u0440\u043e\u043f\u0443\u0441\u043a\u0438"], ["pd.merge_asof(left, right, left_on=\"d1\", right_on=\"d2\")", "\u0431\u043b\u0438\u0436\u0430\u0439\u0448\u0430\u044f \u043f\u0440\u043e\u0448\u043b\u0430\u044f \u0434\u0430\u0442\u0430"], ["merge_asof(..., direction=\"nearest\")", "\u0431\u043b\u0438\u0436\u0430\u0439\u0448\u0430\u044f \u0441 \u043b\u044e\u0431\u043e\u0439 \u0441\u0442\u043e\u0440\u043e\u043d\u044b"], ["s.expanding().max() / .mean()", "\u043d\u0430\u043a\u043e\u043f\u043b\u0435\u043d\u043d\u044b\u0439 \u0440\u0435\u043a\u043e\u0440\u0434 / \u0441\u0440\u0435\u0434\u043d\u0435\u0435"], ["s.ewm(span=7).mean()", "\u044d\u043a\u0441\u043f\u043e\u043d\u0435\u043d\u0446\u0438\u0430\u043b\u044c\u043d\u043e\u0435 \u0441\u0433\u043b\u0430\u0436\u0438\u0432\u0430\u043d\u0438\u0435"], ["groupby([pd.Grouper(key=\"d\", freq=\"MS\"), \"cat\"])", "\u043c\u0435\u0441\u044f\u0446 + \u043a\u0430\u0442\u0435\u0433\u043e\u0440\u0438\u044f"], ["s.dt.tz_localize(\"UTC\").dt.tz_convert(\"Asia/Tashkent\")", "\u0447\u0430\u0441\u043e\u0432\u043e\u0439 \u043f\u043e\u044f\u0441"]], "data": "../../data/", "datasets": ["kitobxon_orders.csv", "valyuta_kurs.csv"], "day": 23, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\norders = pd.read_csv(\"kitobxon_orders.csv\", parse_dates=[\"order_date\"])\nrate = pd.read_csv(\"valyuta_kurs.csv\", parse_dates=[\"date\"])", "tasks": [{"figure": false, "id": "t1", "keys": ["272 82"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["13104.2 13107.39"], "setup": "daily = rate.set_index(\"date\")[\"usd_uzs\"].asfreq(\"D\")", "xp": 10}, {"figure": false, "id": "t3", "keys": ["ffill interp", "date", "2026-05-07 12935.99 12935.99", "2026-05-08 12933.93 12933.93", "2026-05-09 12933.93 12936.86", "2026-05-10 12933.93 12939.80", "2026-05-11 12942.73 12942.73"], "setup": "daily = rate.set_index(\"date\")[\"usd_uzs\"].asfreq(\"D\")", "xp": 15}, {"figure": false, "id": "t4", "keys": ["3", "21667"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["category \u0411\u0438\u0437\u043d\u0435\u0441 \u0414\u0435\u0442\u0441\u043a\u0430\u044f \u0423\u0447\u0435\u0431\u043d\u0430\u044f \u0425\u0443\u0434\u043e\u0436\u0435\u0441\u0442\u0432\u0435\u043d\u043d\u0430\u044f", "order_date", "2026-01-01 3.5 4.4 5.5 9.1", "2026-02-01 3.1 5.3 5.9 8.9", "2026-06-01 7.8 13.7 9.2 16.9", "2026-07-01 5.4 8.8 6.9 12.8", "2026-08-01 3.8 5.8 4.5 11.4", "2026-09-01 2.6 3.8 3.7 6.5"], "setup": "", "xp": 20}, {"figure": false, "id": "t6", "keys": ["day rolling_7 ewm_7", "order_date", "2026-09-26 1.04 0.59 0.65", "2026-09-27 0.82 0.63 0.70", "2026-09-28 0.00 0.54 0.52", "2026-09-29 1.13 0.62 0.67", "2026-09-30 0.36 0.59 0.60"], "setup": "", "xp": 15}, {"figure": false, "id": "t7", "keys": ["usd record avg_so_far", "order_date", "2026-01-01 1780 1780 1780", "2026-02-01 1834 1834 1807", "2026-07-01 2602 3661 2638", "2026-08-01 1936 3661 2550", "2026-09-01 1264 3661 2407", "65.5"], "setup": "m = pd.merge_asof(orders.sort_values(\"order_date\"), rate, left_on=\"order_date\", right_on=\"date\", direction=\"nearest\")\nm[\"usd\"] = m[\"amount\"] / m[\"usd_uzs\"]", "xp": 25}], "theory": ["brief", "calendar", "asof", "windows", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611072255"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

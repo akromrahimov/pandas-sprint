@@ -1,0 +1,724 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<script>try{var s=localStorage.getItem("pandas-sprint:skin");if(s==="cornflower")document.documentElement.setAttribute("data-skin",s)}catch(e){}</script>
+<style>@view-transition{navigation:auto}::view-transition-old(root),::view-transition-new(root){animation-duration:.18s}.site-head{view-transition-name:site-head}@media (prefers-reduced-motion:reduce){@view-transition{navigation:none}}</style>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Урок 22. Вложенные данные: JSON, explode, apply — Pandas Sprint</title>
+<meta name="description" content="Урок 22 курса Pandas Sprint — Вложенные данные: JSON, explode, apply. Раскладывать JSON из API и списки внутри ячеек в обычные таблицы.">
+<link rel="canonical" href="https://akromrahimov.github.io/pandas-sprint/lessons/22-vlozhennye-dannye/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Pandas Sprint">
+<meta property="og:title" content="Урок 22. Вложенные данные: JSON, explode, apply — Pandas Sprint">
+<meta property="og:description" content="Урок 22 курса Pandas Sprint — Вложенные данные: JSON, explode, apply. Раскладывать JSON из API и списки внутри ячеек в обычные таблицы.">
+<meta property="og:url" content="https://akromrahimov.github.io/pandas-sprint/lessons/22-vlozhennye-dannye/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='10' y='10' width='18' height='18' rx='3' fill='%23E70488'/%3E%3Crect x='4' y='4' width='18' height='18' rx='3' fill='%23FFCA00'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="expect" href="#page-ready" blocking="render">
+<script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.css"><link rel="stylesheet" href="../../static/css/style.css?v=202611072255">
+</head>
+<body>
+<header class="site-head">
+  <div class="in">
+    <a class="brand" href="../../"><i></i><span>PANDAS SPRINT</span></a>
+    <nav class="nav" aria-label="Разделы сайта">
+      <a href="../../program/"><span class="lg-only">Программа</span><span class="sm-only">Уроки</span></a>
+      <a href="../../start/">Как начать</a>
+      <a href="../../progress/"><span class="lg-only">Мой прогресс</span><span class="sm-only">Прогресс</span></a>
+    </nav>
+    <div class="prefs" data-prefs>
+      <button type="button" class="prefs-btn" aria-haspopup="true" aria-expanded="false" aria-label="Настройки" title="Настройки">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37c1 .608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+      <div class="prefs-pop" role="dialog" aria-label="Настройки" hidden>
+        <h3>Настройки</h3>
+        <div class="prefs-sec" role="radiogroup" aria-label="Фон">
+          <b>Фон</b>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="default" aria-checked="true">
+            <span class="pv" style="background:#0E0B22"><i style="left:6px;top:6px;width:24px;height:6px;background:#FFCA00"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#B9A8FF"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#FF5CB0"></i></span>
+            <span><b>Стандартный</b><small>тёмно-синий или светлый — как на устройстве</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+          <button type="button" class="skin-opt" role="radio" data-skin-opt="cornflower" aria-checked="false">
+            <span class="pv" style="background:#FDFDF5"><i style="left:6px;top:6px;width:24px;height:6px;background:#3D568F"></i><i style="left:6px;top:17px;width:40px;height:4px;background:#9FBAF1"></i><i style="left:6px;top:27px;width:30px;height:10px;background:#EAF3B2"></i></span>
+            <span><b>Васильковое поле</b><small>кремовый фон, васильковый и синий, лаймовые акценты</small></span>
+            <span class="ck" aria-hidden="true">✓</span>
+          </button>
+        </div>
+      </div>
+    </div>
+    <div class="auth" data-auth hidden>
+      <button type="button" class="auth-btn" aria-haspopup="true" aria-expanded="false" aria-label="Аккаунт"><span class="auth-ava" aria-hidden="true"></span><span class="auth-lab">Войти</span></button>
+      <div class="auth-pop" hidden>
+        <div data-out>
+          <b>Сохраняй прогресс в облаке</b>
+          <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
+          <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+        </div>
+        <div data-in hidden>
+          <b data-auth-name></b>
+          <small data-auth-mail></small>
+          <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
+        </div>
+      </div>
+    </div>
+    <script>
+    /* Аккаунт в шапке рисуется прямо здесь, вместе с шапкой, по запомненному профилю: кто вошёл, сразу видит
+       свой аватар — без мигания «Войти» и без появления кнопки чуть позже остального. auth.js потом проверяет
+       вход в Firebase и перерисовывает, если что-то изменилось. */
+    window.AuthView = {
+      KEY: "pandas-sprint:profile",
+      remember(p) { try { p ? localStorage.setItem(this.KEY, JSON.stringify(p)) : localStorage.removeItem(this.KEY); } catch (e) {} },
+      cached() { try { return JSON.parse(localStorage.getItem(this.KEY)); } catch (e) { return null; } },
+      paint(p) {
+        const box = document.querySelector("[data-auth]");
+        if (!box) return;
+        box.hidden = false;
+        box.classList.toggle("in", !!p);
+        box.querySelector("[data-out]").hidden = !!p;
+        box.querySelector("[data-in]").hidden = !p;
+        const ava = box.querySelector(".auth-ava"), btn = box.querySelector(".auth-btn");
+        ava.textContent = "";
+        if (p) {
+          box.querySelector("[data-auth-name]").textContent = p.name || "Ученик";
+          box.querySelector("[data-auth-mail]").textContent = p.email || "";
+          // фото Google — через <img referrerpolicy="no-referrer">, иначе Google часто не отдаёт его; не загрузилось — первая буква
+          const letter = () => { ava.textContent = (p.name || p.email || "?")[0].toUpperCase(); };
+          if (p.photo) { const img = new Image(); img.referrerPolicy = "no-referrer"; img.alt = ""; img.onerror = letter; img.src = p.photo; ava.appendChild(img); }
+          else letter();
+          box.querySelector(".auth-lab").textContent = "";
+          btn.setAttribute("aria-label", "Аккаунт: " + (p.name || p.email));
+        } else {
+          box.querySelector(".auth-lab").textContent = "Войти";
+          btn.setAttribute("aria-label", "Войти через Google");
+        }
+        // баннеры «войди, чтобы не потерять прогресс» (страница прогресса): скрыты, если вошёл
+        document.documentElement.classList.toggle("signed-in", !!p);
+        document.querySelectorAll("[data-auth-banner]").forEach(b => (b.hidden = !!p));
+      },
+    };
+    AuthView.paint(AuthView.cached());
+    </script>
+  </div>
+</header>
+
+<div class="lesson" data-day="22">
+  <aside class="rail">
+    <ol class="outline">
+      <li><a href="#brief"><span class="dot">✓</span>Брифинг</a></li>
+<li><a href="#json"><span class="dot">✓</span>JSON</a></li><li><a href="#lists"><span class="dot">✓</span>Списки</a></li><li><a href="#apply"><span class="dot">✓</span>map и apply</a></li><li><a href="#traps"><span class="dot">✓</span>Ловушки</a></li>      <li><a href="#quiz"><span class="dot">✓</span>Квиз</a></li>
+      <li><a href="#practice"><span class="dot">✓</span>Практика</a></li>
+<li><a href="#case"><span class="dot">✓</span>Кейс</a></li>      <li><a href="#finish"><span class="dot">✓</span>Завершить</a></li>
+    </ol>
+    <div class="meter"><b id="xpNow">0 / 160 XP</b>Задачи: <span id="tasksNow">0 из 7</span><div class="bar"><span id="xpBar"></span></div></div>
+<button type="button" class="sql-btn" data-open-sql><span>SQL</span> → pandas<small>перевод для тех, кто знает SQL</small></button>  </aside>
+  <dialog class="sqldlg" id="sqlDialog" aria-labelledby="sqlTitle">
+    <div class="sqldlg-h"><div><div class="eyebrow">Дополнительно · необязательно</div><h2 id="sqlTitle">Вложенные данные: SQL и pandas</h2></div><button type="button" class="x" data-close-sql aria-label="Закрыть">✕</button></div>
+    <p>В современных базах тоже бывают JSON-поля. Вот как те же действия выглядят в pandas.</p>
+    <div class="scroll"><table class="map">
+      <thead><tr><th>SQL</th><th>pandas</th><th>Что получится</th></tr></thead>
+      <tbody><tr><td><code>SELECT data-&gt;&#39;customer&#39;-&gt;&gt;&#39;city&#39; FROM orders</code></td><td><code>pd.json_normalize(orders)[&#34;customer.city&#34;]</code></td><td>поле из вложенного JSON</td></tr><tr><td><code>UNNEST(tags) / CROSS JOIN LATERAL</code></td><td><code>flat.explode(&#34;tags&#34;)</code></td><td>список → строки</td></tr><tr><td><code>json_table / jsonb_array_elements(items)</code></td><td><code>pd.json_normalize(orders, record_path=&#34;items&#34;, meta=[...])</code></td><td>таблица из списка словарей</td></tr><tr><td><code>CASE status WHEN &#39;delivered&#39; THEN &#39;доставлен&#39; … END</code></td><td><code>flat[&#34;status&#34;].map({&#34;delivered&#34;: &#34;доставлен&#34;, …})</code></td><td>замена по словарю</td></tr><tr><td><code>CASE WHEN status = &#39;delivered&#39; THEN minutes END</code></td><td><code>m.where(flat[&#34;status&#34;] == &#34;delivered&#34;)</code></td><td>значение по условию</td></tr></tbody>
+    </table></div>
+    <p class="note">Не знаешь SQL — просто пропусти: для курса он не нужен.</p>
+  </dialog>
+
+  <main>
+    <section id="top">
+      <div class="eyebrow">Урок 22 из 30 · Неделя 4 · Реальные данные</div>
+      <h1><mark>Вложенные данные</mark>: JSON, списки в ячейках, apply и map</h1>
+      <p class="lead">Данные из приложений и сайтов редко приходят ровной таблицей. Чаще это JSON: внутри заказа — клиент, внутри клиента — город, а блюда лежат списком прямо в одной «ячейке». Сегодня учимся раскладывать такие данные в обычные таблицы: json_normalize, explode, а ещё map, apply, where и mask — для всего, что не делается одной готовой функцией.</p>
+      <div class="chips"><span class="chip">7 задач + бизнес-кейс</span><span class="chip">pandas 3.0</span><span class="chip">160 XP</span><button type="button" class="chip chip-sql" data-open-sql>Знаешь SQL? Перевод на pandas →</button></div>
+      <div class="goal">
+        <div class="goal-main">
+          <div class="eyebrow">Цель урока</div>
+          <p>Разобрать выгрузку API службы доставки Yetkaz за первые две недели октября: какие блюда и теги заказывают, какой средний чек в каждом городе, где опаздывают курьеры и какая кухня сильнее в каком городе.</p>
+          <div class="goal-steps">
+            <a href="#brief" data-step="theory"><span>Теория</span><b>0%</b><i><em></em></i></a>
+            <a href="#quiz" data-step="quiz"><span>Квиз</span><b>0%</b><i><em></em></i></a>
+            <a href="#practice" data-step="tasks"><span>Задачи</span><b>0%</b><i><em></em></i></a>
+<a href="#case" data-step="case"><span>Кейс</span><b>0%</b><i><em></em></i></a>          </div>
+        </div>
+        <div class="ring" id="goalRing" style="--p:0"><b id="goalPct">0%</b><small>урока пройдено</small></div>
+      </div>
+      <h3>После урока ты сможешь</h3>
+      <ul class="can"><li>Превращать вложенный JSON в плоскую таблицу: <code class="i">pd.json_normalize</code></li><li>Раскладывать списки внутри ячеек по строкам: <code class="i">explode</code> и <code class="i">record_path</code></li><li>Заменять значения по словарю через <code class="i">map</code> и применять свою функцию через <code class="i">apply</code></li><li>Оставлять или скрывать значения по условию: <code class="i">where</code> и <code class="i">mask</code></li></ul>
+    </section>
+
+    <section id="brief">
+      <div class="eyebrow">01 · Брифинг</div>
+      <h2>Выгрузка из API — и что с ней делать</h2>
+      <div class="chat">
+        <div class="msg">
+          <div class="who"><span class="ava">Ж</span>Жасур <small>продакт-менеджер Yetkaz · 14:20</small></div>
+          <p>Привет! Разработчики дали выгрузку заказов прямо из нашего API — это JSON, в Excel он не открывается нормально. Хочу понять, что и где заказывают, какой средний чек по городам, где курьеры опаздывают и какие пожелания (теги) клиенты пишут чаще всего.</p>
+<div class="file">▤ yetkaz_api.json · 600 заказов за 1–14 октября</div>        </div>
+      </div>
+      <p class="note">Yetkaz — учебная служба доставки, данные сгенерированы. Каждый заказ — запись JSON: номер, время, статус, вложенный клиент (id, город, vip), список блюд (название, категория, количество, цена), список тегов-пожеланий, промокод и вложенная доставка (минуты, курьер). Задачи можно решать прямо на этой странице.</p>
+      <div class="dlrow"><a class="btn main" href="../../data/yetkaz_api.json" download>Скачать yetkaz_api.json</a><span class="note">600 заказов · 322 КБ</span></div>
+      <div class="howopen">
+        <p><b>Как открыть файл у себя в Jupyter.</b> Положи скачанный файл в ту же папку, где лежит ноутбук, и выполни в первой ячейке:</p>
+        <pre class="code solo" data-cm>import pandas as pd
+import numpy as np
+import json
+with open(&#34;yetkaz_api.json&#34;, encoding=&#34;utf-8&#34;) as f:
+    orders = json.load(f)</pre>
+        <p class="note">На этой странице ничего скачивать не нужно: в задачах таблица уже загружена.</p>
+      </div>
+    </section>
+
+    <section id="json">
+      <div class="eyebrow">02 · Теория</div>
+      <h2>JSON и json_normalize</h2>
+      <div class="simple"><span class="tag">Простыми словами</span>
+  <p>JSON — это «матрёшка»: внутри заказа лежит клиент, внутри клиента — город. В Python такой заказ выглядит как словарь <code class="i">{"ключ": значение}</code>, а внутри могут быть ещё словари и списки <code class="i">[...]</code>.</p>
+  <ul>
+    <li><code class="i">json.load(файл)</code> читает JSON в обычные списки и словари Python.</li>
+    <li><code class="i">pd.read_json</code> тоже прочитает файл, но вложенный клиент останется в одной ячейке целым словарём — так считать неудобно.</li>
+    <li><code class="i">pd.json_normalize(orders)</code> «раскрывает матрёшку»: каждое вложенное поле становится своей колонкой с именем через точку — <code class="i">customer.city</code>, <code class="i">delivery.minutes</code>.</li>
+    <li>Списки (блюда, теги) json_normalize не раскрывает — для них есть explode и record_path, это второй раздел.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>1. Как выглядит один заказ.</b></div><pre class="code" data-cm>print(len(orders), &quot;заказов&quot;)
+orders[1]</pre><div class="out">600 заказов
+{&#x27;order_id&#x27;: 81001, &#x27;created_at&#x27;: &#x27;2026-10-01 09:39&#x27;, &#x27;status&#x27;: &#x27;delivered&#x27;, &#x27;customer&#x27;: {&#x27;id&#x27;: 3148, &#x27;city&#x27;: &#x27;Ташкент&#x27;, &#x27;vip&#x27;: False}, &#x27;items&#x27;: [{&#x27;name&#x27;: &#x27;Лагман&#x27;, &#x27;category&#x27;: &#x27;Национальная&#x27;, &#x27;qty&#x27;: 2, &#x27;price&#x27;: 38000}, {&#x27;name&#x27;: &#x27;Бургер&#x27;, &#x27;category&#x27;: &#x27;Фастфуд&#x27;, &#x27;qty&#x27;: 1, &#x27;price&#x27;: 32000}], &#x27;tags&#x27;: [&#x27;острое&#x27;, &#x27;детское&#x27;], &#x27;promo&#x27;: None, &#x27;delivery&#x27;: {&#x27;minutes&#x27;: 40, &#x27;courier&#x27;: &#x27;C14&#x27;}}</div><p class="plain"><b>Простыми словами:</b> фигурные скобки — словарь (ключ: значение), квадратные — список. У заказа 81001 два блюда и два тега.</p></div>
+<div class="card"><div class="q"><b>2. read_json: вложенное остаётся в ячейках.</b></div><pre class="code" data-cm>raw = pd.read_json(&quot;yetkaz_api.json&quot;)
+print(raw[[&quot;order_id&quot;, &quot;customer&quot;, &quot;tags&quot;]].head(3))
+raw.loc[0, &quot;customer&quot;][&quot;city&quot;]</pre><div class="out">   order_id                                        customer               tags
+0     81000  {&#x27;id&#x27;: 3033, &#x27;city&#x27;: &#x27;Наманган&#x27;, &#x27;vip&#x27;: False}                 []
+1     81001   {&#x27;id&#x27;: 3148, &#x27;city&#x27;: &#x27;Ташкент&#x27;, &#x27;vip&#x27;: False}  [острое, детское]
+2     81002    {&#x27;id&#x27;: 3200, &#x27;city&#x27;: &#x27;Ташкент&#x27;, &#x27;vip&#x27;: True}                 []
+&#x27;Наманган&#x27;</div><p class="plain"><b>Простыми словами:</b> в колонке customer лежат целые словари. Чтобы достать город, приходится лезть внутрь каждой ячейки — неудобно и медленно.</p></div>
+<div class="card"><div class="q"><b>3. json_normalize: каждое вложенное поле — своя колонка.</b></div><pre class="code" data-cm>flat = pd.json_normalize(orders)
+print(flat.columns.tolist())
+flat[[&quot;order_id&quot;, &quot;customer.city&quot;, &quot;customer.vip&quot;, &quot;delivery.minutes&quot;]].head(3)</pre><div class="out">[&#x27;order_id&#x27;, &#x27;created_at&#x27;, &#x27;status&#x27;, &#x27;items&#x27;, &#x27;tags&#x27;, &#x27;promo&#x27;, &#x27;customer.id&#x27;, &#x27;customer.city&#x27;, &#x27;customer.vip&#x27;, &#x27;delivery.minutes&#x27;, &#x27;delivery.courier&#x27;]
+   order_id customer.city  customer.vip  delivery.minutes
+0     81000      Наманган         False                44
+1     81001       Ташкент         False                40
+2     81002       Ташкент          True                23</div><p class="plain"><b>Простыми словами:</b> из словарей customer и delivery получились обычные колонки. Колонки items и tags остались списками — их раскрываем дальше.</p></div></div>
+    </section>
+    <section id="lists">
+      <div class="eyebrow">03 · Теория</div>
+      <h2>Списки в ячейках: explode и record_path</h2>
+      <div class="simple"><span class="tag">Как раскрыть список</span>
+  <p>Представь чек, где в одной строке записано «плов, чай, самса». Чтобы посчитать, сколько продали чая, нужно разрезать чек: одна строка — одна позиция.</p>
+  <ul>
+    <li><code class="i">explode("tags")</code> — каждый элемент списка в отдельную строку. Остальные колонки повторяются. Пустой список превращается в NaN.</li>
+    <li><code class="i">.str.len()</code> работает и со списками: сколько в нём элементов.</li>
+    <li>Если элементы списка сами словари (блюда), удобнее <code class="i">pd.json_normalize(orders, record_path="items", meta=[...])</code>: одна строка — одно блюдо, а из <code class="i">meta</code> к каждой строке приклеятся нужные поля заказа.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>4. explode: теги по одному в строке.</b></div><pre class="code" data-cm>t = flat[[&quot;order_id&quot;, &quot;tags&quot;]].head(4)
+print(t)
+print()
+t.explode(&quot;tags&quot;)</pre><div class="out">   order_id               tags
+0     81000                 []
+1     81001  [острое, детское]
+2     81002                 []
+3     81003                 []
+
+   order_id     tags
+0     81000      NaN
+1     81001   острое
+1     81001  детское
+2     81002      NaN
+3     81003      NaN</div><p class="plain"><b>Простыми словами:</b> у заказа с двумя тегами стало две строки, у заказа без тегов — одна строка с NaN. Номер заказа повторился в каждой строке.</p></div>
+<div class="card"><div class="q"><b>5. Какие пожелания пишут чаще всего.</b></div><pre class="code" data-cm>print(round((flat[&quot;tags&quot;].str.len() &gt; 0).mean() * 100, 1), &quot;% заказов с тегами&quot;)
+flat[&quot;tags&quot;].explode().value_counts()</pre><div class="out">60.0 % заказов с тегами
+tags
+детское           107
+острое            102
+без лука           85
+подарок            84
+вегетарианское     82
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> <code class="i">value_counts</code> сам не считает пустые (NaN) значения, поэтому заказы без тегов в подсчёт не попали. Чаще всего пишут «детское».</p></div>
+<div class="card"><div class="q"><b>6. record_path: таблица блюд с полями заказа.</b></div><pre class="code" data-cm>items = pd.json_normalize(orders, record_path=&quot;items&quot;, meta=[&quot;order_id&quot;, &quot;status&quot;, [&quot;customer&quot;, &quot;city&quot;]])
+print(len(items), &quot;строк-блюд&quot;)
+items.head(4)</pre><div class="out">1225 строк-блюд
+     name      category  qty  price order_id     status customer.city
+0    Плов  Национальная    1  45000    81000  delivered      Наманган
+1  Лагман  Национальная    2  38000    81001  delivered       Ташкент
+2  Бургер       Фастфуд    1  32000    81001  delivered       Ташкент
+3     Чай       Напитки    1   6000    81002  delivered       Ташкент</div><p class="plain"><b>Простыми словами:</b> <code class="i">record_path="items"</code> — «разверни список items». <code class="i">meta</code> — какие поля заказа приклеить к каждому блюду; путь внутрь вложенного словаря пишут списком: <code class="i">["customer", "city"]</code>.</p></div></div>
+    </section>
+    <section id="apply">
+      <div class="eyebrow">04 · Теория</div>
+      <h2>map, apply, where и mask</h2>
+      <div class="simple"><span class="tag">Когда готовой функции нет</span>
+  <ul>
+    <li><code class="i">s.map(словарь)</code> — заменить каждое значение по словарю: delivered → «доставлен». Чего нет в словаре — станет NaN.</li>
+    <li><code class="i">s.map(функция)</code> или <code class="i">s.apply(функция)</code> — применить свою функцию к каждому значению. Удобно для списков и словарей внутри ячеек.</li>
+    <li><code class="i">s.where(условие)</code> — оставить значение, где условие True, остальное заменить на NaN (или на то, что укажешь). <code class="i">s.mask(условие)</code> — наоборот: спрятать, где условие True.</li>
+    <li>apply построчно — медленный путь: pandas вызывает функцию для каждой строки по очереди. Если есть готовая функция (сумма, сравнение, .str), бери её — подробнее в уроке 24.</li>
+  </ul>
+</div>
+<div class="cards"><div class="card"><div class="q"><b>7. map по словарю.</b></div><pre class="code" data-cm>ru = {&quot;delivered&quot;: &quot;доставлен&quot;, &quot;cancelled&quot;: &quot;отменён&quot;}
+flat[&quot;status&quot;].map(ru).value_counts()</pre><div class="out">status
+доставлен    551
+отменён       49
+Name: count, dtype: int64</div><p class="plain"><b>Простыми словами:</b> каждое английское значение заменилось русским. Отменено 8,2% заказов.</p></div>
+<div class="card"><div class="q"><b>8. Своя функция для списка в ячейке.</b> Сумма заказа прямо из списка блюд.</div><pre class="code" data-cm>def order_sum(items):
+    return sum(i[&quot;qty&quot;] * i[&quot;price&quot;] for i in items)
+
+flat[&quot;items&quot;].apply(order_sum).head(3)</pre><div class="out">0     45000
+1    108000
+2     16000
+Name: items, dtype: int64</div><p class="plain"><b>Простыми словами:</b> функция получает список блюд одного заказа и возвращает сумму. apply вызывает её для каждого заказа. То же самое можно посчитать через таблицу блюд и groupby — так и сделаем в задаче 5.</p></div>
+<div class="card"><div class="q"><b>9. where и mask.</b> Время доставки имеет смысл только у доставленных заказов.</div><pre class="code" data-cm>m = flat[&quot;delivery.minutes&quot;]
+delivered_min = m.where(flat[&quot;status&quot;] == &quot;delivered&quot;)      # у отменённых → NaN
+capped = m.mask(m &gt; 60, 60)                                  # больше 60 → 60
+rows = [0, (flat[&quot;status&quot;] == &quot;cancelled&quot;).idxmax(), (m &gt; 60).idxmax()]   # обычный, отменённый, долгий
+pd.DataFrame({&quot;status&quot;: flat[&quot;status&quot;], &quot;minutes&quot;: m, &quot;where&quot;: delivered_min, &quot;mask&quot;: capped}).loc[rows]</pre><div class="out">       status  minutes  where  mask
+0   delivered       44   44.0    44
+36  cancelled       32    NaN    32
+10  delivered       63   63.0    60</div><p class="plain"><b>Простыми словами:</b> <code class="i">.idxmax()</code> у маски True/False находит первую строку, где True. where оставил минуты только у доставленных заказов, а у отменённого поставил NaN — среднее по городу не испортится. mask заменил время больше 60 минут на 60.</p></div></div>
+    </section>
+
+
+    <section id="traps">
+      <div class="eyebrow">05 · Ловушки</div>
+      <h2>Пять ловушек вложенных данных</h2>
+      <div class="traps">
+        <div class="trap"><span class="n">1</span><h3>Подсчёт людей после explode</h3><div class="bad">flat.explode(&#34;tags&#34;)[&#34;order_id&#34;].count()   # заказ с 2 тегами посчитан дважды</div><div class="good">flat[&#34;order_id&#34;].nunique()</div><p>После explode строки повторяются. Число заказов считай до explode или через nunique.</p></div>
+        <div class="trap"><span class="n">2</span><h3>Пустой список стал NaN</h3><p>explode превращает пустой список в строку с NaN. Если нужна доля заказов с тегами, считай по исходной колонке: <code class="i">flat["tags"].str.len() &gt; 0</code>.</p></div>
+        <div class="trap"><span class="n">3</span><h3>map без нужного ключа</h3><p>Значение, которого нет в словаре, превратится в NaN. Проверь <code class="i">s.map(d).isna().sum()</code> или используй <code class="i">s.map(d).fillna(s)</code>, чтобы оставить неизвестные как есть.</p></div>
+        <div class="trap"><span class="n">4</span><h3>apply там, где есть готовая функция</h3><div class="bad">items.apply(lambda r: r[&#34;qty&#34;] * r[&#34;price&#34;], axis=1)   # медленно</div><div class="good">items[&#34;qty&#34;] * items[&#34;price&#34;]</div><p>Построчный apply в десятки раз медленнее обычной арифметики над колонками. apply оставляй для списков, словарей и сложной логики.</p></div>
+        <div class="trap"><span class="n">5</span><h3>Средние с мусорными значениями</h3><p>У отменённых заказов время доставки бессмысленно. Перед средним спрячь такие значения через <code class="i">where</code> или отфильтруй строки.</p></div>
+      </div>
+      <div class="cheat" id="cheat">
+        <h3>Шпаргалка урока: вложенные данные</h3>
+        <ol><li>with open(f, encoding=&#34;utf-8&#34;) as fh: orders = json.load(fh) <span>— прочитать JSON в Python</span></li><li>pd.json_normalize(orders) <span>— вложенные поля → колонки через точку</span></li><li>pd.json_normalize(orders, record_path=&#34;items&#34;, meta=[&#34;order_id&#34;, [&#34;customer&#34;, &#34;city&#34;]]) <span>— список словарей → строки</span></li><li>flat.explode(&#34;tags&#34;) <span>— список → по элементу в строке</span></li><li>flat[&#34;tags&#34;].str.len() <span>— сколько элементов в списке</span></li><li>s.map({&#34;a&#34;: &#34;б&#34;}) / s.apply(func) <span>— замена по словарю / своя функция</span></li><li>s.where(cond) / s.mask(cond, value) <span>— оставить по условию / спрятать по условию</span></li></ol>
+        <div><button type="button" class="b-ghost" id="copyCheat">Скопировать шпаргалку</button></div>
+      </div>
+    </section>
+
+    <section id="quiz">
+      <div class="eyebrow">06 · Самопроверка · 20 XP</div>
+      <h2>Квиз за 3 минуты</h2>
+      <div class="quiz">
+        <div class="qz" data-q="0" data-a="1">
+          <p>1. Что делает <code>pd.json_normalize(orders)</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Удаляет вложенные поля</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Превращает вложенные поля в отдельные колонки с именами через точку</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Сортирует заказы</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Раскрывает списки по строкам</span></button></div>
+          <div class="why" hidden>customer.city, delivery.minutes — каждое вложенное поле становится колонкой. Списки при этом остаются списками.</div>
+        </div>
+        <div class="qz" data-q="1" data-a="1">
+          <p>2. В ячейке список из трёх тегов. Сколько строк будет после <code>explode</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>1</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>3</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>0</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Зависит от длины тегов</span></button></div>
+          <div class="why" hidden>Каждый элемент списка получает свою строку, остальные колонки повторяются.</div>
+        </div>
+        <div class="qz" data-q="2" data-a="1">
+          <p>3. Что вернёт <code>s.map({"a": 1})</code> для значения "b"?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>"b"</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>NaN</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>1</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Ошибку</span></button></div>
+          <div class="why" hidden>Значения, которых нет в словаре, превращаются в NaN.</div>
+        </div>
+        <div class="qz" data-q="3" data-a="1">
+          <p>4. Чем <code>where</code> отличается от <code>mask</code>?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Ничем</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>where оставляет значения, где условие True; mask прячет их там, где условие True</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>where работает только с текстом</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>mask удаляет строки</span></button></div>
+          <div class="why" hidden>Это зеркальные функции: where(cond) = mask(~cond).</div>
+        </div>
+        <div class="qz" data-q="4" data-a="1">
+          <p>5. Когда стоит использовать apply?</p>
+          <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Всегда, это самый быстрый способ</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Когда готовой векторной функции нет: списки, словари, сложная логика</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Только для чисел</span></button><button type="button" class="opt" data-i="3"><span class="mark"></span><span>Никогда</span></button></div>
+          <div class="why" hidden>apply вызывает функцию для каждого значения по очереди и работает медленно, зато справляется со списками и словарями в ячейках.</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="practice">
+      <div class="eyebrow">07 · Практика · 110 XP</div>
+      <h2>Задачи</h2>
+      <p class="pystatus" id="pyStatus" data-state="idle" role="status">Python загрузится, когда ты начнёшь решать задачи.</p>
+      <div style="display:flex;flex-direction:column;gap:22px">
+        <article class="task" id="task-t1" data-task="t1" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 1</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Разверни JSON</h3>
+            <ol class='steps-t'><li>Преврати список заказов <code class='i'>orders</code> в плоскую таблицу → <code class='i'>flat</code>.</li> <li>Напечатай в одну строку: число заказов и число колонок.</li> <li>Напечатай список колонок, в названии которых есть точка (это поля из вложенных словарей).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 22 · задача 1</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 1">flat =
+
+# заказов и колонок; колонки с точкой
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">600 11
+[&#39;customer.id&#39;, &#39;customer.city&#39;, &#39;customer.vip&#39;, &#39;delivery.minutes&#39;, &#39;delivery.courier&#39;]</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>flat =
+
+# заказов и колонок; колонки с точкой
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Заказы уже прочитаны в список словарей <code class="i">orders</code>. Одна функция pandas превращает такой список в таблицу и сама раскрывает вложенные словари в колонки с точкой в названии.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.json_normalize(список_словарей)</code> — плоская таблица. <code class="i">t.shape[1]</code> — число колонок. Список с условием: <code class="i">[c for c in t.columns if "x" in c]</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>flat = pd.___(orders)
+print(len(flat), flat.shape[___])
+print([c for c in flat.columns if &#34;___&#34; in c])</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">pd.DataFrame(orders)</code> тоже сделает таблицу, но клиент и доставка останутся словарями в ячейках.</p>          </div>
+        </article>
+        <article class="task" id="task-t2" data-task="t2" data-xp="10">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 2</span><span class="lvl e">Легко</span><span class="xp">10 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Заказы по городам</h3>
+            <p>Таблица <code class='i'>flat</code> из задачи 1 уже готова.</p> <ol class='steps-t'><li>Посчитай, сколько заказов из каждого города (город лежит во вложенном клиенте).</li> <li>Выведи результат от большего к меньшему.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>flat = pd.json_normalize(orders)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 22 · задача 2</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 2"># заказы по городам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">customer.city
+Ташкент      294
+Самарканд    121
+Бухара       113
+Наманган      72
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># заказы по городам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> После json_normalize город клиента — это обычная колонка, просто её имя содержит точку: «customer.city».</p>
+<p><b>Чем это сделать.</b> <code class="i">t["имя.с.точкой"]</code> — колонка по имени. <code class="i">.value_counts()</code> — сколько раз встречается каждое значение, сразу от большего к меньшему.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>flat[&#34;customer.___&#34;].value_counts()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">flat.customer.city</code> через точки не сработает: точка здесь часть названия колонки, пиши его в квадратных скобках.</p>          </div>
+        </article>
+        <article class="task" id="task-t3" data-task="t3" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 3</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Пожелания клиентов</h3>
+            <ol class='steps-t'><li>Напечатай долю заказов, в которых есть хотя бы один тег, в процентах (1 знак).</li> <li>Разложи теги по строкам и выведи, сколько раз встречается каждый тег.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>flat = pd.json_normalize(orders)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 22 · задача 3</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 3"># доля заказов с тегами, %
+
+# частота тегов
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">60.0
+tags
+детское           107
+острое            102
+без лука           85
+подарок            84
+вегетарианское     82
+Name: count, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter># доля заказов с тегами, %
+
+# частота тегов
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> В колонке tags лежат списки. Для доли нужен признак «список не пустой». Для частоты список нужно разрезать так, чтобы каждый тег стоял в своей строке.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.str.len()</code> — длина списка в каждой ячейке. <code class="i">s.explode()</code> — по элементу в строке. Среднее от True/False — доля True.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>print(round((flat[&#34;tags&#34;].str.len() &gt; ___).mean() * 100, 1))
+flat[&#34;tags&#34;].___().value_counts()</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Долю заказов с тегами нельзя считать после explode: заказ с двумя тегами превратится в две строки.</p>          </div>
+        </article>
+        <article class="task" id="task-t4" data-task="t4" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 4</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Таблица блюд</h3>
+            <ol class='steps-t'><li>Сделай таблицу блюд <code class='i'>items</code>: одна строка — одно блюдо из заказа, плюс поля заказа <code class='i'>order_id</code>, <code class='i'>status</code> и город клиента.</li> <li>Напечатай число строк в <code class='i'>items</code>.</li> <li>Выведи 3 блюда, которых заказали больше всего штук (<code class='i'>qty</code>).</li></ol>
+          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 22 · задача 4</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 4">items =
+
+# строк в items и топ-3 блюд по штукам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">1225
+name
+Плов      258
+Бургер    234
+Самса     224
+Name: qty, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>items =
+
+# строк в items и топ-3 блюд по штукам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Блюда лежат списком словарей внутри каждого заказа. json_normalize умеет развернуть именно этот список и приклеить к каждому блюду нужные поля заказа.</p>
+<p><b>Чем это сделать.</b> <code class="i">pd.json_normalize(orders, record_path="items", meta=[...])</code>. Путь к вложенному полю в meta — списком: <code class="i">["customer", "city"]</code>. Топ: <code class="i">.nlargest(3)</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>items = pd.json_normalize(orders, record_path=&#34;___&#34;, meta=[&#34;order_id&#34;, &#34;status&#34;, [&#34;customer&#34;, &#34;___&#34;]])
+print(len(items))
+items.groupby(&#34;___&#34;)[&#34;qty&#34;].sum().nlargest(___)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Считай штуки (sum по qty), а не строки: одно блюдо в заказе может быть заказано 2–3 раза.</p>          </div>
+        </article>
+        <article class="task" id="task-t5" data-task="t5" data-xp="20">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 5</span><span class="lvl m">Средне</span><span class="xp">20 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Средний чек по городам</h3>
+            <p>Таблица <code class='i'>items</code> из задачи 4 уже готова.</p> <ol class='steps-t'><li>Добавь колонку <code class='i'>line</code> = qty × price.</li> <li>Оставь только доставленные заказы и посчитай сумму каждого заказа.</li> <li>Выведи средний чек по городам (целое число сум) от большего к меньшему.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>items = pd.json_normalize(orders, record_path=&#34;items&#34;, meta=[&#34;order_id&#34;, &#34;status&#34;, [&#34;customer&#34;, &#34;city&#34;]])</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 22 · задача 5</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 5">items[&#34;line&#34;] =
+
+# средний чек доставленных заказов по городам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">customer.city
+Бухара       103422
+Наманган      90940
+Ташкент       89192
+Самарканд     84880
+Name: line, dtype: int64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>items[&#34;line&#34;] =
+
+# средний чек доставленных заказов по городам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Средний чек — это среднее по заказам, а не по блюдам. Сначала сложи стоимость блюд внутри каждого заказа, потом усредни суммы заказов по городу.</p>
+<p><b>Чем это сделать.</b> Группировка по двум ключам: <code class="i">groupby(["customer.city", "order_id"])["line"].sum()</code>. Затем <code class="i">.groupby(level=0).mean()</code> — среднее по верхнему уровню (городу).</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>items[&#34;line&#34;] = items[&#34;___&#34;] * items[&#34;___&#34;]
+ok = items[items[&#34;status&#34;] == &#34;___&#34;]
+per_order = ok.groupby([&#34;customer.city&#34;, &#34;order_id&#34;])[&#34;line&#34;].___()
+per_order.groupby(level=___).mean().round().astype(int).sort_values(ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">ok.groupby("customer.city")["line"].mean()</code> посчитает среднюю стоимость одного блюда, а не чек.</p>          </div>
+        </article>
+        <article class="task" id="task-t6" data-task="t6" data-xp="15">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 6</span><span class="lvl m">Средне</span><span class="xp">15 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Опоздания курьеров</h3>
+            <ol class='steps-t'><li>Через <code class='i'>where</code> оставь время доставки только у доставленных заказов (у отменённых — NaN) → <code class='i'>dmin</code>.</li> <li>Таблица по городам: <code class='i'>avg_min</code> — среднее время доставки (1 знак), <code class='i'>late_%</code> — доля доставленных заказов дольше 60 минут (1 знак).</li> <li>Отсортируй по <code class='i'>late_%</code> по убыванию.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>flat = pd.json_normalize(orders)</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 22 · задача 6</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 6">dmin =
+late =
+
+t = pd.DataFrame({
+    # твой код
+})
+t
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">               avg_min late_%
+customer.city
+Ташкент           41.5    7.9
+Наманган          39.7    6.0
+Бухара            41.8    5.9
+Самарканд         39.9    5.1</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>dmin =
+late =
+
+t = pd.DataFrame({
+    # твой код
+})
+t
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> У отменённых заказов время доставки ничего не значит — спрячь его. Опоздание тоже считай только среди доставленных: там, где времени нет, признак опоздания должен быть пустым, а не False.</p>
+<p><b>Чем это сделать.</b> <code class="i">s.where(условие)</code> — оставить значение, где условие True, иначе NaN. <code class="i">(s &gt; 60).where(s.notna())</code> — True/False только там, где время есть. Группировка по другой Series: <code class="i">s.groupby(flat["customer.city"])</code>.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>dmin = flat[&#34;delivery.minutes&#34;].where(flat[&#34;status&#34;] == &#34;___&#34;)
+late = (dmin &gt; ___).where(dmin.___())
+city = flat[&#34;customer.city&#34;]
+t = pd.DataFrame({
+    &#34;avg_min&#34;: dmin.groupby(city).mean().round(1),
+    &#34;late_%&#34;: (late.groupby(city).mean() * 100).round(1),
+}).sort_values(&#34;___&#34;, ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> <code class="i">dmin &gt; 60</code> у NaN даёт False, и отменённые заказы засчитаются как «вовремя», занизив долю опозданий.</p>          </div>
+        </article>
+        <article class="task" id="task-t7" data-task="t7" data-xp="25">
+          <div class="task-head">
+            <div class="task-top"><span class="tno">Задача 7</span><span class="lvl h">Сложно</span><span class="xp">25 XP</span><span class="state" data-state>не решена</span></div>
+            <h3>Какая кухня сильнее в каком городе</h3>
+            <ol class='steps-t'><li>По доставленным заказам посчитай выручку по паре город → категория блюда.</li> <li>Переведи в доли внутри города и сделай широкую таблицу: строки — города, колонки — категории, проценты с 1 знаком → <code class='i'>share</code>. Напечатай её.</li> <li>Напечатай долю категории <b>Фастфуд</b> по городам от большей к меньшей.</li></ol>
+<details class="alt"><summary>Перед задачей уже выполнены прошлые шаги проекта</summary><pre class="code solo" data-cm>items = pd.json_normalize(orders, record_path=&#34;items&#34;, meta=[&#34;order_id&#34;, &#34;status&#34;, [&#34;customer&#34;, &#34;city&#34;]])
+items[&#34;line&#34;] = items[&#34;qty&#34;] * items[&#34;price&#34;]</pre></details>          </div>
+          <div class="ide">
+            <div class="ide-bar"><span class="dots"><i></i><i></i><i></i></span>урок 22 · задача 7</div>
+            <textarea class="editor" spellcheck="false" aria-label="Код задачи 7">ok = items[items[&#34;status&#34;] == &#34;delivered&#34;]
+cc =
+share =
+
+print(share)
+# фастфуд по городам
+</textarea>
+            <div class="cmp">
+              <div class="pane"><div class="pane-h">Твой вывод</div><div class="got-ph" data-got>Нажми ▶ Запустить</div><div class="figs" data-got-img hidden></div></div>
+              <div class="pane" data-exp hidden><div class="pane-h">🎯 Ожидаемый результат</div><pre class="exp">category       Гриль  Десерты  Напитки  Национальная  Салаты  Фастфуд
+customer.city
+Бухара           6.7      1.3      5.8          30.5     4.8     50.9
+Наманган         6.5      3.7      4.8          38.4     3.9     42.7
+Самарканд        6.4      1.1      5.4          39.3     5.3     42.5
+Ташкент          8.8      1.4      6.3          35.2     5.9     42.4
+customer.city
+Бухара       50.9
+Наманган     42.7
+Самарканд    42.5
+Ташкент      42.4
+Name: Фастфуд, dtype: float64</pre></div>
+            </div>
+            <div class="actions">
+              <button type="button" class="b-run" data-act="run">▶ Запустить</button>
+              <button type="button" class="b-check" data-act="check">✓ Проверить</button>
+              <button type="button" class="b-ghost" data-act="exp" aria-pressed="false">🎯 Ожидаемый результат</button>
+              <button type="button" class="b-ghost" data-act="hint">💡 Подсказка · −5 XP</button>
+              <button type="button" class="b-ghost" data-act="reset" title="Вернуть код к началу" aria-label="Вернуть код к началу">↺</button>
+              <span class="note" data-runnote>Ctrl+Enter — запустить</span>
+            </div>
+          </div>
+          <template data-starter>ok = items[items[&#34;status&#34;] == &#34;delivered&#34;]
+cc =
+share =
+
+print(share)
+# фастфуд по городам
+</template>
+          <div class="verdict" data-verdict role="status" hidden></div>
+          <div class="hint" data-hint hidden>
+            <div class="hint-h">💡 Подсказка</div>
+            <p><b>С чего начать.</b> Нужна доля категории внутри своего города: выручка категории в городе / вся выручка города. Это та же схема, что с MultiIndex в уроке 18, только данные пришли из JSON.</p>
+<p><b>Чем это сделать.</b> <code class="i">cc.groupby(level=0).sum()</code> — итог города. <code class="i">cc / итог</code> делится по подписям. <code class="i">.unstack()</code> — категории в колонки.</p><div class="hint-pat"><span>Шаблон — замени <code class="i">___</code> своим:</span><pre class="code solo" data-cm>ok = items[items[&#34;status&#34;] == &#34;delivered&#34;]
+cc = ok.groupby([&#34;customer.city&#34;, &#34;___&#34;])[&#34;line&#34;].sum()
+share = (cc / cc.groupby(level=___).sum() * 100).round(1).___()
+print(share)
+share[&#34;___&#34;].sort_values(ascending=False)</pre></div><p class="hint-trap"><b>Частая ошибка.</b> Если делить на всю выручку сервиса, большой Ташкент «выиграет» по всем категориям просто из-за размера.</p>          </div>
+        </article>
+      </div>
+    </section>
+
+    <section id="case">
+      <div class="eyebrow">08 · Бизнес-кейс · 30 XP</div>
+      <h2>Ответь Жасуру: что показала выгрузка</h2>
+      <div class="case">
+        <p>Напиши ответ Жасуру. Не больше 6 предложений. Структура: <b>сколько заказов и какая доля отменена → самое популярное блюдо и пожелание → средний чек по городам → где опаздывают курьеры → где сильнее фастфуд → 1 идея для продукта</b>.</p>
+        <div class="howcheck">
+          <div><b>1 · Цифры</b>Каждое число сверяется с результатами задач. Округлять можно: 107 698 = 107,7 тыс. = 108 тыс. Обязательно назови: <span class="fact-chip">Доля отменённых заказов</span><span class="fact-chip">Самое популярное блюдо, штук</span><span class="fact-chip">Средний чек в Бухаре</span><span class="fact-chip">Доля опозданий в Ташкенте</span><span class="fact-chip">Доля фастфуда в Бухаре</span></div>
+          <div><b>2 · Смысл</b>Потом 3 коротких вопроса о том, какой вывод ты сделал. Слова и термины могут быть любыми — важно, чтобы вывод был верным и опирался на цифры.</div>
+        </div>
+        <label for="caseAnswer" class="note">Твой ответ</label>
+        <textarea id="caseAnswer" class="answer" placeholder="Жасур, привет! Разобрал выгрузку: …"></textarea>
+        <p class="case-tip">✍️ Сначала напиши ответ сам и нажми «Проверить ответ» — так урок запомнится по-настоящему. Пример ответа откроется после того, как твой ответ примут. Если совсем не получается, пример можно открыть и раньше, но тогда XP за кейс не начислится.</p>
+        <div class="row"><button type="button" class="b-main" id="caseCheck">Проверить ответ</button><button type="button" class="b-link" id="caseModelBtn">Показать пример ответа (без XP)</button></div>
+        <div class="case-nums" id="caseNums" role="status" hidden></div>
+        <div class="case-logic" id="caseLogic" hidden>
+          <p><b>Проверка смысла.</b> Отметь, что говорит <b>твой</b> ответ. Если вывод в тексте другой — честно выбери его: увидишь, где ошибка, и сможешь исправить.</p>
+          <div class="qz" data-lq="0" data-a="0">
+            <p>1. Как ты считаешь средний чек?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Сумма блюд каждого заказа, потом среднее по заказам города</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Средняя цена одного блюда</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Вся выручка города / число блюд</span></button></div>
+            <div class="why" hidden>Чек — это заказ целиком: сначала сумма внутри заказа, потом среднее.</div>
+          </div>
+          <div class="qz" data-lq="1" data-a="0">
+            <p>2. Почему у отменённых заказов не учитываешь время доставки?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>Заказ не доставлен, его время ничего не говорит о курьерах</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Отменённых слишком много</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>Так короче</span></button></div>
+            <div class="why" hidden>where(status == delivered) прячет бессмысленное время, иначе доля опозданий исказится.</div>
+          </div>
+          <div class="qz" data-lq="2" data-a="0">
+            <p>3. На чём основана идея про детское меню?</p>
+            <div class="opts"><button type="button" class="opt" data-i="0"><span class="mark"></span><span>«детское» — самое частое пожелание в тегах</span></button><button type="button" class="opt" data-i="1"><span class="mark"></span><span>Дети чаще заказывают плов</span></button><button type="button" class="opt" data-i="2"><span class="mark"></span><span>В Бухаре больше детей</span></button></div>
+            <div class="why" hidden>Тег «детское» встречается 107 раз — чаще всех остальных.</div>
+          </div>
+        </div>
+        <div class="verdict" id="caseVerdict" role="status" hidden></div>
+        <div class="model" id="caseModel" hidden>
+          <p><b>Пример ответа</b> — одна из правильных формулировок. Твой ответ может звучать совсем иначе.</p>
+          <p>Жасур, привет! За 1–14 октября в выгрузке 600 заказов, отменено 8,2%. Больше всего заказывают «Плов» (258 штук), а из пожеланий чаще всего пишут «детское» — 107 раз; тег есть у 60,0% заказов. Самый большой средний чек доставленного заказа — в городе Бухара (103 422 сум), самый маленький — в городе Самарканд (84 880 сум). Дольше 60 минут чаще всего везут в городе Ташкент — 7,9% доставленных заказов. Фастфуд сильнее всего в городе Бухара: 50,9% выручки доставленных заказов. Идея: раз «детское» — самое частое пожелание, стоит сделать отдельное детское меню с фильтром в приложении.</p>
+          <p><b>Что делает ответ сильным:</b></p>
+          <ul><li>Число заказов и доля отмен</li><li>Популярное блюдо и самый частый тег</li><li>Средний чек: где больше и где меньше</li><li>Город с самой большой долей опозданий</li><li>Город с самой сильной долей фастфуда и идея</li></ul>
+        </div>
+      </div>
+    </section>
+
+    <section id="finish">
+      <div class="finish">
+        <div class="eyebrow">09 · Завершить урок</div>
+        <h2>Закрыть урок 22</h2>
+        <p>Урок засчитывается, когда решены все 7 задач и кейс (или ты открыл пример ответа без очков). Очки и отметка о прохождении сохранятся в твоём браузере.</p>
+        <div class="row"><button type="button" class="b-run" id="finishBtn" disabled>Завершить урок</button><span class="note" id="finishNote" style="color:var(--navy-muted)"></span></div>
+      </div>
+      <nav class="pager" aria-label="Соседние уроки">
+<a href="../../lessons/21-mini-proekt-3/"><small>← Проект 21</small><b>Мини-проект 3: отчёт по продажам во времени</b></a><a class="nx" href="../../lessons/23-vremya-prodvinutyj/"><small>Урок 23 →</small><b>Время, продвинутый уровень: merge_asof, expanding, ewm</b></a>      </nav>
+    </section>
+  </main>
+</div>
+
+<footer class="site-foot">
+  <div class="in">
+    <span>Pandas Sprint · бесплатный курс по pandas 3.0 для начинающих</span>
+    <span><a href="../../program/">Программа</a> · <a href="../../start/">Как начать</a> · <a href="../../progress/">Мой прогресс</a></span>
+  </div>
+</footer>
+<div class="toast" id="toast" hidden></div>
+<script src="../../static/js/site.js?v=202611072255"></script>
+<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="../../static/js/auth.js?v=202611072255"></script>
+<script type="application/json" id="lesson-data">{"case_check": {"facts": [{"name": "\u0414\u043e\u043b\u044f \u043e\u0442\u043c\u0435\u043d\u0451\u043d\u043d\u044b\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432", "pct": true, "value": 8.2}, {"name": "\u0421\u0430\u043c\u043e\u0435 \u043f\u043e\u043f\u0443\u043b\u044f\u0440\u043d\u043e\u0435 \u0431\u043b\u044e\u0434\u043e, \u0448\u0442\u0443\u043a", "value": 258}, {"name": "\u0421\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u0432 \u0411\u0443\u0445\u0430\u0440\u0435", "value": 103422}, {"name": "\u0414\u043e\u043b\u044f \u043e\u043f\u043e\u0437\u0434\u0430\u043d\u0438\u0439 \u0432 \u0422\u0430\u0448\u043a\u0435\u043d\u0442\u0435", "pct": true, "value": 7.9}, {"name": "\u0414\u043e\u043b\u044f \u0444\u0430\u0441\u0442\u0444\u0443\u0434\u0430 \u0432 \u0411\u0443\u0445\u0430\u0440\u0435", "pct": true, "value": 50.9}], "logic": [{"a": 0, "o": ["\u0421\u0443\u043c\u043c\u0430 \u0431\u043b\u044e\u0434 \u043a\u0430\u0436\u0434\u043e\u0433\u043e \u0437\u0430\u043a\u0430\u0437\u0430, \u043f\u043e\u0442\u043e\u043c \u0441\u0440\u0435\u0434\u043d\u0435\u0435 \u043f\u043e \u0437\u0430\u043a\u0430\u0437\u0430\u043c \u0433\u043e\u0440\u043e\u0434\u0430", "\u0421\u0440\u0435\u0434\u043d\u044f\u044f \u0446\u0435\u043d\u0430 \u043e\u0434\u043d\u043e\u0433\u043e \u0431\u043b\u044e\u0434\u0430", "\u0412\u0441\u044f \u0432\u044b\u0440\u0443\u0447\u043a\u0430 \u0433\u043e\u0440\u043e\u0434\u0430 / \u0447\u0438\u0441\u043b\u043e \u0431\u043b\u044e\u0434"], "q": "\u041a\u0430\u043a \u0442\u044b \u0441\u0447\u0438\u0442\u0430\u0435\u0448\u044c \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a?", "why": "\u0427\u0435\u043a \u2014 \u044d\u0442\u043e \u0437\u0430\u043a\u0430\u0437 \u0446\u0435\u043b\u0438\u043a\u043e\u043c: \u0441\u043d\u0430\u0447\u0430\u043b\u0430 \u0441\u0443\u043c\u043c\u0430 \u0432\u043d\u0443\u0442\u0440\u0438 \u0437\u0430\u043a\u0430\u0437\u0430, \u043f\u043e\u0442\u043e\u043c \u0441\u0440\u0435\u0434\u043d\u0435\u0435."}, {"a": 0, "o": ["\u0417\u0430\u043a\u0430\u0437 \u043d\u0435 \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d, \u0435\u0433\u043e \u0432\u0440\u0435\u043c\u044f \u043d\u0438\u0447\u0435\u0433\u043e \u043d\u0435 \u0433\u043e\u0432\u043e\u0440\u0438\u0442 \u043e \u043a\u0443\u0440\u044c\u0435\u0440\u0430\u0445", "\u041e\u0442\u043c\u0435\u043d\u0451\u043d\u043d\u044b\u0445 \u0441\u043b\u0438\u0448\u043a\u043e\u043c \u043c\u043d\u043e\u0433\u043e", "\u0422\u0430\u043a \u043a\u043e\u0440\u043e\u0447\u0435"], "q": "\u041f\u043e\u0447\u0435\u043c\u0443 \u0443 \u043e\u0442\u043c\u0435\u043d\u0451\u043d\u043d\u044b\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432 \u043d\u0435 \u0443\u0447\u0438\u0442\u044b\u0432\u0430\u0435\u0448\u044c \u0432\u0440\u0435\u043c\u044f \u0434\u043e\u0441\u0442\u0430\u0432\u043a\u0438?", "why": "where(status == delivered) \u043f\u0440\u044f\u0447\u0435\u0442 \u0431\u0435\u0441\u0441\u043c\u044b\u0441\u043b\u0435\u043d\u043d\u043e\u0435 \u0432\u0440\u0435\u043c\u044f, \u0438\u043d\u0430\u0447\u0435 \u0434\u043e\u043b\u044f \u043e\u043f\u043e\u0437\u0434\u0430\u043d\u0438\u0439 \u0438\u0441\u043a\u0430\u0437\u0438\u0442\u0441\u044f."}, {"a": 0, "o": ["\u00ab\u0434\u0435\u0442\u0441\u043a\u043e\u0435\u00bb \u2014 \u0441\u0430\u043c\u043e\u0435 \u0447\u0430\u0441\u0442\u043e\u0435 \u043f\u043e\u0436\u0435\u043b\u0430\u043d\u0438\u0435 \u0432 \u0442\u0435\u0433\u0430\u0445", "\u0414\u0435\u0442\u0438 \u0447\u0430\u0449\u0435 \u0437\u0430\u043a\u0430\u0437\u044b\u0432\u0430\u044e\u0442 \u043f\u043b\u043e\u0432", "\u0412 \u0411\u0443\u0445\u0430\u0440\u0435 \u0431\u043e\u043b\u044c\u0448\u0435 \u0434\u0435\u0442\u0435\u0439"], "q": "\u041d\u0430 \u0447\u0451\u043c \u043e\u0441\u043d\u043e\u0432\u0430\u043d\u0430 \u0438\u0434\u0435\u044f \u043f\u0440\u043e \u0434\u0435\u0442\u0441\u043a\u043e\u0435 \u043c\u0435\u043d\u044e?", "why": "\u0422\u0435\u0433 \u00ab\u0434\u0435\u0442\u0441\u043a\u043e\u0435\u00bb \u0432\u0441\u0442\u0440\u0435\u0447\u0430\u0435\u0442\u0441\u044f 107 \u0440\u0430\u0437 \u2014 \u0447\u0430\u0449\u0435 \u0432\u0441\u0435\u0445 \u043e\u0441\u0442\u0430\u043b\u044c\u043d\u044b\u0445."}]}, "case_model": "\u0416\u0430\u0441\u0443\u0440, \u043f\u0440\u0438\u0432\u0435\u0442! \u0417\u0430 1\u201314 \u043e\u043a\u0442\u044f\u0431\u0440\u044f \u0432 \u0432\u044b\u0433\u0440\u0443\u0437\u043a\u0435 600 \u0437\u0430\u043a\u0430\u0437\u043e\u0432, \u043e\u0442\u043c\u0435\u043d\u0435\u043d\u043e 8,2%. \u0411\u043e\u043b\u044c\u0448\u0435 \u0432\u0441\u0435\u0433\u043e \u0437\u0430\u043a\u0430\u0437\u044b\u0432\u0430\u044e\u0442 \u00ab\u041f\u043b\u043e\u0432\u00bb (258 \u0448\u0442\u0443\u043a), \u0430 \u0438\u0437 \u043f\u043e\u0436\u0435\u043b\u0430\u043d\u0438\u0439 \u0447\u0430\u0449\u0435 \u0432\u0441\u0435\u0433\u043e \u043f\u0438\u0448\u0443\u0442 \u00ab\u0434\u0435\u0442\u0441\u043a\u043e\u0435\u00bb \u2014 107 \u0440\u0430\u0437; \u0442\u0435\u0433 \u0435\u0441\u0442\u044c \u0443 60,0% \u0437\u0430\u043a\u0430\u0437\u043e\u0432. \u0421\u0430\u043c\u044b\u0439 \u0431\u043e\u043b\u044c\u0448\u043e\u0439 \u0441\u0440\u0435\u0434\u043d\u0438\u0439 \u0447\u0435\u043a \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043d\u043e\u0433\u043e \u0437\u0430\u043a\u0430\u0437\u0430 \u2014 \u0432 \u0433\u043e\u0440\u043e\u0434\u0435 \u0411\u0443\u0445\u0430\u0440\u0430 (103 422 \u0441\u0443\u043c), \u0441\u0430\u043c\u044b\u0439 \u043c\u0430\u043b\u0435\u043d\u044c\u043a\u0438\u0439 \u2014 \u0432 \u0433\u043e\u0440\u043e\u0434\u0435 \u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 (84 880 \u0441\u0443\u043c). \u0414\u043e\u043b\u044c\u0448\u0435 60 \u043c\u0438\u043d\u0443\u0442 \u0447\u0430\u0449\u0435 \u0432\u0441\u0435\u0433\u043e \u0432\u0435\u0437\u0443\u0442 \u0432 \u0433\u043e\u0440\u043e\u0434\u0435 \u0422\u0430\u0448\u043a\u0435\u043d\u0442 \u2014 7,9% \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432. \u0424\u0430\u0441\u0442\u0444\u0443\u0434 \u0441\u0438\u043b\u044c\u043d\u0435\u0435 \u0432\u0441\u0435\u0433\u043e \u0432 \u0433\u043e\u0440\u043e\u0434\u0435 \u0411\u0443\u0445\u0430\u0440\u0430: 50,9% \u0432\u044b\u0440\u0443\u0447\u043a\u0438 \u0434\u043e\u0441\u0442\u0430\u0432\u043b\u0435\u043d\u043d\u044b\u0445 \u0437\u0430\u043a\u0430\u0437\u043e\u0432. \u0418\u0434\u0435\u044f: \u0440\u0430\u0437 \u00ab\u0434\u0435\u0442\u0441\u043a\u043e\u0435\u00bb \u2014 \u0441\u0430\u043c\u043e\u0435 \u0447\u0430\u0441\u0442\u043e\u0435 \u043f\u043e\u0436\u0435\u043b\u0430\u043d\u0438\u0435, \u0441\u0442\u043e\u0438\u0442 \u0441\u0434\u0435\u043b\u0430\u0442\u044c \u043e\u0442\u0434\u0435\u043b\u044c\u043d\u043e\u0435 \u0434\u0435\u0442\u0441\u043a\u043e\u0435 \u043c\u0435\u043d\u044e \u0441 \u0444\u0438\u043b\u044c\u0442\u0440\u043e\u043c \u0432 \u043f\u0440\u0438\u043b\u043e\u0436\u0435\u043d\u0438\u0438.", "case_xp": 30, "cheat": [["with open(f, encoding=\"utf-8\") as fh: orders = json.load(fh)", "\u043f\u0440\u043e\u0447\u0438\u0442\u0430\u0442\u044c JSON \u0432 Python"], ["pd.json_normalize(orders)", "\u0432\u043b\u043e\u0436\u0435\u043d\u043d\u044b\u0435 \u043f\u043e\u043b\u044f \u2192 \u043a\u043e\u043b\u043e\u043d\u043a\u0438 \u0447\u0435\u0440\u0435\u0437 \u0442\u043e\u0447\u043a\u0443"], ["pd.json_normalize(orders, record_path=\"items\", meta=[\"order_id\", [\"customer\", \"city\"]])", "\u0441\u043f\u0438\u0441\u043e\u043a \u0441\u043b\u043e\u0432\u0430\u0440\u0435\u0439 \u2192 \u0441\u0442\u0440\u043e\u043a\u0438"], ["flat.explode(\"tags\")", "\u0441\u043f\u0438\u0441\u043e\u043a \u2192 \u043f\u043e \u044d\u043b\u0435\u043c\u0435\u043d\u0442\u0443 \u0432 \u0441\u0442\u0440\u043e\u043a\u0435"], ["flat[\"tags\"].str.len()", "\u0441\u043a\u043e\u043b\u044c\u043a\u043e \u044d\u043b\u0435\u043c\u0435\u043d\u0442\u043e\u0432 \u0432 \u0441\u043f\u0438\u0441\u043a\u0435"], ["s.map({\"a\": \"\u0431\"}) / s.apply(func)", "\u0437\u0430\u043c\u0435\u043d\u0430 \u043f\u043e \u0441\u043b\u043e\u0432\u0430\u0440\u044e / \u0441\u0432\u043e\u044f \u0444\u0443\u043d\u043a\u0446\u0438\u044f"], ["s.where(cond) / s.mask(cond, value)", "\u043e\u0441\u0442\u0430\u0432\u0438\u0442\u044c \u043f\u043e \u0443\u0441\u043b\u043e\u0432\u0438\u044e / \u0441\u043f\u0440\u044f\u0442\u0430\u0442\u044c \u043f\u043e \u0443\u0441\u043b\u043e\u0432\u0438\u044e"]], "data": "../../data/", "datasets": ["yetkaz_api.json"], "day": 22, "hint_cost": 5, "quiz": [1, 1, 1, 1, 1], "quiz_xp": 20, "setup": "import pandas as pd\nimport numpy as np\nimport json\nwith open(\"yetkaz_api.json\", encoding=\"utf-8\") as f:\n    orders = json.load(f)", "tasks": [{"figure": false, "id": "t1", "keys": ["600 11", "[\u0027customer.id\u0027, \u0027customer.city\u0027, \u0027customer.vip\u0027, \u0027delivery.minutes\u0027, \u0027delivery.courier\u0027]"], "setup": "", "xp": 10}, {"figure": false, "id": "t2", "keys": ["customer.city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 294", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 121", "\u0411\u0443\u0445\u0430\u0440\u0430 113", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 72"], "setup": "flat = pd.json_normalize(orders)", "xp": 10}, {"figure": false, "id": "t3", "keys": ["60.0", "tags", "\u0434\u0435\u0442\u0441\u043a\u043e\u0435 107", "\u043e\u0441\u0442\u0440\u043e\u0435 102", "\u0431\u0435\u0437 \u043b\u0443\u043a\u0430 85", "\u043f\u043e\u0434\u0430\u0440\u043e\u043a 84", "\u0432\u0435\u0433\u0435\u0442\u0430\u0440\u0438\u0430\u043d\u0441\u043a\u043e\u0435 82"], "setup": "flat = pd.json_normalize(orders)", "xp": 15}, {"figure": false, "id": "t4", "keys": ["1225", "name", "\u041f\u043b\u043e\u0432 258", "\u0411\u0443\u0440\u0433\u0435\u0440 234", "\u0421\u0430\u043c\u0441\u0430 224"], "setup": "", "xp": 15}, {"figure": false, "id": "t5", "keys": ["customer.city", "\u0411\u0443\u0445\u0430\u0440\u0430 103422", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 90940", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 89192", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 84880"], "setup": "items = pd.json_normalize(orders, record_path=\"items\", meta=[\"order_id\", \"status\", [\"customer\", \"city\"]])", "xp": 20}, {"figure": false, "id": "t6", "keys": ["avg_min late_%", "customer.city", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 41.5 7.9", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 39.7 6.0", "\u0411\u0443\u0445\u0430\u0440\u0430 41.8 5.9", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 39.9 5.1"], "setup": "flat = pd.json_normalize(orders)", "xp": 15}, {"figure": false, "id": "t7", "keys": ["category \u0413\u0440\u0438\u043b\u044c \u0414\u0435\u0441\u0435\u0440\u0442\u044b \u041d\u0430\u043f\u0438\u0442\u043a\u0438 \u041d\u0430\u0446\u0438\u043e\u043d\u0430\u043b\u044c\u043d\u0430\u044f \u0421\u0430\u043b\u0430\u0442\u044b \u0424\u0430\u0441\u0442\u0444\u0443\u0434", "customer.city", "\u0411\u0443\u0445\u0430\u0440\u0430 6.7 1.3 5.8 30.5 4.8 50.9", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 6.5 3.7 4.8 38.4 3.9 42.7", "\u0411\u0443\u0445\u0430\u0440\u0430 50.9", "\u041d\u0430\u043c\u0430\u043d\u0433\u0430\u043d 42.7", "\u0421\u0430\u043c\u0430\u0440\u043a\u0430\u043d\u0434 42.5", "\u0422\u0430\u0448\u043a\u0435\u043d\u0442 42.4"], "setup": "items = pd.json_normalize(orders, record_path=\"items\", meta=[\"order_id\", \"status\", [\"customer\", \"city\"]])\nitems[\"line\"] = items[\"qty\"] * items[\"price\"]", "xp": 25}], "theory": ["brief", "json", "lists", "apply", "traps"], "worker": "../../static/js/py-worker.js", "xp": 160}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/codemirror.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/mode/python/python.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.16/addon/runmode/runmode.min.js"></script>
+<script src="../../static/js/lesson.js?v=202611072255"></script>
+<span id="page-ready" hidden></span>
+</body>
+</html>

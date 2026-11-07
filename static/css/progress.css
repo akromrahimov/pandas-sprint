@@ -256,3 +256,92 @@
 @keyframes ringfx{from{transform:scale(1);opacity:.9}to{transform:scale(2.6);opacity:0}}
 .ptip{position:absolute;pointer-events:none;background:#fff;color:#150458;font:600 12px var(--f-body);padding:5px 9px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-130%);opacity:0;transition:opacity .15s;z-index:3}
 .ptip.on{opacity:1}
+
+/* подписи к календарю — цвета как у самих дней (меняются вместе с темой) */
+.cal-leg .lg-done{background:linear-gradient(90deg,#43D19B,#38BDF8,#A78BFA,#FF5CB0,#FFCA00)}
+.cal-leg .lg-prog{background:rgba(214,220,240,.16);border:1.5px dashed rgba(214,220,240,.6)}
+.cal-leg .lg-miss{background:#2A0B1C;border:1.5px solid #FF4D6D}
+.cal-leg .lg-today{border:2px solid #FFCA00}
+
+/* ---------- тема «Васильковое поле» на странице прогресса ----------
+   Страница становится светлой: блоки, карточки рангов, зал медалей, календарь, графики и путь — в цветах темы.
+   Сами цвета рангов I–V и медалей не меняются; на светлом фоне подписи рангов чуть темнее, чтобы читались. */
+html:root[data-skin="cornflower"]{
+  --pc-grid:#E3EBFC; --pc-tick:#5E6E92; --pc-chart:#3D568F; --pc-chart-fill:rgba(159,186,241,.55); --pc-chart-fill0:rgba(159,186,241,0);
+  --pc-spark:#EAF3B2; --pc-ptborder:#FFFFFF; --pc-path-line:#B9C8EA; --pc-empty:#F1F5FD; --pc-empty-text:#7D8BB0; --pc-halo:#9FBAF1;
+  --pc-here:#3D568F; --pc-here-fill:#E3EBFC; --pc-label:#3D568F; --pc-label-ink:#FFFFFF; --pc-ok-stroke:#FFFFFF}
+[data-skin="cornflower"] .sync-banner{background:linear-gradient(100deg,#EEF3FD,#F4F8D6);border-color:#C9D8F7}
+[data-skin="cornflower"] .sync-banner .ic{color:#4A6BC4}
+[data-skin="cornflower"] .sync-banner button{color:#2F3B0E}
+[data-skin="cornflower"] .sync-banner .g{box-shadow:0 0 0 1px #D9E3F7}
+/* карточки рангов */
+[data-skin="cornflower"] .rk .rg{color:color-mix(in srgb,var(--c) 58%,#1B2440)}
+[data-skin="cornflower"] .rk.r2{box-shadow:0 0 22px -12px var(--c)}
+[data-skin="cornflower"] .rk.r3{box-shadow:0 0 24px -12px var(--c)}
+[data-skin="cornflower"] .rk.r3 .in{background:radial-gradient(120% 90% at 100% 0%,color-mix(in srgb,var(--c) 26%,transparent),transparent 60%),linear-gradient(160deg,#F6F3FF,#EEE9FF)}
+[data-skin="cornflower"] .rk.r3 .in::after{background:linear-gradient(115deg,transparent 44%,rgba(255,255,255,.7) 50%,transparent 56%)}
+[data-skin="cornflower"] .rk.r4{box-shadow:0 0 26px -10px var(--c)}
+[data-skin="cornflower"] .rk.r4 .in{background:radial-gradient(120% 90% at 100% 0%,rgba(255,92,176,.22),transparent 60%),linear-gradient(160deg,#FFF3F9,#FDE8F2)}
+[data-skin="cornflower"] .rk.r4 .in::after{background:linear-gradient(115deg,transparent 43%,rgba(255,255,255,.75) 50%,transparent 57%)}
+[data-skin="cornflower"] .rk.r4 .spark{background:#FF5CB0;box-shadow:0 0 6px 1px #FFB0DC}
+[data-skin="cornflower"] .rk.lgd .in{background:radial-gradient(120% 90% at 100% 0%,rgba(255,202,0,.3),transparent 55%),linear-gradient(160deg,#FFFBEA,#FFF3CC 60%,#FDEFF6)}
+[data-skin="cornflower"] .rk.lgd .in::after{background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.85) 50%,transparent 60%)}
+[data-skin="cornflower"] .rk.lgd .nm{background:linear-gradient(90deg,#B07A00,#8A5A00,#B8336F);-webkit-background-clip:text;background-clip:text;color:transparent}
+[data-skin="cornflower"] .rk.lgd .rg{color:#8A5A00}
+[data-skin="cornflower"] .spark{background:#FFCA00;box-shadow:0 0 8px 2px #FFE58A}
+[data-skin="cornflower"] .rk.lockd{filter:saturate(.2) brightness(.97)}
+[data-skin="cornflower"] .rk.lockd .in{background:linear-gradient(160deg,#F4F4EE,#ECECE4)}
+[data-skin="cornflower"] .rk.lockd .nm{color:#6B6F7F}
+[data-skin="cornflower"] .rk.memo .in{background:radial-gradient(100% 80% at 0% 0%,rgba(255,202,0,.28),transparent 60%),repeating-linear-gradient(135deg,rgba(176,122,0,.05) 0 6px,transparent 6px 12px),linear-gradient(160deg,#FFFBEA,#FFF3CC)}
+[data-skin="cornflower"] .rk.memo .rg,[data-skin="cornflower"] .rk.memo .nm{color:#8A5A00}
+[data-skin="cornflower"] .rk.memo .ico b{box-shadow:0 0 0 2px #FFFFFF}
+[data-skin="cornflower"] .rk .memo-x b{color:#8A5A00}
+/* зал медалей */
+[data-skin="cornflower"] .panel.hall{border-color:#C9D8F7;background:
+  radial-gradient(1.4px 1.4px at 12% 18%,rgba(61,86,143,.25),transparent),radial-gradient(1.2px 1.2px at 38% 72%,rgba(61,86,143,.2),transparent),
+  radial-gradient(1.6px 1.6px at 66% 12%,rgba(61,86,143,.22),transparent),radial-gradient(1.2px 1.2px at 82% 58%,rgba(61,86,143,.18),transparent),
+  radial-gradient(55% 45% at 8% 0%,rgba(159,186,241,.35),transparent 70%),radial-gradient(50% 50% at 95% 10%,rgba(234,243,178,.6),transparent 70%),
+  radial-gradient(70% 60% at 50% 115%,rgba(159,186,241,.3),transparent 70%),linear-gradient(180deg,#F7FAFF,#EEF3FD)}
+[data-skin="cornflower"] .md.none{--c:#B9C8EA;border-color:#B9C8EA;background:#FFFFFF;color:#7D8BB0}
+[data-skin="cornflower"] .md.none.wip{border-color:#4A6BC4;color:#3D568F;background:#EEF3FD}
+[data-skin="cornflower"] .md.none:hover{border-color:#4A6BC4}
+[data-skin="cornflower"] .md.sel{outline-color:#22335E}
+[data-skin="cornflower"] .md{box-shadow:0 6px 14px -8px rgba(34,51,94,.45)}
+[data-skin="cornflower"] .pinfo a{color:#3D568F}
+[data-skin="cornflower"] .wip-tag{color:#3D568F;background:#E6EDFC;border-color:#9FBAF1}
+[data-skin="cornflower"] .wip-tag::before{background:#4A6BC4;box-shadow:0 0 6px #9FBAF1}
+/* карточки показателей */
+[data-skin="cornflower"] .kpi:hover{border-color:#9FBAF1;box-shadow:0 16px 30px -16px #3D568F}
+[data-skin="cornflower"] .kpi .dt{color:#1F6B45;background:linear-gradient(90deg,rgba(67,209,155,.18),rgba(159,186,241,.18));border-color:rgba(47,138,91,.45);box-shadow:none}
+[data-skin="cornflower"] .kpi .dt::after{background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.7) 50%,transparent 65%)}
+[data-skin="cornflower"] .kpi.top{background:radial-gradient(90% 120% at 100% 100%,rgba(159,186,241,.45),transparent 60%),linear-gradient(140deg,#3D568F,#2F4475);border-color:#2F4475}
+[data-skin="cornflower"] .kpi.top:hover{box-shadow:0 16px 34px -14px #3D568F}
+[data-skin="cornflower"] .kpi.top .lb,[data-skin="cornflower"] .kpi.top .more{color:#C9D6F2}
+[data-skin="cornflower"] .kpi.top .more b{color:#FFFFFF}
+[data-skin="cornflower"] .kpi.top .dt{color:#EAF3B2;background:rgba(234,243,178,.14);border-color:rgba(234,243,178,.45)}
+[data-skin="cornflower"] .kpi.top .dt .ar{background:#EAF3B2;color:#2F3B0E}
+[data-skin="cornflower"] .kpi.top .dt.flat{color:#C9D6F2;background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.18)}
+[data-skin="cornflower"] .pring{background:conic-gradient(#3D568F calc(var(--pp)*1%),#E3EBFC 0)}
+[data-skin="cornflower"] .seg button[aria-pressed="true"]{color:#2F3B0E}
+/* ближайшая цель */
+[data-skin="cornflower"] .pgoal .row b{color:#3D568F}
+[data-skin="cornflower"] .pgoal .pbar i{background:linear-gradient(90deg,#9FBAF1,#3D568F)}
+[data-skin="cornflower"] .pgoal .tip{background:#F4F8D6;border-left-color:#B5C94A}
+[data-skin="cornflower"] .pgoal .go{color:#2F3B0E}
+/* календарь */
+[data-skin="cornflower"] .cal-nav:hover{border-color:#9FBAF1}
+[data-skin="cornflower"] .cal-grid .wd.we{color:#4A6BC4}
+[data-skin="cornflower"] .cd{color:#2C3D66}
+[data-skin="cornflower"] .cd:hover{border-color:#9FBAF1}
+[data-skin="cornflower"] .cd.prog,[data-skin="cornflower"] .cal-leg .lg-prog{background:#EEF2FA;color:#22335E;border:1.5px dashed #8FA0C8}
+[data-skin="cornflower"] .cd.miss,[data-skin="cornflower"] .cal-leg .lg-miss{background:#FDE7EC;color:#B02A4A;border:1.5px solid #E05A78}
+[data-skin="cornflower"] .cd.miss:hover{border-color:#C2365A}
+[data-skin="cornflower"] .cd .brk{background:#FFFFFF;stroke:#E05A78}
+[data-skin="cornflower"] .cd.today{color:#3D568F}
+[data-skin="cornflower"] .cd.today::before{background:conic-gradient(from var(--a,0deg),#3D568F,#9FBAF1,#C8DA6A,#3D568F)}
+[data-skin="cornflower"] .cal-leg .lg-today{border-color:#3D568F}
+[data-skin="cornflower"] .cd.sel{outline-color:#22335E}
+/* путь: подсказка над станцией */
+[data-skin="cornflower"] .ptip{background:#22335E;color:#FFFFFF}
+/* средний ранг пишется цветом ранга — на белой карточке делаем его темнее, чтобы читался */
+[data-skin="cornflower"] .kpi .vl.vname{filter:brightness(.62) saturate(1.25)}
