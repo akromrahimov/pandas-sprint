@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="expect" href="#page-ready" blocking="render">
 <script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
-<link rel="stylesheet" href="./static/css/style.css?v=202611082056">
+<link rel="stylesheet" href="./static/css/style.css?v=202611082110">
 </head>
 <body>
 <header class="site-head">
@@ -109,6 +109,15 @@
   </div>
 </header>
 
+<script>try{var t=+localStorage.getItem("pandas-sprint:nudge-closed");if(t&&Date.now()-t<6048e5)document.documentElement.classList.add("nudge-off")}catch(e){}</script>
+<aside class="login-nudge" aria-label="Сохранение прогресса">
+  <div class="in">
+    <p><b>Не потеряй прогресс.</b> Войди через Google: очки и уроки сохранятся в аккаунте, и их будет видно на любом устройстве. <a href="./#data">Что записывается</a></p>
+    <button type="button" class="auth-go nudge-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+    <button type="button" class="nudge-x" data-nudge-close aria-label="Скрыть на неделю" title="Скрыть на неделю">×</button>
+  </div>
+</aside>
+
 <main class="page">
   <section>
     <div class="eyebrow">404</div>
@@ -125,9 +134,9 @@
   </div>
 </footer>
 <div class="toast" id="toast" hidden></div>
-<script src="./static/js/site.js?v=202611082056"></script>
+<script src="./static/js/site.js?v=202611082110"></script>
 <script type="application/json" id="firebase-config" data-track="https://br-cold-unit-ba9jxv7c-track.compute.c-8.eu-central-1.aws.neon.tech/">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
-<script type="module" src="./static/js/auth.js?v=202611082056"></script>
+<script type="module" src="./static/js/auth.js?v=202611082110"></script>
 <span id="page-ready" hidden></span>
 </body>
 </html>

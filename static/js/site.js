@@ -216,6 +216,12 @@ window.ProgressSync = ProgressSync;
 
 window.Progress = Progress;
 
+/* ---------- полоса «Войди через Google»: крестик прячет её на неделю ---------- */
+document.querySelector("[data-nudge-close]")?.addEventListener("click", () => {
+  try { localStorage.setItem("pandas-sprint:nudge-closed", String(Date.now())); } catch (e) { /* приватный режим */ }
+  document.documentElement.classList.add("nudge-off");
+});
+
 /* ---------- учёт действий ученика в базе курса ----------
    Страницы только сообщают о действиях, отправляет их auth.js. Пока неизвестно, вошёл ли ученик, действия ждут
    в очереди. Без входа не записывается ничего. */
