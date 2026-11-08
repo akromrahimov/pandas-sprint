@@ -216,6 +216,28 @@ window.ProgressSync = ProgressSync;
 
 window.Progress = Progress;
 
+/* ---------- учёт действий ученика в базе курса ----------
+   Страницы только сообщают о действиях, отправляет их auth.js. Пока неизвестно, вошёл ли ученик, действия ждут
+   в очереди. Без входа не записывается ничего. */
+const Track = {
+  active: null,          // null — вход ещё проверяется, true — ученик вошёл, false — без входа
+  events: [],
+  results: new Map(),    // итог урока по его номеру
+  notify: null,
+  send(event, day = null, task = null) {
+    if (this.active === false) return;
+    this.events.push({ event, day, task });
+    this.notify?.();
+  },
+  result(day, xp, finished_on) {
+    if (this.active === false) return;
+    this.results.set(day, { day, xp, finished_on });
+    this.notify?.();
+  },
+  stop() { this.active = false; this.events.length = 0; this.results.clear(); },
+};
+window.Track = Track;
+
 /* ---------- учёт занятий по дням (для календаря и «Занимался») ----------
    store.activity["2026-11-04"] = { sec: { "1": 1250, "2": 300 }, quiz: true }
    sec — сколько секунд ученик реально провёл на странице каждого урока в этот день, quiz — ответил ли хотя бы на один вопрос квиза.

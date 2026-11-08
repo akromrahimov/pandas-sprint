@@ -19,7 +19,7 @@
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="expect" href="#page-ready" blocking="render">
 <script type="speculationrules">{"prefetch":[{"where":{"href_matches":"/*"},"eagerness":"moderate"}]}</script>
-<link rel="stylesheet" href="./static/css/style.css?v=202611072255">
+<link rel="stylesheet" href="./static/css/style.css?v=202611082056">
 </head>
 <body>
 <header class="site-head">
@@ -58,11 +58,13 @@
           <b>Сохраняй прогресс в облаке</b>
           <p>Войди через Google — очки, ранги и календарь будут на любом устройстве.</p>
           <button type="button" class="auth-go" data-auth-login><span class="g" aria-hidden="true">G</span>Войти через Google</button>
+          <a class="auth-data" href="./#data">После входа сайт записывает твои уроки и действия. Что именно?</a>
         </div>
         <div data-in hidden>
           <b data-auth-name></b>
           <small data-auth-mail></small>
           <span class="auth-state" data-auth-state>Прогресс сохранён</span>
+          <a class="auth-data" href="./#data">Какие данные записываются</a>
           <button type="button" class="auth-exit" data-auth-logout>Выйти</button>
         </div>
       </div>
@@ -258,7 +260,7 @@
       <details><summary>Мне нужно что-то устанавливать?</summary><p>Нет. Код запускается прямо в браузере на этой странице. Если хочешь работать как настоящий аналитик, в разделе <a href="./start/">«Как начать»</a> есть инструкция по установке Python, VS Code и Jupyter.</p></details>
       <details><summary>Я никогда не программировал и не знаю SQL. Справлюсь?</summary><p>Курс рассчитан на начинающих. Всё, что нужно из Python, объясняется по ходу простыми словами. Если ты знаешь SQL, в каждом уроке есть кнопка «SQL → pandas»: она открывает таблицу-переводчик с SQL на pandas.</p></details>
       <details><summary>Где хранится мой прогресс?</summary><p>В твоём браузере на этом устройстве. Войди через Google (кнопка вверху справа) — и прогресс сохранится в облаке: его будет видно с телефона и любого компьютера.</p></details>
-      <details><summary>Данные в уроках настоящие?</summary><p>Компании и данные учебные, но устроены как реальные выгрузки: с пропусками, дублями, опечатками и выбросами.</p></details>
+<details><summary>Какие данные о тебе записывает сайт?</summary><p id="data">Без входа — никаких: прогресс остаётся только в твоём браузере. После входа через Google в базу курса записываются имя и почта из аккаунта, даты входов, закрытые уроки с очками и рангом, а также действия: какой урок открыт, на какой вопрос квиза дан ответ, какая задача решена, какая подсказка открыта, сдан ли кейс. Твой код и текст ответов в эту базу не попадают. Это нужно, чтобы видеть, какие уроки проходят легко, а где ученики застревают, и улучшать курс. Данные видны только автору курса. Чтобы удалить свои, попроси об этом автора.</p></details>      <details><summary>Данные в уроках настоящие?</summary><p>Компании и данные учебные, но устроены как реальные выгрузки: с пропусками, дублями, опечатками и выбросами.</p></details>
     </div>
   </section>
 </main>
@@ -270,9 +272,9 @@
   </div>
 </footer>
 <div class="toast" id="toast" hidden></div>
-<script src="./static/js/site.js?v=202611072255"></script>
-<script type="application/json" id="firebase-config">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
-<script type="module" src="./static/js/auth.js?v=202611072255"></script>
+<script src="./static/js/site.js?v=202611082056"></script>
+<script type="application/json" id="firebase-config" data-track="https://br-cold-unit-ba9jxv7c-track.compute.c-8.eu-central-1.aws.neon.tech/">{"apiKey": "AIzaSyBFU6kS4WIo2rxzcyJ9b4YBkBJEE364Bcs", "appId": "1:708176765288:web:df284f9da66c64df6af6dd", "authDomain": "pandas-sprint.firebaseapp.com", "projectId": "pandas-sprint"}</script>
+<script type="module" src="./static/js/auth.js?v=202611082056"></script>
 <span id="page-ready" hidden></span>
 </body>
 </html>

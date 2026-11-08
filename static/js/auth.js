@@ -27,6 +27,7 @@ let user = null, pending = false, lastPush = 0, timer = null;
 const ls = {
   get: k => { try { return localStorage.getItem(k); } catch (e) { return null; } },
   set: (k, v) => { try { localStorage.setItem(k, v); } catch (e) { /* приватный режим */ } },
+  del: k => { try { localStorage.removeItem(k); } catch (e) { /* приватный режим */ } },
 };
 
 /* ---------- кнопка в шапке и окошко аккаунта ---------- */
@@ -62,6 +63,8 @@ async function login() {
 document.querySelectorAll("[data-auth-login]").forEach(b => b.addEventListener("click", login));
 box.querySelector("[data-auth-logout]").addEventListener("click", async () => {
   await push(true);                        // сначала дописываем последние изменения
+  await flushTrack();
+  ls.del(VISIT);                           // следующий вход этого ученика — новый вход, даже в тот же день
   await signOut(auth);
   pop.hidden = true;
   toast("Ты вышел. Прогресс остался и в этом браузере, и в аккаунте");
@@ -94,10 +97,61 @@ ProgressSync.listeners.push(schedule);
 // ученик закрывает вкладку или переключается — отправляем сразу, не дожидаясь двух минут
 document.addEventListener("visibilitychange", () => { if (document.visibilityState === "hidden" && pending) push(); });
 
+/* ---------- учёт действий в базе SQL (backend/track.mjs) ----------
+   Посредник проверяет вход по токену Firebase и записывает данные. Ошибки сюда не выходят: учёт не должен мешать учёбе. */
+const TRACK_URL = document.getElementById("firebase-config").dataset.track;
+const VISIT = "pandas-sprint:visit";       // кто и в какой день уже отмечен как вошедший
+const TRACK_DELAY = 4000;                  // действия отправляем пачкой: через 4 секунды после первого
+const { Track } = window;
+let trackTimer = null, token = null;
+
+const hasTrack = () => Track.events.length || Track.results.size;
+
+async function refreshToken() {
+  const r = await user.getIdTokenResult();
+  token = { value: r.token, exp: Date.parse(r.expirationTime) };
+}
+function postTrack() {
+  const body = JSON.stringify({ events: Track.events.splice(0, 50), results: [...Track.results.values()] });
+  Track.results.clear();
+  // keepalive: запрос дойдёт, даже если ученик уже перешёл на другую страницу
+  fetch(TRACK_URL, {
+    method: "POST", keepalive: true, body,
+    headers: { Authorization: `Bearer ${token.value}`, "Content-Type": "application/json" },
+  }).catch(() => {});
+  if (Track.events.length) scheduleTrack();
+}
+async function flushTrack() {
+  clearTimeout(trackTimer); trackTimer = null;
+  if (!user || !Track.active || !hasTrack()) return;
+  try { await refreshToken(); } catch (e) { return; }   // нет связи: действия подождут следующей отправки
+  if (user && hasTrack()) postTrack();
+}
+function scheduleTrack() {
+  if (!user || !Track.active || trackTimer) return;
+  trackTimer = setTimeout(flushTrack, TRACK_DELAY);
+}
+Track.notify = scheduleTrack;
+// при уходе со страницы ждать новый токен некогда: если текущий ещё действует, отправляем сразу
+document.addEventListener("visibilitychange", () => {
+  if (document.visibilityState !== "hidden" || !user || !Track.active || !hasTrack()) return;
+  if (token && Date.now() < token.exp - 60000) { clearTimeout(trackTimer); trackTimer = null; postTrack(); }
+  else flushTrack();
+});
+// вход отмечаем раз в день; вместе с ним отправляем все закрытые уроки — так в базу попадает и прежний прогресс
+async function trackVisit(u, data) {
+  const stamp = `${u.uid}|${Activity.key()}`;
+  if (ls.get(VISIT) === stamp) return;
+  Track.send("login");
+  Object.entries(data.days || {}).forEach(([day, s]) => { if (s.finished) Track.result(Number(day), s.xp || 0, s.finishedOn); });
+  await flushTrack();
+  if (!hasTrack()) ls.set(VISIT, stamp);   // нет связи: отметим вход при следующем открытии страницы
+}
+
 onAuthStateChanged(auth, async u => {
   user = u;
   render();
-  if (!u) return;
+  if (!u) { Track.stop(); return; }
   setState("Загружаю прогресс…");
   let cloud = null;
   try {
@@ -121,6 +175,10 @@ onAuthStateChanged(auth, async u => {
     merged = ProgressSync.merge(local, cloud);   // прогресс, набранный без входа, добавляется к аккаунту
   }
   ls.set(OWNER, u.uid);
+  Track.active = true;
+  refreshToken().catch(() => {});
+  await trackVisit(u, merged);
+  scheduleTrack();
   const changedHere = !ProgressSync.same(merged, local);
   const changedCloud = !cloud || !ProgressSync.same(ProgressSync.forCloud(merged), ProgressSync.forCloud(cloud));
   if (changedHere) Progress.save(merged);

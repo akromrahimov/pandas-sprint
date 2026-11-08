@@ -24,6 +24,8 @@ function canFinish() { return solvedCount() === LESSON.tasks.length && caseClose
 // Нужен странице «Мой прогресс» для графика роста и «лучше, чем вчера».
 // Очки, набранные до появления журнала, не имеют даты — страница прогресса покажет их как стартовые.
 me.xpLogged ??= me.xp || 0;
+let wasFinished = !!me.finished;
+Track.send("lesson_open", LESSON.day);
 // галочки в оглавлении у блоков с заданиями: квиз — ответил на все вопросы, практика — решены все задачи,
 // кейс — ответ принят (если открыл пример ответа, кейс не решён и галочки нет), «Завершить» — урок пройден
 function markBlocks() {
@@ -49,6 +51,9 @@ function save() {
     me.finishedOn = Activity.key();    // день, когда урок закрыт: в календаре он будет цвета ранга
     toast(`Урок пройден! ${me.xp} XP`);
   }
+  if (me.finished && (!wasFinished || delta)) Track.result(LESSON.day, me.xp, me.finishedOn);
+  if (me.finished && !wasFinished) Track.send("lesson_finish", LESSON.day);
+  wasFinished = !!me.finished;
   Progress.save(store);
   $("#xpNow").textContent = `${me.xp} / ${LESSON.xp} XP`;
   $("#tasksNow").textContent = `${solvedCount()} из ${LESSON.tasks.length}`;
@@ -290,6 +295,7 @@ async function runTask(task, check) {
   const st = me.tasks[id] ||= {};
   if (!st.ok) {
     st.ok = true;
+    Track.send("task_solved", LESSON.day, id);
     toast(`Верно! +${taskXp(t)} XP`);
   }
   st.xp = taskXp(t);
@@ -392,6 +398,7 @@ document.addEventListener("click", e => {
     if (!st.hint && !st.peek) {
       // подсказка одна; штраф только за первое открытие и только пока задача не решена
       if (st.ok) st.peek = true; else { st.hint = true; toast(`Подсказка открыта: −${HINT_COST} XP за эту задачу`); }
+      Track.send("hint_open", LESSON.day, id);
       save();
     }
     box.hidden = false;
@@ -420,6 +427,7 @@ document.querySelectorAll(".qz[data-q]").forEach(qz => {
     if (!b || b.disabled) return;
     me.quiz[q] = Number(b.dataset.i);
     Activity.day(store).quiz = true;   // ответ в квизе — этот день уже считается днём занятий
+    Track.send("quiz_answer", LESSON.day, `q${q}`);
     answerQuiz(qz, me.quiz[q]);
     if (me.quiz[q] === Number(qz.dataset.a)) toast(`Верно! +${LESSON.quiz_xp / LESSON.quiz.length} XP`);
     save();
@@ -554,6 +562,7 @@ if (caseCheckBtn) {
       say("bad", `<b>Цифры верные, но вывод расходится с ними</b> в ${wrong.length} из ${qs.length} вопросов. Прочитай пояснение под вопросом, поправь текст и нажми «Проверить ответ» ещё раз.`);
       return;
     }
+    if (!me.caseRight) Track.send("case_submit", LESSON.day);
     me.caseRight = true;
     if (me.caseGaveUp && !me.caseDone) {
       // пример уже был открыт до решения: ответ верный, но очки не начисляются
